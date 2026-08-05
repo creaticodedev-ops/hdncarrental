@@ -86,7 +86,7 @@ const Footer = () => {
               <li>AB IBN BATTOUTA QUARTIER AZIB DERAI,SAFI</li>
               <li>Safi, Maroc</li>
               <li>+212 6 61 86 51 84</li>
-              <li>americonfort@gmail.com</li>
+              <li>haddanecar@gmail.com</li>
             </ul>
           </div>
         </Motion.div>
