@@ -50,7 +50,10 @@ await connectDB();
 
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(",").map((o) => o.trim()).filter(Boolean)
-  : ["https://americonfort.com","https://www.americonfort.com","http://localhost:5173", "http://localhost:3000"];
+  : [ "https://hdncar.com",
+      "https://www.hdncar.com",
+      "http://localhost:5173",
+      "http://localhost:3000"];
 
 app.use(
   cors({
