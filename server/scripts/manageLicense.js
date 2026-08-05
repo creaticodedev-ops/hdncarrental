@@ -25,7 +25,7 @@ import {
 
 const usage = () => {
   console.log(`
-Americonfort — License Manager (single agency)
+HDN Car — License Manager (single agency)
 
   status              Show current license / trial
   activate            Grant permanent full access (licenseStatus=active)

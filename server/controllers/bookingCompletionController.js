@@ -496,8 +496,8 @@ export const sendTestEmail = async (req, res) => {
     }
     const result = await sendEmail({
       to,
-      subject: "Americonfort — SMTP test",
-      html: `<p>This is a test email from Americonfort.</p><p>If you received this, SMTP delivery is working.</p><p>${new Date().toISOString()}</p>`,
+      subject: "HDN Car — SMTP test",
+      html: `<p>This is a test email from HDN Car.</p><p>If you received this, SMTP delivery is working.</p><p>${new Date().toISOString()}</p>`,
     });
     res.status(result.success ? 200 : 502).json({
       success: result.success,

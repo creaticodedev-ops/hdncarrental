@@ -52,7 +52,7 @@ export const en = {
   testimonials: {
     eyebrow: 'Client stories',
     title: 'Trusted on every journey',
-    subtitle: 'Travelers choose Americonfort for reliability, clarity, and a premium rental experience.',
+    subtitle: 'Travelers choose HDN Car for reliability, clarity, and a premium rental experience.',
     items: [
       { name: 'Sarah M.', location: 'Casablanca', text: 'Excellent service, the car was spotless and the booking process was incredibly easy.' },
       { name: 'Ahmed K.', location: 'Casablanca', text: 'Very professional team. The vehicle was exactly as described. Highly recommended.' },
@@ -326,7 +326,7 @@ export const fr = {
   testimonials: {
     eyebrow: 'Avis clients',
     title: 'La confiance à chaque trajet',
-    subtitle: 'Les voyageurs choisissent Americonfort pour la fiabilité, la clarté et une expérience premium.',
+    subtitle: 'Les voyageurs choisissent HDN Car pour la fiabilité, la clarté et une expérience premium.',
     items: [
       { name: 'Sarah M.', location: 'Casablanca', text: 'Excellent service, la voiture était impeccable et la réservation très simple.' },
       { name: 'Ahmed K.', location: 'Casablanca', text: 'Équipe très professionnelle. Le véhicule était exactement comme décrit. Je recommande.' },
@@ -599,7 +599,7 @@ export const es = {
   testimonials: {
     eyebrow: 'Voces de clientes',
     title: 'Confianza en cada viaje',
-    subtitle: 'Los viajeros eligen Americonfort por fiabilidad, claridad y una experiencia premium.',
+    subtitle: 'Los viajeros eligen HDN Car por fiabilidad, claridad y una experiencia premium.',
     items: [
       { name: 'Sarah M.', location: 'Casablanca', text: 'Excelente servicio, el coche estaba impecable y el proceso de reserva fue muy fácil.' },
       { name: 'Ahmed K.', location: 'Casablanca', text: 'Equipo muy profesional. El vehículo era exactamente como se describía. Muy recomendable.' },

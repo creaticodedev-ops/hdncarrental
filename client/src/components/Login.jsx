@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { resolveOwnerPermissions } from '../utils/ownerPermissions'
+import { BRAND_NAME } from '../constants/brand'
 
 const Login = () => {
   const {
@@ -89,6 +90,7 @@ const Login = () => {
         className="flex flex-col gap-4 w-full sm:w-[352px] items-stretch p-6 sm:p-8 py-8 sm:py-12 rounded-t-2xl sm:rounded-xl shadow-xl border border-gray-200 bg-white"
       >
         <p id="admin-login-title" className="text-2xl font-medium text-center">
+          <span className="block text-sm font-normal tracking-wide text-gray-500 mb-1">{BRAND_NAME}</span>
           <span className="text-primary">{t('login.title')}</span>
         </p>
         <div className="w-full">

@@ -56,7 +56,7 @@ const seed = async () => {
       password: hashed,
       role: 'superadmin',
       accountStatus: 'active',
-      agencyName: 'Americonfort',
+      agencyName: 'HDN Car',
       licenseStatus: 'active',
       licensedAt: new Date(),
     });

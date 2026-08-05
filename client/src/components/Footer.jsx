@@ -3,6 +3,7 @@ import { assets } from '../assets/assets'
 import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import { Link } from "react-router-dom";
+import { BRAND_NAME } from '../constants/brand'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -23,7 +24,7 @@ const Footer = () => {
           <Motion.img
             {...fadeUp(0.2)}
             src={assets.logo}
-            alt="logo"
+            alt={BRAND_NAME}
             className="block h-9 sm:h-10 lg:h-11 mb-3 w-auto max-h-10 lg:max-h-11 object-contain"
           />
 
@@ -82,9 +83,9 @@ const Footer = () => {
               {t('footer.contact')}
             </h2>
             <ul className="mt-4 flex flex-col gap-2 break-words">
-              <li>Aéroport international Mohamed V</li>
-              <li>Casablanca, Maroc</li>
-              <li>+212 6 70 55 10 55</li>
+              <li>AB IBN BATTOUTA QUARTIER AZIB DERAI,SAFI</li>
+              <li>Safi, Maroc</li>
+              <li>+212 6 61 86 51 84</li>
               <li>americonfort@gmail.com</li>
             </ul>
           </div>

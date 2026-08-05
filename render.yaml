@@ -1,4 +1,4 @@
-# Render Blueprint — Americonfort API
+# Render Blueprint — HDN Car API
 # Docs: https://render.com/docs/blueprint-spec
 services:
   - type: web
