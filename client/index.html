@@ -19,28 +19,15 @@
     <meta name="twitter:description" content="HDN Car - premium car rental in Morocco. Browse vehicles and reserve online with ease." />
     <title>HDN Car - Premium Car Rental in Morocco</title>
 
-    <!-- Preconnect + non-blocking fonts (display=swap). Reduced weights vs full family. -->
+    <!-- Fonts: display=swap, no render-blocking @import in CSS -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      rel="preload"
-      as="style"
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Outfit:wght@300;400;500;600&display=swap"
-    />
-    <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Outfit:wght@300;400;500;600&display=swap"
-      media="print"
-      onload="this.media='all'"
     />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Outfit:wght@300;400;500;600&display=swap"
-      />
-    </noscript>
 
-    <!-- LCP hero: preload WebP used by picture fallback -->
+    <!-- LCP hero — same URL as <img src> to avoid unused-preload warnings -->
     <link rel="preload" as="image" href="/images/main_car.webp" type="image/webp" fetchpriority="high" />
   </head>
   <body>

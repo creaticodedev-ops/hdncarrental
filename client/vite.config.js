@@ -21,17 +21,17 @@ export default defineConfig({
     cssCodeSplit: true,
     sourcemap: false,
     reportCompressedSize: false,
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 900,
+    // Do NOT manually split react/motion — that caused runtime TDZ:
+    // "Cannot access 'm' before initialization" (circular chunk graph).
+    // Route-level React.lazy() already code-splits the app safely.
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return
-          if (id.includes('motion') || id.includes('framer-motion')) return 'motion'
-          if (id.includes('react-router')) return 'router'
-          if (id.includes('axios')) return 'axios'
-          if (id.includes('react-phone-number-input') || id.includes('libphonenumber-js')) return 'phone'
-          if (id.includes('react-dom') || id.includes('/react/') || id.includes('\\react\\')) {
-            return 'react-vendor'
+          // Safe isolation: phone stack is only needed on reservation pages
+          if (id.includes('react-phone-number-input') || id.includes('libphonenumber-js')) {
+            return 'phone'
           }
         },
       },

@@ -62,7 +62,11 @@ const CarDetails = () => {
         else setNotFound(true)
       } catch (error) {
         if (error.response?.status === 404) setNotFound(true)
-        else toast.error(getErrorMessage(error))
+        else {
+          toast.error(getErrorMessage(error))
+          // Avoid infinite "Loading" shell when the fleet list is empty and the detail fetch fails
+          setNotFound(true)
+        }
       }
     }
 

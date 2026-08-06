@@ -110,7 +110,13 @@ app.use(
   })
 );
 
-app.get("/", (_req, res) => res.json({ success: true, message: "Server is running" }));
+app.get("/", (req, res, next) => {
+  // When the built SPA is served from this process, defer `/` to the HTML shell.
+  if (hasBuiltClient && req.accepts("html") && !req.path.startsWith("/api")) {
+    return next()
+  }
+  return res.json({ success: true, message: "Server is running" })
+})
 
 app.get("/health", async (_req, res) => {
   const dbState = mongoose.connection.readyState;

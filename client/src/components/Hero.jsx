@@ -126,7 +126,6 @@ const Hero = () => {
           className="mt-8 flex w-full max-w-3xl justify-center px-2 sm:mt-10 md:mt-14"
         >
           <picture>
-            <source srcSet={HERO_IMAGE.avif} type="image/avif" />
             <source srcSet={HERO_IMAGE.webp} type="image/webp" />
             <img
               src={HERO_IMAGE.webp}

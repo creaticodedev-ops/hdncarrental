@@ -101,30 +101,6 @@ export const AppProvider = ({ children })=>{
         }
     }, [])
 
-    // Soft revalidate: paint cached fleet instantly, then refresh (same API/contract)
-    useEffect(()=>{
-        try {
-            const raw = sessionStorage.getItem('hdn_cars_cache')
-            if (!raw) return
-            const parsed = JSON.parse(raw)
-            if (Array.isArray(parsed?.cars) && Date.now() - (parsed.ts || 0) < 120_000) {
-                setCars(parsed.cars)
-                setCarsLoading(false)
-            }
-        } catch {
-            /* ignore corrupt cache */
-        }
-    }, [])
-
-    useEffect(()=>{
-        if (!cars?.length) return
-        try {
-            sessionStorage.setItem('hdn_cars_cache', JSON.stringify({ cars, ts: Date.now() }))
-        } catch {
-            /* quota / private mode */
-        }
-    }, [cars])
-
     const logout = useCallback(()=>{
         resetOwnerAuth()
         toast.success('You have been logged out')

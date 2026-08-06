@@ -36,7 +36,6 @@ import car_image1 from "./car_image1.webp"
 
 /** Stable public URL for LCP preload (unhashed). Prefer over bundled assets on hero. */
 export const HERO_IMAGE = {
-  avif: '/images/main_car.avif',
   webp: '/images/main_car.webp',
 }
 
