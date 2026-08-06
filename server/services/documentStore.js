@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import imagekit from "../configs/imageKit.js";
 import { cleanupUploadedFile } from "../middleware/multer.js";
+import { moveUploadedFile } from "../utils/fileMove.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,7 +44,7 @@ export const storeDocumentImage = async (file, folder = "/booking-docs") => {
   const name = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
   const dest = path.join(reservationFolder, name);
   console.log('[STORE_DOC_IMAGE] Moving file from', file.path, 'to', dest);
-  fs.renameSync(file.path, dest);
+  moveUploadedFile(file.path, dest);
 
   const base = (process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, "");
   const url = `${base}/uploads/documents/files/${name}`;

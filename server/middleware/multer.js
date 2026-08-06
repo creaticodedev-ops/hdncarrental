@@ -1,7 +1,22 @@
 import multer from 'multer';
 import fs from 'fs';
+import path from 'path';
+import { ensureUploadTmpDir } from '../utils/fileMove.js';
 
-const storage = multer.diskStorage({});
+/** Keep multer temp files under /uploads/tmp (same volume as permanent uploads). */
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    try {
+      cb(null, ensureUploadTmpDir());
+    } catch (err) {
+      cb(err);
+    }
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '') || '.bin';
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  },
+});
 
 const fileFilter = (_req, file, cb) => {
   if (file.mimetype?.startsWith('image/')) cb(null, true);

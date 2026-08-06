@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { cleanupUploadedFile } from '../middleware/multer.js';
+import { moveUploadedFile } from '../utils/fileMove.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_ASSET_DIR = path.join(__dirname, '..', 'uploads', 'templates');
@@ -30,7 +31,8 @@ const persistTemplateAsset = (templateId, uploadedFile, kind) => {
   const fileName = `${kind}-${templateId}${safeExt}`;
   const destPath = path.join(TEMPLATE_ASSET_DIR, fileName);
   if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
-  fs.renameSync(uploadedFile.path, destPath);
+  // copy+unlink when rename fails (Windows EXDEV across drives/temp)
+  moveUploadedFile(uploadedFile.path, destPath);
   return destPath;
 };
 
@@ -280,7 +282,7 @@ export const uploadTemplateLogo = async (req, res) => {
     res.json({ success: true, message: 'Logo uploaded', logoUrl: template.logoUrl, template });
   } catch (error) {
     cleanupUploadedFile(req.file);
-    console.error(error.message);
+    console.error('[uploadTemplateLogo]', error?.code || '', error.message);
     res.status(500).json({ success: false, message: 'Failed to upload logo' });
   }
 };
@@ -308,7 +310,7 @@ export const uploadTemplateSignature = async (req, res) => {
     res.json({ success: true, message: 'Signature uploaded', companySignatureUrl: template.companySignatureUrl, template });
   } catch (error) {
     cleanupUploadedFile(req.file);
-    console.error(error.message);
+    console.error('[uploadTemplateSignature]', error?.code || '', error.message);
     res.status(500).json({ success: false, message: 'Failed to upload signature' });
   }
 };
