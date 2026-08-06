@@ -187,22 +187,24 @@ const LocationSelect = ({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-11 w-full items-center gap-2.5 rounded-xl border border-gray-200/90 bg-gray-50/50 px-3 text-left transition focus:outline-none focus-within:border-primary/40 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10 ${
-          open ? 'border-primary/40 bg-white ring-2 ring-primary/10' : 'hover:bg-white'
+        className={`flex h-12 w-full items-center gap-3 rounded-2xl border border-borderColor/80 bg-white px-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition duration-200 focus:outline-none ${
+          open
+            ? 'border-primary/35 shadow-[0_0_0_3px_rgba(143,31,31,0.08)]'
+            : 'hover:border-borderColor focus-visible:border-primary/35 focus-visible:shadow-[0_0_0_3px_rgba(143,31,31,0.08)]'
         }`}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-gray-400 shadow-sm ring-1 ring-gray-100">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
             <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" />
             <circle cx="12" cy="10" r="2.5" />
           </svg>
         </span>
-        <span className={`min-w-0 flex-1 truncate text-sm ${selected ? 'text-ink font-medium' : 'text-gray-400'}`}>
+        <span className={`min-w-0 flex-1 truncate text-[15px] leading-none ${selected ? 'font-medium text-ink' : 'text-muted/55'}`}>
           {selected ? selected.label : placeholder}
         </span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`shrink-0 text-muted/70 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>

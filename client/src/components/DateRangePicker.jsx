@@ -289,7 +289,7 @@ const DateRangePicker = ({
     start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000)) : 0
 
   const fieldBase =
-    'flex-1 min-w-0 h-14 px-4 text-left transition-colors duration-200 cursor-pointer rounded-xl md:rounded-none flex flex-col justify-center'
+    'flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 cursor-pointer rounded-2xl md:rounded-none flex flex-col justify-center'
 
   const calendarPanel = open && (
     <div
@@ -396,31 +396,29 @@ const DateRangePicker = ({
 
   return (
     <div className={`relative ${className}`} ref={wrapRef}>
-      <div className="flex flex-col md:flex-row md:items-stretch">
+      <div className="flex flex-col divide-y divide-borderColor/80 md:flex-row md:items-stretch md:divide-x md:divide-y-0">
         <button
           type="button"
           onClick={() => openCalendar('start')}
-          className={`${fieldBase} ${open && activeField === 'start' ? 'bg-sand/70' : 'hover:bg-sand/40'}`}
+          className={`${fieldBase} ${open && activeField === 'start' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
         >
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted font-medium mb-1">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
             {pickupLabel || t('hero.pickupDate')}
           </p>
-          <p className={`text-sm truncate ${startDate ? 'text-ink font-medium' : 'text-muted'}`}>
+          <p className={`truncate text-[15px] leading-none ${startDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
             {startDate ? formatShort(startDate, language) : t('hero.selectPickup')}
           </p>
         </button>
 
-        <div className="hidden md:block w-px bg-borderColor my-3" />
-
         <button
           type="button"
           onClick={() => openCalendar(start ? 'end' : 'start')}
-          className={`${fieldBase} ${open && activeField === 'end' ? 'bg-sand/70' : 'hover:bg-sand/40'}`}
+          className={`${fieldBase} ${open && activeField === 'end' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
         >
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted font-medium mb-1">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
             {returnLabel || t('hero.returnDate')}
           </p>
-          <p className={`text-sm truncate ${endDate ? 'text-ink font-medium' : 'text-muted'}`}>
+          <p className={`truncate text-[15px] leading-none ${endDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
             {endDate ? formatShort(endDate, language) : t('hero.selectReturn')}
           </p>
         </button>

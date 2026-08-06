@@ -183,13 +183,21 @@ body.nav-open {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
+  min-height: 100%;
 }
 
 .phone-input-field .PhoneInputCountry {
-  margin-right: 0.25rem;
+  margin-right: 0.125rem;
+}
+
+.phone-input-field .PhoneInputCountrySelect {
+  font-size: 15px;
 }
 
 .phone-input-field .PhoneInputInput {
   flex: 1;
   min-width: 0;
+  font-size: 15px;
+  line-height: 1;
 }

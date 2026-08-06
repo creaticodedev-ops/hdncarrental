@@ -5,24 +5,32 @@ import LocationSelect from './LocationSelect'
 import ReservationDateTimes from './ReservationDateTimes'
 import { WhatsAppButton } from '../forms/PremiumFormUI'
 
+/** Shared control shell — 48px touch height, full width, premium quiet chrome */
 const inputShell =
-  'flex h-11 w-full items-center gap-2.5 rounded-xl border border-gray-200/90 bg-gray-50/50 px-3 text-sm text-ink transition focus-within:border-primary/40 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10'
+  'flex h-12 w-full items-center gap-3 rounded-2xl border border-borderColor/80 bg-white px-3.5 text-sm text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition duration-200 focus-within:border-primary/35 focus-within:shadow-[0_0_0_3px_rgba(143,31,31,0.08)]'
 
 const fieldInput =
-  'min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-ink placeholder:text-gray-400 focus:outline-none focus:ring-0'
-
-const controlHeightClass = 'h-11'
+  'min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[15px] leading-none text-ink placeholder:text-muted/55 focus:outline-none focus:ring-0'
 
 const Label = ({ children, htmlFor }) => (
-  <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-gray-600">
+  <label htmlFor={htmlFor} className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
     {children}
   </label>
 )
 
 const IconWrap = ({ children }) => (
-  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-gray-400 shadow-sm ring-1 ring-gray-100">
+  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
     {children}
   </span>
+)
+
+const SectionHeading = ({ step, title }) => (
+  <div className="mb-4 flex items-center gap-3">
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-white">
+      {step}
+    </span>
+    <h3 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h3>
+  </div>
 )
 
 const Icons = {
@@ -49,11 +57,11 @@ const Icons = {
 }
 
 const fade = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0, y: 12 },
   show: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.4, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] },
   }),
 }
 
@@ -61,70 +69,74 @@ function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel,
   const ready = breakdown?.ready
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-gradient-to-b from-gray-50/90 to-white p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-4">
+    <div className="overflow-hidden rounded-2xl border border-borderColor/70 bg-light/60">
+      <div className="flex items-start justify-between gap-3 border-b border-borderColor/60 px-4 py-4 sm:px-5">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{t('carDetails.summaryTitle')}</p>
-          <p className="mt-1 font-display text-lg font-medium text-gray-900 truncate">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{t('carDetails.summaryTitle')}</p>
+          <p className="mt-1.5 font-display text-xl font-medium leading-none text-ink truncate sm:text-[1.35rem]">
             {car.brand} {car.model}
           </p>
-          {ready && daysLabel ? <p className="mt-0.5 text-xs text-gray-500">{daysLabel}</p> : null}
+          {ready && daysLabel ? <p className="mt-1.5 text-xs text-muted">{daysLabel}</p> : null}
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[11px] text-gray-400">{t('carDetails.rateLabel')}</p>
-          <p className="text-sm font-semibold text-gray-800">
+        <div className="shrink-0 text-right">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted">{t('carDetails.rateLabel')}</p>
+          <p className="mt-1 text-sm font-semibold text-ink">
             {currency}{car.pricePerDay}
-            <span className="text-xs font-normal text-gray-400">{t('carDetails.perDay')}</span>
+            <span className="text-xs font-normal text-muted">{t('carDetails.perDay')}</span>
           </p>
         </div>
       </div>
 
       {!ready ? (
-        <p className="py-4 text-sm text-gray-500 leading-relaxed">{t('carDetails.priceHint')}</p>
+        <p className="px-4 py-5 text-sm leading-relaxed text-muted sm:px-5">{t('carDetails.priceHint')}</p>
       ) : (
-        <ul className="space-y-2.5 py-4 text-sm">
-          <li className="flex justify-between gap-2 text-gray-600">
+        <ul className="space-y-3 px-4 py-4 text-sm sm:px-5">
+          <li className="flex justify-between gap-3 text-muted">
             <span>{t('carDetails.rentalPrice')}</span>
-            <span className="font-medium text-gray-900">{currency}{breakdown.rentalPrice}</span>
+            <span className="font-medium tabular-nums text-ink">{currency}{breakdown.rentalPrice}</span>
           </li>
-          <li className="flex justify-between gap-2 text-gray-600">
+          <li className="flex justify-between gap-3 text-muted">
             <span>{t('carDetails.pickupDeliveryFee')}</span>
-            <span className="font-medium text-gray-900">
+            <span className="font-medium tabular-nums text-ink">
               {breakdown.pickupDeliveryFee <= 0 ? t('carDetails.free') : `${currency}${breakdown.pickupDeliveryFee}`}
             </span>
           </li>
-          <li className="flex justify-between gap-2 text-gray-600">
+          <li className="flex justify-between gap-3 text-muted">
             <span>{t('carDetails.dropoffDeliveryFee')}</span>
-            <span className="font-medium text-gray-900">
+            <span className="font-medium tabular-nums text-ink">
               {breakdown.dropoffDeliveryFee <= 0 ? t('carDetails.free') : `${currency}${breakdown.dropoffDeliveryFee}`}
             </span>
           </li>
           {breakdown.discountTotal > 0 && (
-            <li className="flex justify-between gap-2 text-emerald-700">
+            <li className="flex justify-between gap-3 text-emerald-700">
               <span>{t('carDetails.discounts')}</span>
-              <span className="font-medium">−{currency}{breakdown.discountTotal}</span>
+              <span className="font-medium tabular-nums">−{currency}{breakdown.discountTotal}</span>
             </li>
           )}
         </ul>
       )}
 
       {pickupLabel && returnLabel && (
-        <div className="mb-4 space-y-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
+        <div className="space-y-2 border-t border-borderColor/60 px-4 py-3.5 text-xs leading-relaxed text-muted sm:px-5">
           <p className="line-clamp-2">
-            <span className="font-medium text-gray-700">{t('carDetails.pickupLocation')}:</span> {pickupLabel}
+            <span className="font-semibold text-ink/80">{t('carDetails.pickupLocation')}: </span>
+            {pickupLabel}
           </p>
           <p className="line-clamp-2">
-            <span className="font-medium text-gray-700">{t('carDetails.dropoffLocation')}:</span> {returnLabel}
+            <span className="font-semibold text-ink/80">{t('carDetails.dropoffLocation')}: </span>
+            {returnLabel}
           </p>
         </div>
       )}
 
-      <div className="flex items-end justify-between gap-3 rounded-xl bg-ink px-4 py-3.5 text-white">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-white/50">{t('carDetails.finalTotal')}</p>
-          <p className="text-xs text-white/60">{t('carDetails.noHiddenFees')}</p>
+      <div className="flex items-end justify-between gap-3 bg-ink px-4 py-4 text-white sm:px-5">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">{t('carDetails.finalTotal')}</p>
+          <p className="mt-1 text-xs text-white/55">{t('carDetails.noHiddenFees')}</p>
         </div>
-        <p className="font-display text-2xl font-semibold tracking-tight">{ready ? `${currency}${breakdown.total}` : '—'}</p>
+        <p className="font-display text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums sm:text-3xl">
+          {ready ? `${currency}${breakdown.total}` : '—'}
+        </p>
       </div>
     </div>
   )
@@ -174,18 +186,30 @@ export default function ReservationPanel({
   const returnShort = returnLoc ? formatFeeLabel(returnLoc) : ''
 
   return (
-    <Motion.div initial="hidden" animate="show" className="lg:sticky lg:top-24 lg:max-h-[calc(100svh-6rem)] lg:overflow-y-auto lg:overscroll-contain">
-      <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_12px_48px_-16px_rgba(22,18,16,0.14)]">
-        <div className="border-b border-gray-100 px-5 py-5 sm:px-6 sm:py-6">
-          <Motion.div variants={fade} custom={0}>
-            <p className="text-xs font-semibold tracking-wide text-primary">{t('carDetails.bookingTitle')}</p>
-            <h2 className="mt-1.5 font-display text-xl font-medium text-gray-900 sm:text-2xl">{t('carDetails.bookingHeadline')}</h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-500">{t('carDetails.bookingSubtitle')}</p>
+    <Motion.div
+      initial="hidden"
+      animate="show"
+      className="lg:sticky lg:top-24 lg:max-h-[calc(100svh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pb-2"
+    >
+      <div className="overflow-hidden rounded-[1.35rem] border border-borderColor/80 bg-surface shadow-[0_20px_50px_-28px_rgba(22,18,16,0.35)] sm:rounded-3xl">
+        {/* Header */}
+        <div className="relative overflow-hidden border-b border-borderColor/70 px-5 pb-5 pt-6 sm:px-7 sm:pb-6 sm:pt-7">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-sand/50 to-transparent" aria-hidden />
+          <Motion.div variants={fade} custom={0} className="relative">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">{t('carDetails.bookingTitle')}</p>
+            <h2 className="mt-2 font-display text-[1.65rem] font-medium leading-[1.15] text-ink sm:text-3xl">
+              {t('carDetails.bookingHeadline')}
+            </h2>
+            <p className="mt-2.5 max-w-md text-sm leading-relaxed text-muted">{t('carDetails.bookingSubtitle')}</p>
           </Motion.div>
-          <Motion.ul variants={fade} custom={1} className="mt-4 flex flex-wrap gap-2">
+
+          <Motion.ul variants={fade} custom={1} className="relative mt-5 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[t('carDetails.trustNoCard'), t('carDetails.trustInstant'), t('carDetails.trustSupport')].map((item) => (
-              <li key={item} className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-600 ring-1 ring-gray-100">
-                <svg className="h-3 w-3 text-emerald-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+              <li
+                key={item}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-light px-3 py-1.5 text-[11px] font-medium text-ink/75 ring-1 ring-borderColor/80"
+              >
+                <svg className="h-3 w-3 text-primary" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                   <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                 </svg>
                 {item}
@@ -199,10 +223,11 @@ export default function ReservationPanel({
             e.preventDefault()
             onWhatsAppSubmit(e)
           }}
-          className="space-y-7 px-5 py-6 sm:px-6"
+          className="space-y-8 px-5 py-6 sm:space-y-9 sm:px-7 sm:py-8"
         >
+          {/* Trip */}
           <Motion.section variants={fade} custom={2}>
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">{t('carDetails.tripDetails')}</h3>
+            <SectionHeading step="1" title={t('carDetails.tripDetails')} />
             <div className="space-y-4">
               <ReservationDateTimes
                 pickupDate={pickupDate}
@@ -236,8 +261,9 @@ export default function ReservationPanel({
             </div>
           </Motion.section>
 
+          {/* Guest */}
           <Motion.section variants={fade} custom={3}>
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">{t('carDetails.yourDetails')}</h3>
+            <SectionHeading step="2" title={t('carDetails.yourDetails')} />
             <div className="space-y-4">
               <div>
                 <Label htmlFor="fullName">{t('carDetails.fullName')}</Label>
@@ -257,7 +283,9 @@ export default function ReservationPanel({
               </div>
               <div>
                 <Label htmlFor="phone">{t('carDetails.phone')}</Label>
-                <div className={`${inputShell} ${controlHeightClass} [&_.PhoneInputInput]:!h-full [&_.PhoneInputInput]:!border-0 [&_.PhoneInputInput]:!bg-transparent [&_.PhoneInputInput]:!shadow-none [&_.PhoneInputInput]:!px-0 [&_.PhoneInputCountry]:!pl-0`}>
+                <div
+                  className={`${inputShell} [&_.PhoneInputInput]:!h-full [&_.PhoneInputInput]:!border-0 [&_.PhoneInputInput]:!bg-transparent [&_.PhoneInputInput]:!px-0 [&_.PhoneInputInput]:!shadow-none [&_.PhoneInputInput]:!text-[15px] [&_.PhoneInputCountry]:!pl-0`}
+                >
                   <IconWrap>{Icons.phone}</IconWrap>
                   <div className="min-w-0 flex-1">
                     <PhoneInput
@@ -288,12 +316,12 @@ export default function ReservationPanel({
               </div>
               <div>
                 <Label htmlFor="notes">{t('carDetails.notes')}</Label>
-                <div className={`${inputShell} min-h-[6.25rem] h-auto items-start py-2.5`}>
+                <div className={`${inputShell} h-auto min-h-[6.5rem] items-start py-3`}>
                   <IconWrap>{Icons.note}</IconWrap>
                   <textarea
                     id="notes"
                     rows={3}
-                    className={`${fieldInput} min-h-[4.25rem] resize-none py-1.5`}
+                    className={`${fieldInput} min-h-[4.5rem] resize-none leading-relaxed py-1`}
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     placeholder={t('carDetails.notesPlaceholder')}
@@ -303,7 +331,9 @@ export default function ReservationPanel({
             </div>
           </Motion.section>
 
+          {/* Summary */}
           <Motion.div variants={fade} custom={4}>
+            <SectionHeading step="3" title={t('carDetails.summaryTitle')} />
             <BookingSummary
               breakdown={priceBreakdown}
               currency={currency}
@@ -315,12 +345,20 @@ export default function ReservationPanel({
             />
           </Motion.div>
 
-          <Motion.div variants={fade} custom={5} className="space-y-2.5 pt-1 pb-1">
-            <WhatsAppButton disabled={disabled} className="!rounded-xl !h-11 !py-0 !text-base">
+          {/* CTA — sticky on mobile for thumb reach */}
+          <Motion.div
+            variants={fade}
+            custom={5}
+            className="sticky bottom-0 z-10 -mx-5 border-t border-borderColor/70 bg-surface/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+          >
+            <WhatsAppButton
+              disabled={disabled}
+              className="!h-12 !rounded-2xl !py-0 !text-[15px] !font-semibold !shadow-[0_14px_36px_-14px_rgba(37,211,102,0.7)] active:scale-[0.99] transition-transform"
+            >
               {submitting ? t('carDetails.submitting') : t('carDetails.whatsappReserve')}
             </WhatsAppButton>
-            <p className="text-center text-xs leading-relaxed text-gray-400">{t('carDetails.whatsappHint')}</p>
-            <p className="text-center text-[11px] text-gray-400">{t('carDetails.noCard')}</p>
+            <p className="mt-3 text-center text-xs leading-relaxed text-muted">{t('carDetails.whatsappHint')}</p>
+            <p className="mt-1 text-center text-[11px] text-muted/70">{t('carDetails.noCard')}</p>
           </Motion.div>
         </form>
       </div>

@@ -29,11 +29,11 @@ const TimeSelect = ({ label, value, onChange, id }) => {
   const { t } = useI18n()
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-gray-600">
+      <label htmlFor={id} className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
         {label}
       </label>
-      <div className="flex h-11 items-center gap-2 rounded-xl border border-gray-200/90 bg-gray-50/50 px-3 transition focus-within:border-primary/40 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-gray-400 shadow-sm ring-1 ring-gray-100">
+      <div className="flex h-12 w-full items-center gap-3 rounded-2xl border border-borderColor/80 bg-white px-3.5 transition duration-200 focus-within:border-primary/35 focus-within:shadow-[0_0_0_3px_rgba(143,31,31,0.08)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -42,7 +42,7 @@ const TimeSelect = ({ label, value, onChange, id }) => {
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent py-2 text-sm text-ink focus:outline-none focus:ring-0"
+          className="min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-2.5 text-[15px] leading-none text-ink focus:outline-none focus:ring-0"
         >
           {TIME_OPTIONS.map((slot) => (
             <option key={slot} value={slot}>
@@ -50,7 +50,7 @@ const TimeSelect = ({ label, value, onChange, id }) => {
             </option>
           ))}
         </select>
-        <span className="text-[10px] uppercase tracking-wide text-gray-400">{t('carDetails.timeLabel')}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted/70">{t('carDetails.timeLabel')}</span>
       </div>
     </div>
   )
@@ -86,7 +86,7 @@ export default function ReservationDateTimes({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-borderColor/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
         <DateRangePicker
           startDate={startISO}
           endDate={endISO}
@@ -97,7 +97,7 @@ export default function ReservationDateTimes({
           className="w-full"
         />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <TimeSelect
           id="pickup-time"
           label={t('carDetails.pickupTime')}

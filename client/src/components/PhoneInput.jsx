@@ -4,7 +4,7 @@ import { isValidPhoneNumber } from 'libphonenumber-js'
 import 'react-phone-number-input/style.css'
 
 const defaultInputClass =
-  'h-11 border border-borderColor px-3 rounded-lg w-full bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/30'
+  'h-12 border border-borderColor px-3 rounded-lg w-full bg-white text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/30'
 
 const PhoneInput = ({
   id,

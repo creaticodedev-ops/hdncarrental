@@ -205,41 +205,41 @@ const CarDetails = () => {
   ]
 
   return (
-    <div className="page-pad page-shell mt-6 sm:mt-10 md:mt-12 pb-16 sm:pb-20 bg-gradient-to-b from-white to-sand/30 min-h-screen">
+    <div className="page-pad page-shell mt-4 sm:mt-8 md:mt-10 pb-24 sm:pb-20 bg-gradient-to-b from-white via-white to-sand/40 min-h-screen">
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="mb-6 flex items-center gap-2 text-sm text-gray-500 transition hover:text-gray-800 cursor-pointer"
+        className="mb-5 inline-flex items-center gap-2 rounded-full px-1 py-1.5 text-sm text-muted transition hover:text-ink cursor-pointer sm:mb-7"
       >
-        <img src={assets.arrow_icon} alt="" className="w-4 rotate-180 opacity-60" />
+        <img src={assets.arrow_icon} alt="" className="w-4 rotate-180 opacity-55" />
         {t('carDetails.back')}
       </button>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10 xl:gap-14">
+      <div className="grid grid-cols-1 gap-7 lg:grid-cols-12 lg:gap-10 xl:gap-14">
         <div className="order-2 lg:order-1 lg:col-span-7 xl:col-span-8 min-w-0">
           <Motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-            <div className="overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-gray-200/60">
+            <div className="overflow-hidden rounded-[1.35rem] bg-sand/40 shadow-sm ring-1 ring-borderColor/70 sm:rounded-3xl">
               <img
                 src={car.image || car.images?.[0] || fallbackImage}
                 onError={(e) => { e.currentTarget.src = fallbackImage }}
-                alt=""
+                alt={`${car.brand} ${car.model}`}
                 className="aspect-[16/10] w-full object-cover sm:aspect-[16/9]"
               />
             </div>
 
             <div className="mt-6 sm:mt-8">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{car.category}</p>
-              <h1 className="font-display mt-1 text-2xl font-medium text-gray-900 sm:text-3xl lg:text-4xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{car.category}</p>
+              <h1 className="font-display mt-1.5 text-[1.75rem] font-medium leading-tight text-ink sm:text-3xl lg:text-4xl">
                 {car.brand} {car.model}
               </h1>
-              <p className="mt-1 text-sm text-gray-500">{car.year}</p>
+              <p className="mt-1.5 text-sm text-muted">{car.year}</p>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
               {specs.map(({ icon, text }) => (
                 <span
                   key={text}
-                  className="inline-flex items-center gap-2 rounded-full border border-gray-200/80 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-full border border-borderColor/80 bg-white px-3.5 py-2 text-xs font-medium text-ink/80 shadow-sm"
                 >
                   <img src={icon} alt="" className="h-4 w-4 opacity-70" />
                   {text}
@@ -247,17 +247,17 @@ const CarDetails = () => {
               ))}
             </div>
 
-            <div className="mt-10 grid gap-10 sm:grid-cols-2">
+            <div className="mt-9 grid gap-8 sm:mt-10 sm:grid-cols-2 sm:gap-10">
               <section>
-                <h2 className="text-sm font-semibold text-gray-900">{t('carDetails.description')}</h2>
-                <p className="mt-3 text-sm leading-relaxed text-gray-600">{car.description}</p>
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{t('carDetails.description')}</h2>
+                <p className="mt-3 text-sm leading-relaxed text-ink/75">{car.description}</p>
               </section>
               <section>
-                <h2 className="text-sm font-semibold text-gray-900">{t('carDetails.features')}</h2>
-                <ul className="mt-3 space-y-2">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{t('carDetails.features')}</h2>
+                <ul className="mt-3 space-y-2.5">
                   {(car.features?.length ? car.features : ['360 Camera', 'Bluetooth', 'GPS', 'Heated Seats']).map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
-                      <img src={assets.check_icon} className="h-4 w-4 shrink-0" alt="" />
+                    <li key={item} className="flex items-center gap-2.5 text-sm text-ink/75">
+                      <img src={assets.check_icon} className="h-4 w-4 shrink-0 opacity-80" alt="" />
                       {item}
                     </li>
                   ))}
