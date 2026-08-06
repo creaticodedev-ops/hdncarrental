@@ -3,8 +3,8 @@ import PhoneInputBase from 'react-phone-number-input'
 import { isValidPhoneNumber } from 'libphonenumber-js'
 import 'react-phone-number-input/style.css'
 
-const inputClass =
-  'border border-borderColor px-3 py-2 rounded-lg w-full bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/30'
+const defaultInputClass =
+  'h-11 border border-borderColor px-3 rounded-lg w-full bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/30'
 
 const PhoneInput = ({
   id,
@@ -13,6 +13,7 @@ const PhoneInput = ({
   required = false,
   defaultCountry = 'MA',
   className = '',
+  inputClassName = '',
   placeholder = '',
 }) => (
   <PhoneInputBase
@@ -23,7 +24,7 @@ const PhoneInput = ({
     onChange={(next) => onChange(next || '')}
     className={`phone-input-field ${className}`}
     numberInputProps={{
-      className: inputClass,
+      className: `${defaultInputClass} ${inputClassName}`.trim(),
       required,
       placeholder,
     }}

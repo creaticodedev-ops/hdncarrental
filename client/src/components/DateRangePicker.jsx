@@ -289,7 +289,7 @@ const DateRangePicker = ({
     start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000)) : 0
 
   const fieldBase =
-    'flex-1 min-w-0 px-4 py-3.5 text-left transition-colors duration-200 cursor-pointer rounded-xl md:rounded-none'
+    'flex-1 min-w-0 h-14 px-4 text-left transition-colors duration-200 cursor-pointer rounded-xl md:rounded-none flex flex-col justify-center'
 
   const calendarPanel = open && (
     <div

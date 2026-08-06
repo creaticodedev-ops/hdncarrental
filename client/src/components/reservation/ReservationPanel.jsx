@@ -11,6 +11,8 @@ const inputShell =
 const fieldInput =
   'min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-ink placeholder:text-gray-400 focus:outline-none focus:ring-0'
 
+const controlHeightClass = 'h-11'
+
 const Label = ({ children, htmlFor }) => (
   <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-gray-600">
     {children}
@@ -255,10 +257,16 @@ export default function ReservationPanel({
               </div>
               <div>
                 <Label htmlFor="phone">{t('carDetails.phone')}</Label>
-                <div className={`${inputShell} !h-auto min-h-11 !py-1.5 [&_.PhoneInputInput]:!border-0 [&_.PhoneInputInput]:!bg-transparent [&_.PhoneInputInput]:!shadow-none [&_.PhoneInputCountry]:!pl-0`}>
+                <div className={`${inputShell} ${controlHeightClass} [&_.PhoneInputInput]:!h-full [&_.PhoneInputInput]:!border-0 [&_.PhoneInputInput]:!bg-transparent [&_.PhoneInputInput]:!shadow-none [&_.PhoneInputInput]:!px-0 [&_.PhoneInputCountry]:!pl-0`}>
                   <IconWrap>{Icons.phone}</IconWrap>
                   <div className="min-w-0 flex-1">
-                    <PhoneInput id="phone" value={form.phone} onChange={(phone) => setForm({ ...form, phone })} required />
+                    <PhoneInput
+                      id="phone"
+                      value={form.phone}
+                      onChange={(phone) => setForm({ ...form, phone })}
+                      required
+                      inputClassName="!h-full !py-0"
+                    />
                   </div>
                 </div>
               </div>
@@ -280,12 +288,12 @@ export default function ReservationPanel({
               </div>
               <div>
                 <Label htmlFor="notes">{t('carDetails.notes')}</Label>
-                <div className={`${inputShell} !h-auto items-start !py-2.5`}>
+                <div className={`${inputShell} min-h-[6.25rem] h-auto items-start py-2.5`}>
                   <IconWrap>{Icons.note}</IconWrap>
                   <textarea
                     id="notes"
-                    rows={2}
-                    className={`${fieldInput} min-h-[2.75rem] resize-none`}
+                    rows={3}
+                    className={`${fieldInput} min-h-[4.25rem] resize-none py-1.5`}
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     placeholder={t('carDetails.notesPlaceholder')}
@@ -308,7 +316,7 @@ export default function ReservationPanel({
           </Motion.div>
 
           <Motion.div variants={fade} custom={5} className="space-y-2.5 pt-1 pb-1">
-            <WhatsAppButton disabled={disabled} className="!rounded-xl !py-3.5 !text-base">
+            <WhatsAppButton disabled={disabled} className="!rounded-xl !h-11 !py-0 !text-base">
               {submitting ? t('carDetails.submitting') : t('carDetails.whatsappReserve')}
             </WhatsAppButton>
             <p className="text-center text-xs leading-relaxed text-gray-400">{t('carDetails.whatsappHint')}</p>
