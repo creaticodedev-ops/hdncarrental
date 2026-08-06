@@ -171,25 +171,25 @@ const CitySelect = ({ value, onChange, options = [], label, placeholder, classNa
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full text-left px-4 py-3.5 transition-colors duration-200 cursor-pointer rounded-xl md:rounded-none ${
-          open ? 'bg-sand/70' : 'hover:bg-sand/40'
+        className={`booking-tap flex h-[3.75rem] w-full flex-col justify-center rounded-2xl px-4 text-left transition-colors duration-200 cursor-pointer md:rounded-none ${
+          open ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'
         }`}
         aria-expanded={open}
       >
-        <p className="text-[11px] uppercase tracking-[0.14em] text-muted font-medium mb-1">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
           {label || t('hero.pickupLocation')}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-primary shrink-0">
+          <span className="shrink-0 text-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" />
               <circle cx="12" cy="10" r="2.5" />
             </svg>
           </span>
-          <p className={`text-sm truncate flex-1 ${value ? 'text-ink font-medium' : 'text-muted'}`}>
+          <p className={`min-w-0 flex-1 truncate text-[15px] leading-none ${value ? 'font-medium text-ink' : 'text-muted/55'}`}>
             {value || placeholder || t('hero.selectLocation')}
           </p>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-muted transition-transform ${open ? 'rotate-180' : ''}`}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
             <path d="M6 9l6 6 6-6" />
           </svg>
         </div>

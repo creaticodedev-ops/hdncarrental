@@ -53,7 +53,7 @@ const Navbar = () => {
       initial={{ y: -16, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className={`fixed top-0 inset-x-0 z-40 border-b transition-all duration-300 ${
+      className={`fixed top-0 inset-x-0 z-40 border-b transition-all duration-300 pt-[env(safe-area-inset-top)] ${
         solid
           ? 'bg-white/95 backdrop-blur-md border-borderColor text-ink'
           : 'bg-transparent border-transparent text-ink'
@@ -103,12 +103,12 @@ const Navbar = () => {
 
         <button
           type="button"
-          className="sm:hidden cursor-pointer relative z-10 p-2 -mr-2 shrink-0"
+          className="booking-tap relative z-10 -mr-1 flex h-12 w-12 shrink-0 items-center justify-center sm:hidden cursor-pointer"
           aria-label="Menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <img src={open ? assets.close_icon : assets.menu_icon} alt="" className="block w-5 h-5 object-contain" />
+          <img src={open ? assets.close_icon : assets.menu_icon} alt="" className="block h-5 w-5 object-contain" />
         </button>
       </div>
 
@@ -117,16 +117,16 @@ const Navbar = () => {
           <button
             type="button"
             aria-label="Close menu overlay"
-            className="sm:hidden fixed inset-0 z-40 bg-ink/40"
+            className="fixed inset-0 z-40 bg-ink/40 sm:hidden"
             onClick={() => setOpen(false)}
           />
-          <nav className="sm:hidden fixed inset-x-0 top-[57px] z-50 h-[calc(100svh-57px)] overflow-y-auto border-t border-borderColor bg-white p-5 pb-10 flex flex-col gap-1">
+          <nav className="fixed inset-x-0 top-[calc(3.75rem+env(safe-area-inset-top))] z-50 flex h-[calc(100svh-3.75rem-env(safe-area-inset-top))] flex-col gap-1 overflow-y-auto border-t border-borderColor bg-white p-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:hidden">
             {menuLinks.map((link, index) => (
               <Link
                 key={index}
                 to={link.path}
                 onClick={() => setOpen(false)}
-                className="text-sm tracking-wide text-muted hover:text-ink transition-colors py-3 border-b border-borderColor/60"
+                className="booking-tap flex min-h-12 items-center border-b border-borderColor/60 py-3 text-sm tracking-wide text-muted transition-colors hover:text-ink"
               >
                 {navLabels[link.name] || link.name}
               </Link>
@@ -143,7 +143,7 @@ const Navbar = () => {
                       navigate('/owner')
                       setOpen(false)
                     }}
-                    className="cursor-pointer text-sm text-muted hover:text-ink text-left py-2"
+                    className="booking-tap cursor-pointer py-3 text-left text-sm text-muted hover:text-ink"
                   >
                     {t('nav.dashboard')}
                   </button>
@@ -153,7 +153,7 @@ const Navbar = () => {
                       logout()
                       setOpen(false)
                     }}
-                    className="cursor-pointer px-5 py-2.5 bg-primary hover:bg-primary-dull transition-all text-white rounded-xl text-sm"
+                    className="booking-tap cursor-pointer rounded-2xl bg-primary px-5 text-[15px] font-semibold text-white transition-all hover:bg-primary-dull"
                   >
                     {t('nav.logout')}
                   </button>

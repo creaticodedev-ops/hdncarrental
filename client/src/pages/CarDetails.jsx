@@ -12,6 +12,7 @@ import { calculateBookingPricePreview } from '../utils/pricing'
 import { isPhoneValid } from '../components/PhoneInput'
 import { buildGuestReservationWaUrl } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
+import { booking } from '../components/ui/bookingUi'
 
 const toDateTimeLocal = (value) => {
   if (!value) return ''
@@ -205,18 +206,18 @@ const CarDetails = () => {
   ]
 
   return (
-    <div className="page-pad page-shell mt-4 sm:mt-8 md:mt-10 pb-24 sm:pb-20 bg-gradient-to-b from-white via-white to-sand/40 min-h-screen">
+    <div className={`page-pad page-shell mt-4 overflow-x-clip bg-gradient-to-b from-white via-white to-sand/40 sm:mt-8 md:mt-10 ${booking.pageBottom}`}>
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="mb-5 inline-flex items-center gap-2 rounded-full px-1 py-1.5 text-sm text-muted transition hover:text-ink cursor-pointer sm:mb-7"
+        className="booking-tap mb-5 inline-flex min-h-12 items-center gap-2 rounded-2xl px-2 text-sm text-muted transition hover:text-ink cursor-pointer sm:mb-7"
       >
         <img src={assets.arrow_icon} alt="" className="w-4 rotate-180 opacity-55" />
         {t('carDetails.back')}
       </button>
 
       <div className="grid grid-cols-1 gap-7 lg:grid-cols-12 lg:gap-10 xl:gap-14">
-        <div className="order-2 lg:order-1 lg:col-span-7 xl:col-span-8 min-w-0">
+        <div className="order-2 min-w-0 lg:order-1 lg:col-span-7 xl:col-span-8">
           <Motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
             <div className="overflow-hidden rounded-[1.35rem] bg-sand/40 shadow-sm ring-1 ring-borderColor/70 sm:rounded-3xl">
               <img
@@ -228,7 +229,7 @@ const CarDetails = () => {
             </div>
 
             <div className="mt-6 sm:mt-8">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{car.category}</p>
+              <p className={booking.eyebrow}>{car.category}</p>
               <h1 className="font-display mt-1.5 text-[1.75rem] font-medium leading-tight text-ink sm:text-3xl lg:text-4xl">
                 {car.brand} {car.model}
               </h1>
@@ -249,11 +250,11 @@ const CarDetails = () => {
 
             <div className="mt-9 grid gap-8 sm:mt-10 sm:grid-cols-2 sm:gap-10">
               <section>
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{t('carDetails.description')}</h2>
+                <h2 className={booking.label}>{t('carDetails.description')}</h2>
                 <p className="mt-3 text-sm leading-relaxed text-ink/75">{car.description}</p>
               </section>
               <section>
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{t('carDetails.features')}</h2>
+                <h2 className={booking.label}>{t('carDetails.features')}</h2>
                 <ul className="mt-3 space-y-2.5">
                   {(car.features?.length ? car.features : ['360 Camera', 'Bluetooth', 'GPS', 'Heated Seats']).map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-sm text-ink/75">

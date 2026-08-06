@@ -12,38 +12,48 @@ const CarCard = ({ car }) => {
 
   return (
     <article
+      role="link"
+      tabIndex={0}
       onClick={() => { navigate(`/car-details/${car._id}`); window.scrollTo(0, 0) }}
-      className="group cursor-pointer"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate(`/car-details/${car._id}`)
+          window.scrollTo(0, 0)
+        }
+      }}
+      className="group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 rounded-[1.25rem]"
     >
-      <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-sand">
+      <div className="relative aspect-[16/10] overflow-hidden rounded-[1.25rem] bg-sand ring-1 ring-borderColor/60 shadow-[0_12px_36px_-24px_rgba(22,18,16,0.35)]">
         <img
           src={car.image || car.images?.[0] || fallbackImage}
           onError={(e) => { e.currentTarget.src = fallbackImage }}
           alt={`${car.brand} ${car.model}`}
           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+          loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/55 via-ink/10 to-transparent opacity-90" />
 
-        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
-          <div>
+        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3 sm:bottom-3.5 sm:left-3.5 sm:right-3.5">
+          <div className="min-w-0">
             {car.isAvaliable && (
-              <p className="text-[10px] uppercase tracking-[0.16em] text-white/90 mb-1">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85">
                 {t('carCard.available')}
               </p>
             )}
-            <h3 className="text-white font-display text-xl font-medium leading-tight">
+            <h3 className="truncate font-display text-xl font-medium leading-tight text-white sm:text-[1.35rem]">
               {car.brand} {car.model}
             </h3>
-            <p className="text-white/70 text-xs mt-0.5">{car.category} · {car.year}</p>
+            <p className="mt-0.5 truncate text-xs text-white/70">{car.category} · {car.year}</p>
           </div>
-          <div className="text-right shrink-0 rounded-lg bg-white/95 px-2.5 py-1.5 backdrop-blur-sm">
-            <p className="text-ink font-semibold text-sm leading-none">{currency}{car.pricePerDay}</p>
-            <p className="text-[10px] text-muted mt-0.5">{t('carCard.perDay')}</p>
+          <div className="shrink-0 rounded-xl bg-white/95 px-2.5 py-2 text-right shadow-sm backdrop-blur-sm">
+            <p className="text-sm font-semibold leading-none tabular-nums text-ink">{currency}{car.pricePerDay}</p>
+            <p className="mt-1 text-[10px] text-muted">{t('carCard.perDay')}</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted">
+      <div className="mt-3.5 flex flex-wrap gap-x-4 gap-y-2 px-0.5 text-xs text-muted">
         <span className="inline-flex items-center gap-1.5">
           <img src={assets.users_icon} alt="" className="h-3.5 opacity-70" />
           {t('carDetails.seats', { count: car.seating_capacity })}
@@ -56,9 +66,9 @@ const CarCard = ({ car }) => {
           <img src={assets.car_icon} alt="" className="h-3.5 opacity-70" />
           {car.transmission}
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <img src={assets.location_icon} alt="" className="h-3.5 opacity-70" />
-          {formatLocationsDisplay(car)}
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <img src={assets.location_icon} alt="" className="h-3.5 shrink-0 opacity-70" />
+          <span className="truncate">{formatLocationsDisplay(car)}</span>
         </span>
       </div>
     </article>

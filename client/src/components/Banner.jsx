@@ -42,7 +42,7 @@ const Banner = () => {
             whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => navigate('/cars')}
-            className="mt-7 self-start px-6 py-2.5 bg-primary hover:bg-primary-dull transition-colors text-white rounded-xl text-sm tracking-wide cursor-pointer"
+            className="booking-tap mt-7 inline-flex h-12 items-center self-start rounded-2xl bg-primary px-6 text-[15px] font-semibold tracking-wide text-white transition-colors hover:bg-primary-dull cursor-pointer"
           >
             {t('banner.cta')}
           </Motion.button>

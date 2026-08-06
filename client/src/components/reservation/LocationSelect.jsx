@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../../i18n/I18nContext'
+import { booking } from '../ui/bookingUi'
 
 /**
  * Searchable location dropdown (pickup / drop-off).
@@ -151,7 +152,7 @@ const LocationSelect = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchPlaceholder || t('carDetails.searchLocation')}
-            className="w-full rounded-xl border border-borderColor bg-light/50 pl-10 pr-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="h-12 w-full rounded-2xl border border-borderColor bg-light/50 pl-10 pr-3 text-[15px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>
         <div className="overflow-y-auto flex-1 min-h-0 space-y-0.5">
@@ -163,7 +164,7 @@ const LocationSelect = ({
               key={opt.value}
               type="button"
               onClick={() => select(opt.value)}
-              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-colors cursor-pointer ${
+              className={`booking-tap flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors cursor-pointer ${
                 value === opt.value ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-sand/70 text-ink'
               }`}
             >
@@ -187,7 +188,7 @@ const LocationSelect = ({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-12 w-full items-center gap-3 rounded-2xl border border-borderColor/80 bg-white px-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition duration-200 focus:outline-none ${
+        className={`booking-tap ${booking.fieldShell} text-left focus:outline-none ${
           open
             ? 'border-primary/35 shadow-[0_0_0_3px_rgba(143,31,31,0.08)]'
             : 'hover:border-borderColor focus-visible:border-primary/35 focus-visible:shadow-[0_0_0_3px_rgba(143,31,31,0.08)]'

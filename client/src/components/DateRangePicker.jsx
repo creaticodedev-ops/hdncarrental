@@ -289,7 +289,7 @@ const DateRangePicker = ({
     start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000)) : 0
 
   const fieldBase =
-    'flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 cursor-pointer rounded-2xl md:rounded-none flex flex-col justify-center'
+    'booking-tap flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 cursor-pointer rounded-2xl md:rounded-none flex flex-col justify-center'
 
   const calendarPanel = open && (
     <div
@@ -378,14 +378,14 @@ const DateRangePicker = ({
           <button
             type="button"
             onClick={clearDates}
-            className="text-sm text-muted hover:text-ink transition-colors cursor-pointer"
+            className="booking-tap inline-flex h-12 items-center px-2 text-sm text-muted hover:text-ink transition-colors cursor-pointer"
           >
             {t('hero.clear')}
           </button>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="px-5 py-2 rounded-xl bg-primary hover:bg-primary-dull text-white text-sm font-medium transition-colors cursor-pointer"
+            className="booking-tap inline-flex h-12 items-center rounded-2xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-dull cursor-pointer"
           >
             {t('hero.done')}
           </button>

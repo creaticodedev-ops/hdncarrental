@@ -4,16 +4,13 @@ import PhoneInput from '../PhoneInput'
 import LocationSelect from './LocationSelect'
 import ReservationDateTimes from './ReservationDateTimes'
 import { WhatsAppButton } from '../forms/PremiumFormUI'
-
-/** Shared control shell — 48px touch height, full width, premium quiet chrome */
-const inputShell =
-  'flex h-12 w-full items-center gap-3 rounded-2xl border border-borderColor/80 bg-white px-3.5 text-sm text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition duration-200 focus-within:border-primary/35 focus-within:shadow-[0_0_0_3px_rgba(143,31,31,0.08)]'
+import { booking } from '../ui/bookingUi'
 
 const fieldInput =
   'min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[15px] leading-none text-ink placeholder:text-muted/55 focus:outline-none focus:ring-0'
 
 const Label = ({ children, htmlFor }) => (
-  <label htmlFor={htmlFor} className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+  <label htmlFor={htmlFor} className={`mb-2 block ${booking.label}`}>
     {children}
   </label>
 )
@@ -191,12 +188,12 @@ export default function ReservationPanel({
       animate="show"
       className="lg:sticky lg:top-24 lg:max-h-[calc(100svh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pb-2"
     >
-      <div className="overflow-hidden rounded-[1.35rem] border border-borderColor/80 bg-surface shadow-[0_20px_50px_-28px_rgba(22,18,16,0.35)] sm:rounded-3xl">
+      <div className={`${booking.card} overflow-hidden`}>
         {/* Header */}
         <div className="relative overflow-hidden border-b border-borderColor/70 px-5 pb-5 pt-6 sm:px-7 sm:pb-6 sm:pt-7">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-sand/50 to-transparent" aria-hidden />
           <Motion.div variants={fade} custom={0} className="relative">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">{t('carDetails.bookingTitle')}</p>
+            <p className={booking.eyebrow}>{t('carDetails.bookingTitle')}</p>
             <h2 className="mt-2 font-display text-[1.65rem] font-medium leading-[1.15] text-ink sm:text-3xl">
               {t('carDetails.bookingHeadline')}
             </h2>
@@ -267,7 +264,7 @@ export default function ReservationPanel({
             <div className="space-y-4">
               <div>
                 <Label htmlFor="fullName">{t('carDetails.fullName')}</Label>
-                <div className={inputShell}>
+                <div className={booking.fieldShell}>
                   <IconWrap>{Icons.user}</IconWrap>
                   <input
                     id="fullName"
@@ -284,7 +281,7 @@ export default function ReservationPanel({
               <div>
                 <Label htmlFor="phone">{t('carDetails.phone')}</Label>
                 <div
-                  className={`${inputShell} [&_.PhoneInputInput]:!h-full [&_.PhoneInputInput]:!border-0 [&_.PhoneInputInput]:!bg-transparent [&_.PhoneInputInput]:!px-0 [&_.PhoneInputInput]:!shadow-none [&_.PhoneInputInput]:!text-[15px] [&_.PhoneInputCountry]:!pl-0`}
+                  className={`${booking.fieldShell} [&_.PhoneInputInput]:!h-full [&_.PhoneInputInput]:!border-0 [&_.PhoneInputInput]:!bg-transparent [&_.PhoneInputInput]:!px-0 [&_.PhoneInputInput]:!shadow-none [&_.PhoneInputInput]:!text-[15px] [&_.PhoneInputCountry]:!pl-0`}
                 >
                   <IconWrap>{Icons.phone}</IconWrap>
                   <div className="min-w-0 flex-1">
@@ -300,7 +297,7 @@ export default function ReservationPanel({
               </div>
               <div>
                 <Label htmlFor="email">{t('carDetails.email')}</Label>
-                <div className={inputShell}>
+                <div className={booking.fieldShell}>
                   <IconWrap>{Icons.mail}</IconWrap>
                   <input
                     id="email"
@@ -316,7 +313,7 @@ export default function ReservationPanel({
               </div>
               <div>
                 <Label htmlFor="notes">{t('carDetails.notes')}</Label>
-                <div className={`${inputShell} h-auto min-h-[6.5rem] items-start py-3`}>
+                <div className={`${booking.fieldShell} h-auto min-h-[6.5rem] items-start py-3`}>
                   <IconWrap>{Icons.note}</IconWrap>
                   <textarea
                     id="notes"
@@ -349,11 +346,11 @@ export default function ReservationPanel({
           <Motion.div
             variants={fade}
             custom={5}
-            className="sticky bottom-0 z-10 -mx-5 border-t border-borderColor/70 bg-surface/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+            className="sticky bottom-0 z-10 -mx-5 border-t border-borderColor/70 bg-surface/95 px-5 pt-4 backdrop-blur-md booking-safe-bottom sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
           >
             <WhatsAppButton
               disabled={disabled}
-              className="!h-12 !rounded-2xl !py-0 !text-[15px] !font-semibold !shadow-[0_14px_36px_-14px_rgba(37,211,102,0.7)] active:scale-[0.99] transition-transform"
+              className="booking-tap !h-12 !rounded-2xl !py-0 !text-[15px] !font-semibold !shadow-[0_14px_36px_-14px_rgba(37,211,102,0.7)] active:scale-[0.99] transition-transform"
             >
               {submitting ? t('carDetails.submitting') : t('carDetails.whatsappReserve')}
             </WhatsAppButton>

@@ -15,7 +15,7 @@ const Footer = () => {
   const { t } = useI18n();
 
   return (
-    <footer className="page-pad page-shell mt-8 md:mt-16 text-sm text-muted bg-light">
+    <footer className="page-pad page-shell mt-8 bg-light pb-[max(1.5rem,env(safe-area-inset-bottom))] text-sm text-muted md:mt-16">
       <Motion.div
         {...fadeUp(0)}
         className="flex flex-col md:flex-row flex-wrap justify-between items-start gap-10 pb-10 border-b border-borderColor"

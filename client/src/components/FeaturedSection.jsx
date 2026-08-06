@@ -55,7 +55,7 @@ const FeaturedSection = () => {
                   navigate(`/cars?category=${encodeURIComponent(section.category)}`)
                   window.scrollTo(0, 0)
                 }}
-                className="text-xs sm:text-sm text-primary hover:underline shrink-0"
+                className="booking-tap inline-flex h-10 shrink-0 items-center text-xs text-primary hover:underline sm:text-sm"
               >
                 {t('featured.viewCategory')}
               </button>
@@ -87,7 +87,7 @@ const FeaturedSection = () => {
         <button
           type="button"
           onClick={() => { navigate('/cars'); window.scrollTo(0, 0) }}
-          className="group inline-flex items-center gap-2 px-7 py-3 border border-ink/15 hover:border-primary hover:text-primary rounded-xl text-sm tracking-wide transition-all duration-300 cursor-pointer"
+          className="group booking-tap inline-flex h-12 items-center gap-2 rounded-2xl border border-ink/15 px-7 text-[15px] font-medium tracking-wide transition-all duration-300 hover:border-primary hover:text-primary cursor-pointer"
         >
           {t('featured.exploreAll')}
           <img src={assets.arrow_icon} alt="" className="h-3.5 transition-transform duration-300 group-hover:translate-x-1" />

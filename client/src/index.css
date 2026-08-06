@@ -28,19 +28,21 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 html,
 body,
 #root {
   min-height: 100%;
+  min-height: 100svh;
 }
 
 body {
   color: var(--color-ink);
   background: var(--color-light);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
   margin: 0;
 }
 
@@ -200,4 +202,22 @@ body.nav-open {
   min-width: 0;
   font-size: 15px;
   line-height: 1;
+}
+
+/* Booking-flow consistency helpers */
+.booking-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.booking-tap {
+  min-height: 3rem; /* 48px */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .booking-landscape-compact {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
 }

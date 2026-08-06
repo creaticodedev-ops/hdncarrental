@@ -10,6 +10,7 @@ import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { VEHICLE_CATEGORIES, groupCarsByCategory } from '../utils/vehicleCategories'
 import { getCarLocations } from '../utils/carLocations'
+import { booking } from '../components/ui/bookingUi'
 
 const Cars = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -109,16 +110,17 @@ const Cars = () => {
     setSearchParams(next, { replace: true })
   }
 
+  const resultCount = sections.reduce((n, s) => n + s.cars.length, 0)
+
   return (
-    <div className="pb-20 sm:pb-28">
+    <div className={booking.pageBottom}>
       <Motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="relative flex flex-col items-center py-16 sm:py-20 page-pad page-shell overflow-hidden"
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        className="relative flex flex-col items-center overflow-hidden px-0 py-14 sm:py-16 md:py-20"
         style={{
-          background:
-            'linear-gradient(180deg, #EDE8E4 0%, #F8F6F5 55%, #F8F6F5 100%)',
+          background: 'linear-gradient(180deg, #EDE8E4 0%, #F8F6F5 55%, #F8F6F5 100%)',
         }}
       >
         <div
@@ -128,87 +130,91 @@ const Cars = () => {
               'radial-gradient(ellipse 70% 50% at 50% -10%, rgba(143,31,31,0.12), transparent 60%)',
           }}
         />
-        <Title title={t('cars.title')} subTitle={t('cars.subtitle')} />
+        <div className="relative z-10 page-pad page-shell flex w-full flex-col items-center">
+          <Title title={t('cars.title')} subTitle={t('cars.subtitle')} />
 
-        <Motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.5 }}
-          className="relative z-10 flex items-center bg-white px-4 mt-6 max-w-xl w-full h-12 rounded-xl border border-borderColor shadow-sm"
-        >
-          <img src={assets.search_icon} alt="" className="w-[1.125rem] h-[1.125rem] mr-2 shrink-0" />
-          <input
-            onChange={(e) => setInput(e.target.value)}
-            value={input}
-            type="text"
-            placeholder={t('cars.searchPlaceholder')}
-            className="w-full min-w-0 h-full outline-none text-gray-500 text-sm sm:text-base"
-          />
-        </Motion.div>
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.45 }}
+            className={`${booking.fieldShell} relative z-10 mt-7 max-w-xl shadow-[0_12px_40px_-24px_rgba(22,18,16,0.3)]`}
+          >
+            <img src={assets.search_icon} alt="" className="h-4 w-4 shrink-0 opacity-60" />
+            <input
+              onChange={(e) => setInput(e.target.value)}
+              value={input}
+              type="search"
+              enterKeyHint="search"
+              placeholder={t('cars.searchPlaceholder')}
+              className="h-full min-w-0 flex-1 border-0 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted/55"
+              aria-label={t('cars.searchPlaceholder')}
+            />
+          </Motion.div>
 
-        {availableCategories.length > 0 && (
-          <div className="relative z-10 mt-8 w-full max-w-4xl flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => selectCategory('')}
-              className={`px-3.5 py-1.5 text-xs sm:text-sm rounded-full border transition-colors ${
-                !activeCategory
-                  ? 'bg-ink text-white border-ink'
-                  : 'bg-white/80 text-muted border-borderColor hover:border-ink/30'
-              }`}
-            >
-              {t('cars.allCategories')}
-            </button>
-            {availableCategories.map((cat) => (
+          {availableCategories.length > 0 && (
+            <div className="relative z-10 mt-7 flex w-full max-w-4xl gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:justify-center sm:overflow-visible [&::-webkit-scrollbar]:hidden">
               <button
-                key={cat}
                 type="button"
-                onClick={() => selectCategory(cat)}
-                className={`px-3.5 py-1.5 text-xs sm:text-sm rounded-full border transition-colors ${
-                  activeCategory.toLowerCase() === cat.toLowerCase()
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-white/80 text-muted border-borderColor hover:border-primary/40 hover:text-primary'
-                }`}
+                onClick={() => selectCategory('')}
+                className={`${booking.chip} booking-tap shrink-0 ${!activeCategory ? booking.chipActive : booking.chipIdle}`}
               >
-                {cat}
+                {t('cars.allCategories')}
               </button>
-            ))}
-          </div>
-        )}
+              {availableCategories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => selectCategory(cat)}
+                  className={`${booking.chip} booking-tap shrink-0 ${
+                    activeCategory.toLowerCase() === cat.toLowerCase()
+                      ? booking.chipPrimaryActive
+                      : booking.chipIdle
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </Motion.div>
 
-      <div className="page-pad page-shell mt-4 sm:mt-6">
-        <p className="text-gray-500 text-sm sm:text-base mb-8">
+      <div className="page-pad page-shell mt-2 sm:mt-4">
+        <p className="mb-7 text-sm text-muted sm:mb-8">
           {carsLoading || searchLoading
             ? t('common.loading')
-            : t('cars.showing', { count: sections.reduce((n, s) => n + s.cars.length, 0) })}
+            : t('cars.showing', { count: resultCount })}
         </p>
 
         {(carsLoading || searchLoading) && !filteredCars.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 rounded-xl bg-sand/60 animate-pulse" />
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="overflow-hidden rounded-[1.25rem]">
+                <div className="aspect-[16/10] animate-pulse bg-sand/80" />
+                <div className="mt-3 h-3 w-2/3 animate-pulse rounded bg-sand/70" />
+              </div>
             ))}
           </div>
         ) : sections.length === 0 ? (
-          <p className="text-center text-muted py-16">{t('cars.noCars')}</p>
+          <div className={`${booking.cardQuiet} mx-auto max-w-md px-6 py-14 text-center`}>
+            <p className="font-display text-2xl text-ink">{t('cars.noCars')}</p>
+            <p className="mt-2 text-sm text-muted">{t('cars.subtitle')}</p>
+          </div>
         ) : (
-          <div className="space-y-16 sm:space-y-20">
+          <div className="space-y-14 sm:space-y-16 md:space-y-20">
             {sections.map((section, sIdx) => (
               <Motion.section
                 key={section.category}
                 id={`category-${section.category.toLowerCase()}`}
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.15 }}
-                transition={{ duration: 0.5, delay: Math.min(sIdx * 0.05, 0.2) }}
+                viewport={{ once: true, amount: 0.12 }}
+                transition={{ duration: 0.45, delay: Math.min(sIdx * 0.04, 0.16) }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6 sm:mb-8 border-b border-borderColor pb-4">
+                <div className="mb-6 flex flex-col gap-2 border-b border-borderColor/80 pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-primary/80 mb-1">
-                      {t('cars.categoryLabel')}
-                    </p>
-                    <h2 className="font-display text-3xl sm:text-4xl text-ink leading-none">
+                    <p className={booking.eyebrow}>{t('cars.categoryLabel')}</p>
+                    <h2 className="mt-1.5 font-display text-3xl leading-none text-ink sm:text-4xl">
                       {section.category}
                     </h2>
                   </div>
@@ -217,14 +223,14 @@ const Cars = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
                   {section.cars.map((car, index) => (
                     <Motion.div
                       key={car._id}
-                      initial={{ opacity: 0, y: 16 }}
+                      initial={{ opacity: 0, y: 14 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true, amount: 0.2 }}
-                      transition={{ duration: 0.4, delay: Math.min(index * 0.06, 0.24) }}
+                      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.2) }}
                     >
                       <CarCard car={car} />
                     </Motion.div>

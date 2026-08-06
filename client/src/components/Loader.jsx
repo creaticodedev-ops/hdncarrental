@@ -1,9 +1,13 @@
 import React from 'react'
 
-const Loader = () => {
+const Loader = ({ label }) => {
   return (
-    <div className='flex justify-center items-center h-[80vh] '>
-        <div className='animate-spin rounded-full h-14 w-14 border-4 border-gray-300 border-t-primary'></div>
+    <div className="flex min-h-[60svh] flex-col items-center justify-center gap-4 px-4" role="status" aria-live="polite">
+      <div className="relative h-12 w-12">
+        <div className="absolute inset-0 rounded-full border-2 border-sand" />
+        <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
+      </div>
+      {label ? <p className="text-sm text-muted">{label}</p> : <span className="sr-only">Loading</span>}
     </div>
   )
 }

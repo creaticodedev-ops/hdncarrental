@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import DateRangePicker, { toISODate, parseISODate } from '../DateRangePicker'
 import { useI18n } from '../../i18n/I18nContext'
+import { booking } from '../ui/bookingUi'
 
 const splitDateTime = (value) => {
   if (!value) return { date: '', time: '10:00' }
@@ -29,10 +30,10 @@ const TimeSelect = ({ label, value, onChange, id }) => {
   const { t } = useI18n()
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+      <label htmlFor={id} className={`mb-2 block ${booking.label}`}>
         {label}
       </label>
-      <div className="flex h-12 w-full items-center gap-3 rounded-2xl border border-borderColor/80 bg-white px-3.5 transition duration-200 focus-within:border-primary/35 focus-within:shadow-[0_0_0_3px_rgba(143,31,31,0.08)]">
+      <div className={booking.fieldShell}>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

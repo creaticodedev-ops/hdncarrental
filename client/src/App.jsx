@@ -56,7 +56,11 @@ const App = () => {
     <ErrorBoundary>
       <Toaster
         position="top-center"
-        containerStyle={{ top: 72, left: 16, right: 16 }}
+        containerStyle={{
+          top: 'max(4.5rem, calc(env(safe-area-inset-top) + 3.75rem))',
+          left: 16,
+          right: 16,
+        }}
         toastOptions={{
           className: 'text-sm max-w-[min(100%,24rem)]',
           style: { wordBreak: 'break-word' },
@@ -66,7 +70,7 @@ const App = () => {
 
       {!hidePublicChrome && <Navbar />}
 
-      <div className={needsNavOffset ? 'pt-[65px] sm:pt-[73px]' : ''}>
+      <div className={needsNavOffset ? 'pt-[calc(4.05rem+env(safe-area-inset-top))] sm:pt-[calc(4.55rem+env(safe-area-inset-top))]' : ''}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/car-details/:id" element={<CarDetails />} />
