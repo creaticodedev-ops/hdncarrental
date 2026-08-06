@@ -16,6 +16,78 @@ const parseDeliveryFee = (value) => {
     return Math.round(n * 100) / 100;
 };
 
+/** Empty / null clears the coordinate; otherwise validates range. */
+const parseCoordinate = (value, { min, max }) => {
+    if (value === undefined || value === null || value === '') return null;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < min || n > max) {
+        const err = new Error(`Coordinate must be between ${min} and ${max}`);
+        err.status = 400;
+        throw err;
+    }
+    return Math.round(n * 1e6) / 1e6;
+};
+
+const applyLocationFields = (location, body, { requireCore = false } = {}) => {
+    const {
+        name,
+        city,
+        address,
+        googleMapsLink,
+        locationType,
+        deliveryFee,
+        latitude,
+        longitude,
+        isActive,
+    } = body;
+
+    if (requireCore || name !== undefined) {
+        const trimmed = String(name ?? '').trim();
+        if (!trimmed) {
+            const err = new Error('Name, city, and address are required');
+            err.status = 400;
+            throw err;
+        }
+        location.name = trimmed;
+    }
+    if (requireCore || city !== undefined) {
+        const trimmed = String(city ?? '').trim();
+        if (!trimmed) {
+            const err = new Error('Name, city, and address are required');
+            err.status = 400;
+            throw err;
+        }
+        location.city = trimmed;
+    }
+    if (requireCore || address !== undefined) {
+        const trimmed = String(address ?? '').trim();
+        if (!trimmed) {
+            const err = new Error('Name, city, and address are required');
+            err.status = 400;
+            throw err;
+        }
+        location.address = trimmed;
+    }
+    if (googleMapsLink !== undefined) {
+        location.googleMapsLink = String(googleMapsLink || '').trim();
+    }
+    if (locationType !== undefined) {
+        if (ALLOWED_TYPES.has(locationType)) location.locationType = locationType;
+    }
+    if (deliveryFee !== undefined) {
+        location.deliveryFee = parseDeliveryFee(deliveryFee);
+    }
+    if (latitude !== undefined) {
+        location.latitude = parseCoordinate(latitude, { min: -90, max: 90 });
+    }
+    if (longitude !== undefined) {
+        location.longitude = parseCoordinate(longitude, { min: -180, max: 180 });
+    }
+    if (isActive !== undefined) {
+        location.isActive = Boolean(isActive);
+    }
+};
+
 export const seedPickupLocations = async () => {
     const count = await PickupLocation.countDocuments();
     if (count === 0) {
@@ -46,51 +118,48 @@ export const getAllPickupLocations = async (req, res) => {
 
 export const createPickupLocation = async (req, res) => {
     try {
-        const { name, city, address, googleMapsLink, locationType, deliveryFee } = req.body;
+        const location = new PickupLocation();
+        applyLocationFields(location, {
+            ...req.body,
+            locationType: ALLOWED_TYPES.has(req.body.locationType) ? req.body.locationType : 'custom',
+            deliveryFee: req.body.deliveryFee ?? 0,
+            googleMapsLink: req.body.googleMapsLink ?? '',
+            isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+            latitude: req.body.latitude ?? null,
+            longitude: req.body.longitude ?? null,
+        }, { requireCore: true });
 
-        if (!name?.trim() || !city?.trim() || !address?.trim()) {
-            return res.status(400).json({ success: false, message: 'Name, city, and address are required' });
-        }
-
-        const type = ALLOWED_TYPES.has(locationType) ? locationType : 'custom';
-
-        const location = await PickupLocation.create({
-            name: name.trim(),
-            city: city.trim(),
-            address: address.trim(),
-            googleMapsLink: googleMapsLink || '',
-            locationType: type,
-            deliveryFee: parseDeliveryFee(deliveryFee),
-        });
-
+        await location.save();
         res.status(201).json({ success: true, message: 'Pickup location added', location });
     } catch (error) {
         console.error(error.message);
-        res.status(500).json({ success: false, message: safeErrorMessage(error, 'Failed to create location') });
+        const status = error.status || 500;
+        res.status(status).json({
+            success: false,
+            message: status === 400 ? error.message : safeErrorMessage(error, 'Failed to create location'),
+        });
     }
 };
 
 export const updatePickupLocation = async (req, res) => {
     try {
-        const { locationId, name, city, address, googleMapsLink, locationType, deliveryFee } = req.body;
+        const { locationId } = req.body;
 
         const location = await PickupLocation.findById(locationId);
         if (!location) {
             return res.status(404).json({ success: false, message: 'Location not found' });
         }
 
-        if (name) location.name = name.trim();
-        if (city) location.city = city.trim();
-        if (address) location.address = address.trim();
-        if (googleMapsLink !== undefined) location.googleMapsLink = googleMapsLink;
-        if (locationType && ALLOWED_TYPES.has(locationType)) location.locationType = locationType;
-        if (deliveryFee !== undefined) location.deliveryFee = parseDeliveryFee(deliveryFee);
-
+        applyLocationFields(location, req.body);
         await location.save();
         res.json({ success: true, message: 'Pickup location updated', location });
     } catch (error) {
         console.error(error.message);
-        res.status(500).json({ success: false, message: safeErrorMessage(error, 'Failed to update location') });
+        const status = error.status || 500;
+        res.status(status).json({
+            success: false,
+            message: status === 400 ? error.message : safeErrorMessage(error, 'Failed to update location'),
+        });
     }
 };
 

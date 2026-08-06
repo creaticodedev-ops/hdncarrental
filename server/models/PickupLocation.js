@@ -12,6 +12,9 @@ const pickupLocationSchema = new mongoose.Schema({
     },
     /** Delivery / transfer fee in MAD (DH). 0 = free delivery. */
     deliveryFee: { type: Number, default: 0, min: 0 },
+    /** Optional map coordinates (decimal degrees). */
+    latitude: { type: Number, default: null, min: -90, max: 90 },
+    longitude: { type: Number, default: null, min: -180, max: 180 },
     isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
