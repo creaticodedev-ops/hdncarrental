@@ -224,6 +224,10 @@ const CarDetails = () => {
                 src={car.image || car.images?.[0] || fallbackImage}
                 onError={(e) => { e.currentTarget.src = fallbackImage }}
                 alt={`${car.brand} ${car.model}`}
+                width={1280}
+                height={720}
+                fetchPriority="high"
+                decoding="async"
                 className="aspect-[16/10] w-full object-cover sm:aspect-[16/9]"
               />
             </div>

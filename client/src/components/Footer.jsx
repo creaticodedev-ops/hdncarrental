@@ -25,6 +25,10 @@ const Footer = () => {
             {...fadeUp(0.2)}
             src={assets.logo}
             alt={BRAND_NAME}
+            width={176}
+            height={44}
+            loading="lazy"
+            decoding="async"
             className="block h-9 sm:h-10 lg:h-11 mb-3 w-auto max-h-10 lg:max-h-11 object-contain"
           />
 

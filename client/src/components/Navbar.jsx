@@ -65,6 +65,9 @@ const Navbar = () => {
             whileHover={{ scale: 1.03 }}
             src={assets.logo}
             alt={BRAND_NAME}
+            width={160}
+            height={40}
+            decoding="async"
             className="block h-8 sm:h-9 lg:h-10 w-auto max-h-9 lg:max-h-10 object-contain"
           />
         </Link>

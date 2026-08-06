@@ -29,8 +29,11 @@ const CarCard = ({ car }) => {
           src={car.image || car.images?.[0] || fallbackImage}
           onError={(e) => { e.currentTarget.src = fallbackImage }}
           alt={`${car.brand} ${car.model}`}
+          width={640}
+          height={400}
           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
           loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/55 via-ink/10 to-transparent opacity-90" />
 

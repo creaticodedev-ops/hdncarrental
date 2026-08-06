@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /owner
+Disallow: /superadmin
+Disallow: /admin
+Disallow: /complete-booking
+
+Sitemap: https://hdncar.com/sitemap.xml

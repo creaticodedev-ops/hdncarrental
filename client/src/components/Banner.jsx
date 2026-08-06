@@ -21,6 +21,10 @@ const Banner = () => {
           <img
             src={assets.banner_car_image}
             alt=""
+            width={1600}
+            height={900}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover object-center opacity-40 md:opacity-50"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/90 to-ink/40" />

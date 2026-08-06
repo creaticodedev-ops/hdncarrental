@@ -1,6 +1,7 @@
 import express from "express";
 import "dotenv/config";
 import cors from "cors";
+import compression from "compression";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -70,6 +71,17 @@ app.use(
   })
 );
 
+// Gzip compression — lowers transfer size for HTML/JSON/JS/CSS (Lighthouse TTFB/weight)
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) return false;
+      return compression.filter(req, res);
+    },
+  })
+);
+
 // Baseline security headers (no extra dependency)
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -112,7 +124,33 @@ app.get("/health", async (_req, res) => {
 });
 
 if (hasBuiltClient) {
-  app.use(express.static(clientDistPath, { index: false }));
+  app.use(
+    express.static(clientDistPath, {
+      index: false,
+      etag: true,
+      lastModified: true,
+      setHeaders: (res, filePath) => {
+        const base = path.basename(filePath);
+        // Vite hashed assets: long-lived immutable cache
+        if (/\.[a-f0-9]{8,}\./i.test(base) || /[\\/]assets[\\/]/i.test(filePath)) {
+          if (/\.(js|css|woff2?|ttf|otf|png|jpe?g|webp|avif|svg|gif|ico)$/i.test(base)) {
+            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+            return;
+          }
+        }
+        // Public images (hero preload paths)
+        if (/[\\/]images[\\/]/i.test(filePath) && /\.(webp|avif|png|jpe?g|svg)$/i.test(base)) {
+          res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+          return;
+        }
+        if (base === "index.html") {
+          res.setHeader("Cache-Control", "no-cache");
+          return;
+        }
+        res.setHeader("Cache-Control", "public, max-age=3600");
+      },
+    })
+  );
 }
 
 app.use("/api/user", userRouter);
@@ -136,6 +174,7 @@ app.use((req, res, next) => {
 
   const indexFile = hasBuiltClient ? path.join(clientDistPath, "index.html") : clientIndexPath;
   if (fs.existsSync(indexFile)) {
+    res.setHeader("Cache-Control", "no-cache");
     return res.sendFile(indexFile);
   }
 
@@ -143,16 +182,16 @@ app.use((req, res, next) => {
 });
 
 app.use((_req, res) => {
-  const path = _req.originalUrl || _req.url;
+  const reqPath = _req.originalUrl || _req.url;
   let message = "Route not found";
-  if (path.includes("/api/api/")) {
+  if (reqPath.includes("/api/api/")) {
     message =
       "Route not found — API base URL likely includes `/api` twice. Set VITE_BASE_URL to the server origin only (e.g. http://localhost:3000), not http://localhost:3000/api";
   }
   if (process.env.NODE_ENV !== "production") {
-    console.warn(`[404] ${_req.method} ${path}`);
+    console.warn(`[404] ${_req.method} ${reqPath}`);
   }
-  res.status(404).json({ success: false, message, path: process.env.NODE_ENV !== "production" ? path : undefined });
+  res.status(404).json({ success: false, message, path: process.env.NODE_ENV !== "production" ? reqPath : undefined });
 });
 
 app.use((err, _req, res, _next) => {

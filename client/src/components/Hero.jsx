@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { assets } from '../assets/assets'
+import { HERO_IMAGE } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
@@ -125,11 +125,19 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.22, ease: 'easeOut' }}
           className="mt-8 flex w-full max-w-3xl justify-center px-2 sm:mt-10 md:mt-14"
         >
-          <img
-            src={assets.main_car}
-            alt={`${BRAND_NAME} premium rental`}
-            className="max-h-[200px] w-full select-none object-contain drop-shadow-[0_30px_60px_rgba(22,18,16,0.18)] sm:max-h-[280px] md:max-h-[340px]"
-          />
+          <picture>
+            <source srcSet={HERO_IMAGE.avif} type="image/avif" />
+            <source srcSet={HERO_IMAGE.webp} type="image/webp" />
+            <img
+              src={HERO_IMAGE.webp}
+              alt={`${BRAND_NAME} premium rental`}
+              width={900}
+              height={506}
+              decoding="async"
+              fetchPriority="high"
+              className="max-h-[200px] w-full select-none object-contain drop-shadow-[0_30px_60px_rgba(22,18,16,0.18)] sm:max-h-[280px] md:max-h-[340px]"
+            />
+          </picture>
         </Motion.div>
       </div>
     </section>
