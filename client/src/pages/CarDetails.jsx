@@ -123,6 +123,11 @@ const CarDetails = () => {
       return
     }
 
+    // Mobile browsers often block popups opened after async work.
+    // Open a placeholder tab immediately from the user gesture, then navigate it later.
+    const waWindow =
+      channel === 'whatsapp' ? window.open('', '_blank', 'noopener,noreferrer') : null
+
     setSubmitting(true)
     try {
       const { data } = await axios.post('/api/bookings/create', {
@@ -139,7 +144,6 @@ const CarDetails = () => {
       })
 
       if (data.success) {
-        toast.success(data.message)
         const confirmation = {
           reservationId: data.reservationId,
           price: data.price,
@@ -157,14 +161,23 @@ const CarDetails = () => {
         }
         if (channel === 'whatsapp') {
           const url = data.whatsappUrl || buildGuestReservationWaUrl(confirmation, { currency: currency.trim() })
-          window.open(url, '_blank', 'noopener,noreferrer')
+          if (waWindow && !waWindow.closed) {
+            waWindow.location.href = url
+          } else {
+            // Fallback when popup was blocked/closed: redirect current page.
+            window.location.href = url
+          }
+        } else {
+          toast.success(data.message)
         }
         sessionStorage.setItem('lastReservation', JSON.stringify(confirmation))
         navigate('/booking-confirmation', { state: confirmation })
       } else {
+        if (waWindow && !waWindow.closed) waWindow.close()
         toast.error(data.message)
       }
     } catch (error) {
+      if (waWindow && !waWindow.closed) waWindow.close()
       toast.error(getErrorMessage(error))
     } finally {
       setSubmitting(false)
