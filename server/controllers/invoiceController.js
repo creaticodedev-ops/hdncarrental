@@ -14,6 +14,7 @@ import {
   persistPdfFromInstance,
   assertOptimisticLock,
   archiveRevision,
+  bumpDocumentVersion,
   listRevisions,
   getRevision,
   mergeSections,
@@ -361,16 +362,6 @@ export const generateInvoice = async (req, res) => {
       });
     }
 
-    if (existing) {
-      await archiveRevision({
-        owner: req.user._id,
-        documentType: 'invoice',
-        document: existing,
-        user: req.user,
-        note: req.body.forceFromBooking ? 'refresh-from-booking' : 'regenerate',
-      });
-    }
-
     const invoice = await Invoice.findOneAndUpdate(
       { booking: booking._id, owner: req.user._id },
       {
@@ -413,15 +404,16 @@ export const generateInvoice = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean();
 
-    if (!existing) {
-      await archiveRevision({
-        owner: req.user._id,
-        documentType: 'invoice',
-        document: invoice,
-        user: req.user,
-        note: 'generate',
-      });
-    }
+    // Archive tip AFTER version bump (create → v1; replace → vN+1)
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'invoice',
+      document: invoice,
+      user: req.user,
+      note: existing
+        ? (req.body.forceFromBooking ? 'refresh-from-booking' : 'regenerate')
+        : 'generate',
+    });
 
     await logAudit({
       owner: req.user._id,
@@ -612,14 +604,6 @@ export const updateInvoice = async (req, res) => {
 
     const doc = live;
 
-    await archiveRevision({
-      owner: req.user._id,
-      documentType: 'invoice',
-      document: doc,
-      user: req.user,
-      note: 'save',
-    });
-
     const nextItems = fields.items !== undefined ? fields.items : doc.items;
     const { normalizedItems, subtotal, taxAmount, discountAmount, totalAmount } = computeInvoiceTotals({
       items: nextItems,
@@ -684,7 +668,7 @@ export const updateInvoice = async (req, res) => {
 
     // Instance fields are SSOT after edit — do not keep pulling booking into locked content
     markContentLocked(doc);
-    doc.version = Number(doc.version || 1) + 1;
+    bumpDocumentVersion(doc);
     doc.updatedBy = req.user._id;
 
     doc.renderedHtml = renderInstance({
@@ -707,6 +691,14 @@ export const updateInvoice = async (req, res) => {
     }
 
     await doc.save();
+
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'invoice',
+      document: doc,
+      user: req.user,
+      note: 'save',
+    });
 
     await logAudit({
       owner: req.user._id,
@@ -747,14 +739,6 @@ export const regenerateInvoice = async (req, res) => {
     }
 
     if (expectedUpdatedAt) assertOptimisticLock(doc, expectedUpdatedAt);
-
-    await archiveRevision({
-      owner: req.user._id,
-      documentType: 'invoice',
-      document: doc,
-      user: req.user,
-      note: refreshFromBooking ? 'refresh-from-booking' : 'regenerate',
-    });
 
     if (refreshFromBooking) {
       const booking = doc.booking
@@ -814,9 +798,17 @@ export const regenerateInvoice = async (req, res) => {
     doc.renderedHtml = pdf.renderedHtml;
     doc.pdfPath = pdf.filePath;
     doc.pdfUrl = pdf.pdfUrl;
-    doc.version = Number(doc.version || 1) + 1;
+    bumpDocumentVersion(doc);
     doc.updatedBy = req.user._id;
     await doc.save();
+
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'invoice',
+      document: doc,
+      user: req.user,
+      note: refreshFromBooking ? 'refresh-from-booking' : 'regenerate',
+    });
 
     await logAudit({
       owner: req.user._id,
@@ -881,15 +873,6 @@ export const restoreInvoiceVersion = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Version not found' });
     }
 
-    await archiveRevision({
-      owner: req.user._id,
-      documentType: 'invoice',
-      document: live,
-      user: req.user,
-      note: 'restore',
-      meta: { restoredFrom: version },
-    });
-
     live.sourceData = revision.snapshot.sourceData || {};
     live.sections = revision.snapshot.sections || {};
     live.status = revision.snapshot.status || live.status;
@@ -913,9 +896,18 @@ export const restoreInvoiceVersion = async (req, res) => {
     live.renderedHtml = pdf.renderedHtml;
     live.pdfPath = pdf.filePath;
     live.pdfUrl = pdf.pdfUrl;
-    live.version = Number(live.version || 1) + 1;
+    bumpDocumentVersion(live);
     live.updatedBy = req.user._id;
     await live.save();
+
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'invoice',
+      document: live,
+      user: req.user,
+      note: 'restore',
+      meta: { restoredFrom: version },
+    });
 
     await logAudit({
       owner: req.user._id,

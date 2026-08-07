@@ -211,6 +211,34 @@ export const assertOptimisticLock = (doc, expectedUpdatedAt) => {
   }
 };
 
+/** Allowed revision notes (kept in sync with DocumentRevision.note enum). */
+const REVISION_NOTES = new Set([
+  'generate',
+  'save',
+  'regenerate',
+  'restore',
+  'hydrate',
+]);
+
+const normalizeRevisionNote = (note) => {
+  if (REVISION_NOTES.has(note)) return note;
+  // Legacy / descriptive aliases → canonical enum values
+  if (note === 'refresh-from-booking' || note === 'completion-signatures') return 'regenerate';
+  return 'save';
+};
+
+/**
+ * Snapshot the document's CURRENT version into revision history.
+ *
+ * Call AFTER applying edits and bumping `document.version` (and ideally after save),
+ * so each unique version number is written exactly once:
+ *   generate → archive v1
+ *   edit     → bump to v2 → archive v2
+ *   restore  → bump to vN → archive vN (new tip; never overwrite old rows)
+ *
+ * Do NOT call this before incrementing — that re-inserts the already-archived tip
+ * (E11000 on documentType+document+version).
+ */
 export const archiveRevision = async ({
   owner,
   documentType,
@@ -218,8 +246,18 @@ export const archiveRevision = async ({
   user,
   note = 'save',
   meta = {},
+  version: versionOverride,
 }) => {
-  const version = Number(document.version || 1);
+  if (!document?._id) {
+    throw new Error('archiveRevision requires a persisted document with _id');
+  }
+  const version = Number(
+    versionOverride != null ? versionOverride : (document.version ?? 1),
+  );
+  if (!Number.isFinite(version) || version < 1) {
+    throw new Error(`Invalid revision version: ${versionOverride ?? document.version}`);
+  }
+
   await DocumentRevision.create({
     owner: owner._id || owner,
     documentType,
@@ -239,8 +277,18 @@ export const archiveRevision = async ({
       },
     },
     createdBy: user?._id || user || null,
-    note,
+    note: normalizeRevisionNote(note),
   });
+};
+
+/**
+ * Bump live document version and return the new number.
+ * Does not persist — caller must save.
+ */
+export const bumpDocumentVersion = (document) => {
+  const next = Number(document.version || 1) + 1;
+  document.version = next;
+  return next;
 };
 
 export const listRevisions = async ({ owner, documentType, documentId, limit = 50 }) => {
@@ -379,15 +427,6 @@ export const upsertContractFromCompletion = async ({
   const existing = await Contract.findOne({ owner: ownerId, booking: booking._id }).sort({ createdAt: -1 });
 
   if (existing) {
-    await archiveRevision({
-      owner: ownerId,
-      documentType: 'contract',
-      document: existing,
-      user,
-      note: isContentLocked(existing) ? 'completion-signatures' : 'regenerate',
-      meta: { source: 'completion', contentLocked: isContentLocked(existing) },
-    });
-
     if (isContentLocked(existing)) {
       // Preserve edited fields/sections; only refresh signatures then re-render from instance
       existing.sourceData = mergeSignatureFields(existing.sourceData || {}, variables || {});
@@ -401,9 +440,17 @@ export const upsertContractFromCompletion = async ({
       existing.renderedHtml = pdf.renderedHtml;
       existing.pdfPath = pdf.filePath;
       existing.pdfUrl = pdf.pdfUrl;
-      existing.version = Number(existing.version || 1) + 1;
+      bumpDocumentVersion(existing);
       existing.updatedBy = user?._id || user || existing.updatedBy;
       await existing.save();
+      await archiveRevision({
+        owner: ownerId,
+        documentType: 'contract',
+        document: existing,
+        user,
+        note: 'completion-signatures',
+        meta: { source: 'completion', contentLocked: true },
+      });
       return existing;
     }
 
@@ -414,9 +461,17 @@ export const upsertContractFromCompletion = async ({
     existing.sections = sections;
     existing.template = template?._id || existing.template;
     existing.templateSnapshot = buildTemplateSnapshot(template || {});
-    existing.version = Number(existing.version || 1) + 1;
+    bumpDocumentVersion(existing);
     existing.updatedBy = user?._id || user || existing.updatedBy;
     await existing.save();
+    await archiveRevision({
+      owner: ownerId,
+      documentType: 'contract',
+      document: existing,
+      user,
+      note: 'regenerate',
+      meta: { source: 'completion', contentLocked: false },
+    });
     return existing;
   }
 
@@ -463,6 +518,7 @@ export default {
   persistPdfFromInstance,
   assertOptimisticLock,
   archiveRevision,
+  bumpDocumentVersion,
   listRevisions,
   getRevision,
   mergeSections,

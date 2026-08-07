@@ -20,6 +20,7 @@ import {
   persistPdfFromInstance,
   assertOptimisticLock,
   archiveRevision,
+  bumpDocumentVersion,
   listRevisions,
   getRevision,
   mergeSections,
@@ -438,14 +439,6 @@ export const updateContract = async (req, res) => {
         : hydrated.templateSnapshot;
     }
 
-    await archiveRevision({
-      owner: req.user._id,
-      documentType: 'contract',
-      document: live,
-      user: req.user,
-      note: 'save',
-    });
-
     if (sourceData && typeof sourceData === 'object') {
       live.sourceData = mergeSourceData(live.sourceData, sourceData);
     }
@@ -463,7 +456,7 @@ export const updateContract = async (req, res) => {
     }
 
     markContentLocked(live);
-    live.version = Number(live.version || 1) + 1;
+    bumpDocumentVersion(live);
     live.updatedBy = req.user._id;
 
     // Always refresh HTML from instance SSOT so preview/list reopen stay current
@@ -487,6 +480,15 @@ export const updateContract = async (req, res) => {
     }
 
     await live.save();
+
+    // Archive the NEW tip version after save (never re-archive the previous tip)
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'contract',
+      document: live,
+      user: req.user,
+      note: 'save',
+    });
 
     await logAudit({
       owner: req.user._id,
@@ -527,14 +529,6 @@ export const regenerateContract = async (req, res) => {
     }
 
     if (expectedUpdatedAt) assertOptimisticLock(doc, expectedUpdatedAt);
-
-    await archiveRevision({
-      owner: req.user._id,
-      documentType: 'contract',
-      document: doc,
-      user: req.user,
-      note: fromBooking ? 'refresh-from-booking' : 'regenerate',
-    });
 
     if (fromBooking) {
       const booking = await Booking.findById(doc.booking).populate('car').lean();
@@ -580,9 +574,17 @@ export const regenerateContract = async (req, res) => {
     doc.renderedHtml = pdf.renderedHtml;
     doc.pdfPath = pdf.filePath;
     doc.pdfUrl = pdf.pdfUrl;
-    doc.version = Number(doc.version || 1) + 1;
+    bumpDocumentVersion(doc);
     doc.updatedBy = req.user._id;
     await doc.save();
+
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'contract',
+      document: doc,
+      user: req.user,
+      note: fromBooking ? 'refresh-from-booking' : 'regenerate',
+    });
 
     await logAudit({
       owner: req.user._id,
@@ -651,15 +653,6 @@ export const restoreContractVersion = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Version not found' });
     }
 
-    await archiveRevision({
-      owner: req.user._id,
-      documentType: 'contract',
-      document: live,
-      user: req.user,
-      note: 'restore',
-      meta: { restoredFrom: version },
-    });
-
     live.sourceData = revision.snapshot.sourceData || {};
     live.sections = revision.snapshot.sections || {};
     live.status = revision.snapshot.status || live.status;
@@ -675,9 +668,19 @@ export const restoreContractVersion = async (req, res) => {
     live.renderedHtml = pdf.renderedHtml;
     live.pdfPath = pdf.filePath;
     live.pdfUrl = pdf.pdfUrl;
-    live.version = Number(live.version || 1) + 1;
+    bumpDocumentVersion(live);
     live.updatedBy = req.user._id;
     await live.save();
+
+    // Restore creates a NEW tip revision; historical rows stay immutable
+    await archiveRevision({
+      owner: req.user._id,
+      documentType: 'contract',
+      document: live,
+      user: req.user,
+      note: 'restore',
+      meta: { restoredFrom: version },
+    });
 
     await logAudit({
       owner: req.user._id,
