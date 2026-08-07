@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Title from '../../components/owner/Title'
+import DocumentEditPanel, { inputClass } from '../../components/owner/DocumentEditPanel'
+import DocumentSourceFields, { normalizeSourceDataForEdit } from '../../components/owner/DocumentSourceFields'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
@@ -48,8 +50,14 @@ const Contracts = () => {
   })
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewTitle, setPreviewTitle] = useState('')
-
-  const inputClass = 'border border-borderColor px-3 py-2 rounded-lg w-full text-sm'
+  const [editOpen, setEditOpen] = useState(false)
+  const [editTab, setEditTab] = useState('fields')
+  const [editing, setEditing] = useState(null)
+  const [editSource, setEditSource] = useState({})
+  const [editSections, setEditSections] = useState({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [versions, setVersions] = useState([])
+  const [versionsLoading, setVersionsLoading] = useState(false)
 
   const fetchContracts = async (override = {}) => {
     setLoading(true)
@@ -261,6 +269,180 @@ const Contracts = () => {
     } catch (error) {
       toast.error(getErrorMessage(error))
     }
+  }
+
+  const openEdit = async (contract) => {
+    try {
+      const { data } = await axios.get(`/api/contracts/${contract._id}`)
+      if (!data.success) {
+        toast.error(data.message)
+        return
+      }
+      const doc = data.contract
+      setEditing(doc)
+      setEditSource(normalizeSourceDataForEdit(doc.sourceData || {}))
+      setEditSections({
+        headerHtml: '',
+        bodyHtml: '',
+        termsHtml: '',
+        footerHtml: '',
+        customCss: '',
+        pageSize: 'A4',
+        logoUrl: '',
+        ...(doc.sections || {}),
+      })
+      setEditTab('fields')
+      setEditOpen(true)
+      setVersionsLoading(true)
+      const ver = await axios.get(`/api/contracts/${contract._id}/versions`)
+      if (ver.data.success) setVersions(ver.data.versions || [])
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setVersionsLoading(false)
+    }
+  }
+
+  const saveEdit = async ({ regeneratePdf = true } = {}) => {
+    if (!editing) return
+    setEditSaving(true)
+    try {
+      const { data } = await axios.patch(`/api/contracts/${editing._id}`, {
+        expectedUpdatedAt: editing.updatedAt,
+        sourceData: editSource,
+        sections: editSections,
+        regeneratePdf,
+        includeCompanyStamp: editSource?._meta?.includeCompanyStamp !== false,
+      })
+      if (data.success) {
+        toast.success(data.message || t('admin.documents.saved'))
+        setEditing(data.contract)
+        setEditSource(normalizeSourceDataForEdit(data.contract.sourceData || {}))
+        setEditSections({
+          headerHtml: '',
+          bodyHtml: '',
+          termsHtml: '',
+          footerHtml: '',
+          customCss: '',
+          pageSize: 'A4',
+          logoUrl: '',
+          ...(data.contract.sections || {}),
+        })
+        setContracts((prev) => prev.map((c) => (c._id === data.contract._id ? { ...c, ...data.contract } : c)))
+        const ver = await axios.get(`/api/contracts/${editing._id}/versions`)
+        if (ver.data.success) setVersions(ver.data.versions || [])
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      if (error.response?.status === 409) {
+        toast.error(t('admin.documents.conflict'))
+        openEdit(editing)
+      } else {
+        toast.error(getErrorMessage(error))
+      }
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const regenerateOnly = async ({ fromBooking = false } = {}) => {
+    if (!editing) return
+    if (fromBooking && !window.confirm(t('admin.documents.refreshFromBookingConfirm'))) return
+    setEditSaving(true)
+    try {
+      const { data } = await axios.post(`/api/contracts/${editing._id}/regenerate`, {
+        expectedUpdatedAt: editing.updatedAt,
+        fromBooking,
+      })
+      if (data.success) {
+        toast.success(data.message)
+        setEditing(data.contract)
+        setEditSource(normalizeSourceDataForEdit(data.contract.sourceData || {}))
+        setEditSections({
+          headerHtml: '',
+          bodyHtml: '',
+          termsHtml: '',
+          footerHtml: '',
+          customCss: '',
+          pageSize: 'A4',
+          logoUrl: '',
+          ...(data.contract.sections || {}),
+        })
+        setContracts((prev) => prev.map((c) => (c._id === data.contract._id ? { ...c, ...data.contract } : c)))
+      } else toast.error(data.message)
+    } catch (error) {
+      if (error.response?.status === 409) toast.error(t('admin.documents.conflict'))
+      else toast.error(getErrorMessage(error))
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const restoreVersion = async (version) => {
+    if (!editing || !window.confirm(t('admin.documents.restoreConfirm'))) return
+    setEditSaving(true)
+    try {
+      const { data } = await axios.post(`/api/contracts/${editing._id}/versions/${version}/restore`)
+      if (data.success) {
+        toast.success(data.message)
+        setEditing(data.contract)
+        setEditSource(normalizeSourceDataForEdit(data.contract.sourceData || {}))
+        setEditSections({
+          headerHtml: '',
+          bodyHtml: '',
+          termsHtml: '',
+          footerHtml: '',
+          customCss: '',
+          pageSize: 'A4',
+          logoUrl: '',
+          ...(data.contract.sections || {}),
+        })
+        fetchContracts()
+        const ver = await axios.get(`/api/contracts/${editing._id}/versions`)
+        if (ver.data.success) setVersions(ver.data.versions || [])
+      } else toast.error(data.message)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const pickDisplay = (...vals) => {
+    for (const v of vals) {
+      if (v !== undefined && v !== null && String(v).trim() !== '' && String(v).trim() !== '—') return String(v)
+    }
+    return '—'
+  }
+
+  const contractCustomer = (contract) => {
+    const sd = contract.sourceData || {}
+    const booking = contract.booking || {}
+    return {
+      name: pickDisplay(sd.customer_name, sd.customerName, booking.customerName),
+      phone: pickDisplay(sd.customer_phone, sd.customerPhone, booking.customerPhone, ''),
+    }
+  }
+
+  const contractVehicle = (contract) => {
+    const sd = contract.sourceData || {}
+    const car = contract.booking?.car || {}
+    const make = pickDisplay(
+      sd.car_make,
+      `${sd.car_brand || ''} ${sd.car_model || ''}`.trim(),
+      car.brand ? `${car.brand} ${car.model}` : '',
+    )
+    return make
+  }
+
+  const contractTotal = (contract) => {
+    const sd = contract.sourceData || {}
+    return pickDisplay(
+      sd.total_price,
+      sd.totalPrice,
+      contract.booking?.price != null ? `${currency}${contract.booking.price}` : '',
+    )
   }
 
   return (
@@ -491,20 +673,23 @@ const Contracts = () => {
               <tbody>
                 {contracts.map((contract) => {
                   const booking = contract.booking || {}
-                  const car = booking.car || {}
+                  const customer = contractCustomer(contract)
                   return (
                     <tr key={contract._id} className="border-t border-borderColor">
                       <td className="px-4 py-3 font-medium">{contract.contractNumber}</td>
-                      <td className="px-4 py-3">{booking.reservationId || '—'}</td>
+                      <td className="px-4 py-3">{pickDisplay(contract.sourceData?.reservation_id, booking.reservationId)}</td>
                       <td className="px-4 py-3">
-                        <p>{booking.customerName || '—'}</p>
-                        <p className="text-xs text-gray-500">{booking.customerPhone || ''}</p>
+                        <p>{customer.name}</p>
+                        <p className="text-xs text-gray-500">{customer.phone}</p>
                       </td>
-                      <td className="px-4 py-3">{car.brand ? `${car.brand} ${car.model}` : '—'}</td>
-                      <td className="px-4 py-3">{booking.price != null ? `${currency}${booking.price}` : '—'}</td>
-                      <td className="px-4 py-3">{formatDateTime(contract.createdAt)}</td>
+                      <td className="px-4 py-3">{contractVehicle(contract)}</td>
+                      <td className="px-4 py-3">{contractTotal(contract)}</td>
+                      <td className="px-4 py-3">{formatDateTime(contract.updatedAt || contract.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => openEdit(contract)} className="text-primary text-xs font-medium">
+                            {t('admin.common.edit')}
+                          </button>
                           <button type="button" onClick={() => previewContract(contract)} className="text-primary text-xs font-medium">
                             {t('admin.contracts.preview')}
                           </button>
@@ -512,6 +697,10 @@ const Contracts = () => {
                             PDF
                           </button>
                         </div>
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          v{contract.version || 1}
+                          {contract.contentLocked ? ` · ${t('admin.documents.edited')}` : ''}
+                        </p>
                       </td>
                     </tr>
                   )
@@ -545,6 +734,45 @@ const Contracts = () => {
           </button>
         </div>
       )}
+
+      <DocumentEditPanel
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title={editing ? `${t('admin.common.edit')} ${editing.contractNumber}` : ''}
+        activeTab={editTab}
+        setActiveTab={setEditTab}
+        saving={editSaving}
+        onSave={() => saveEdit({ regeneratePdf: true })}
+        onSaveAndRegenerate={() => saveEdit({ regeneratePdf: true })}
+        onRegenerate={() => regenerateOnly({ fromBooking: false })}
+        onRefreshFromSource={() => regenerateOnly({ fromBooking: true })}
+        versions={versions}
+        versionsLoading={versionsLoading}
+        onRestoreVersion={restoreVersion}
+        sections={editSections}
+        setSections={setEditSections}
+        t={t}
+        fieldsContent={(
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={editSource?._meta?.includeCompanyStamp !== false}
+                onChange={(e) => setEditSource((s) => ({
+                  ...s,
+                  _meta: { ...(s._meta || {}), includeCompanyStamp: e.target.checked },
+                }))}
+              />
+              {t('admin.contracts.includeStamp')}
+            </label>
+            <DocumentSourceFields
+              sourceData={editSource}
+              setSourceData={setEditSource}
+              t={t}
+            />
+          </div>
+        )}
+      />
     </div>
   )
 }

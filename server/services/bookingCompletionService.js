@@ -11,6 +11,7 @@ import { publicUploadUrl } from "./pdfDocuments.js";
 import { generateContractPdf } from "./templatePdfExport.js";
 import { ensureDefaultTemplates } from "../controllers/exportTemplateController.js";
 import { getDefaultContractTemplate } from "../utils/resolveExportTemplate.js";
+import { upsertContractFromCompletion } from "./documentInstanceService.js";
 import { logAudit } from "../utils/adminOps.js";
 import { storeDataUrlImage } from "./documentStore.js";
 
@@ -246,6 +247,23 @@ export const tryFinalizeBookingCompletion = async (bookingId) => {
   }
   contractPath = contractResult.filePath;
   contractPdfUrl = contractResult.pdfUrl;
+
+  try {
+    const ownerId = booking.owner?._id || booking.owner;
+    await upsertContractFromCompletion({
+      owner: ownerId,
+      booking,
+      template,
+      contractNumber,
+      filePath: contractPath,
+      pdfUrl: contractPdfUrl || publicUploadUrl(contractPath),
+      renderedHtml: contractResult.renderedHtml || '',
+      variables: contractResult.variables || {},
+      user: null,
+    });
+  } catch (persistErr) {
+    console.error('[FINALIZE] Failed to persist Contract record:', persistErr.message);
+  }
 
   booking.completion.contractPdfUrl = contractPdfUrl || publicUploadUrl(contractPath);
   delete booking.completion.invoicePdfUrl;

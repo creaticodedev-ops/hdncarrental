@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Title from '../../components/owner/Title'
+import DocumentEditPanel, { inputClass, labelClass } from '../../components/owner/DocumentEditPanel'
+import DocumentSourceFields, { normalizeSourceDataForEdit } from '../../components/owner/DocumentSourceFields'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
@@ -46,6 +48,15 @@ const Invoices = () => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(createEmptyForm())
+  const [editOpen, setEditOpen] = useState(false)
+  const [editTab, setEditTab] = useState('fields')
+  const [editing, setEditing] = useState(null)
+  const [editForm, setEditForm] = useState(createEmptyForm())
+  const [editSource, setEditSource] = useState({})
+  const [editSections, setEditSections] = useState({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [versions, setVersions] = useState([])
+  const [versionsLoading, setVersionsLoading] = useState(false)
 
   const fetchInvoices = async (override = {}) => {
     setLoading(true)
@@ -115,18 +126,28 @@ const Invoices = () => {
     totalAmount: invoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount ?? (invoice.booking?.price || 0)), 0),
   }), [invoices])
 
-  const lineTotals = useMemo(() => {
-    const subtotal = form.items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0)
-    const taxAmount = form.items.reduce((sum, item) => sum + ((Number(item.quantity || 0) * Number(item.unitPrice || 0)) * (Number(item.taxRate || 0) / 100)), 0)
-    const discountAmount = Number(form.discountAmount || 0)
+  const computeLineTotals = (items, discountAmount) => {
+    const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0)
+    const taxAmount = items.reduce((sum, item) => sum + ((Number(item.quantity || 0) * Number(item.unitPrice || 0)) * (Number(item.taxRate || 0) / 100)), 0)
+    const discount = Number(discountAmount || 0)
     return {
       subtotal,
       taxAmount,
-      totalAmount: Math.max(0, subtotal + taxAmount - discountAmount),
+      totalAmount: Math.max(0, subtotal + taxAmount - discount),
     }
-  }, [form.items, form.discountAmount])
+  }
+
+  const lineTotals = useMemo(
+    () => computeLineTotals(form.items, form.discountAmount),
+    [form.items, form.discountAmount],
+  )
+  const editLineTotals = useMemo(
+    () => computeLineTotals(editForm.items, editForm.discountAmount),
+    [editForm.items, editForm.discountAmount],
+  )
 
   const updateForm = (changes) => setForm((prev) => ({ ...prev, ...changes }))
+  const updateEditForm = (changes) => setEditForm((prev) => ({ ...prev, ...changes }))
 
   const updateItem = (index, field, value) => {
     setForm((prev) => ({
@@ -135,13 +156,273 @@ const Invoices = () => {
     }))
   }
 
+  const updateEditItem = (index, field, value) => {
+    setEditForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
+    }))
+  }
+
   const addItem = () => setForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem()] }))
+  const addEditItem = () => setEditForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem()] }))
 
   const removeItem = (index) => {
     setForm((prev) => ({
       ...prev,
       items: prev.items.filter((_, itemIndex) => itemIndex !== index),
     }))
+  }
+
+  const removeEditItem = (index) => {
+    setEditForm((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, itemIndex) => itemIndex !== index),
+    }))
+  }
+
+  const invoiceToForm = (invoice) => {
+    const inv = invoice?.sourceData?.invoice || {}
+    const sd = invoice?.sourceData || {}
+    const pick = (...vals) => {
+      for (const v of vals) {
+        if (v !== undefined && v !== null && String(v).trim() !== '' && String(v).trim() !== '—') return v
+      }
+      return ''
+    }
+    const toDateInput = (value) => {
+      if (!value) return ''
+      const d = new Date(value)
+      if (Number.isNaN(d.getTime())) {
+        const m = String(value).match(/(\d{4}-\d{2}-\d{2})/)
+        return m ? m[1] : ''
+      }
+      return d.toISOString().slice(0, 10)
+    }
+    const itemsSource = (invoice.items?.length ? invoice.items : inv.items) || []
+    return {
+      invoiceNumber: pick(invoice.invoiceNumber, inv.invoiceNumber, sd.contract_number),
+      invoiceDate: toDateInput(invoice.invoiceDate || inv.invoiceDate),
+      dueDate: toDateInput(invoice.dueDate || inv.dueDate),
+      customerName: pick(invoice.customerName, inv.customerName, sd.customer_name),
+      customerEmail: pick(invoice.customerEmail, inv.customerEmail, sd.customer_email),
+      customerPhone: pick(invoice.customerPhone, inv.customerPhone, sd.customer_phone),
+      customerAddress: pick(invoice.customerAddress, inv.customerAddress, sd.customer_address),
+      customerTaxId: pick(invoice.customerTaxId, inv.customerTaxId),
+      vehicleBrand: pick(invoice.vehicleBrand, inv.vehicleBrand, sd.car_brand),
+      vehicleModel: pick(invoice.vehicleModel, inv.vehicleModel, sd.car_model),
+      vehicleYear: pick(invoice.vehicleYear, inv.vehicleYear, sd.car_year),
+      vehiclePlate: pick(invoice.vehiclePlate, inv.vehiclePlate, sd.car_registration),
+      vehicleType: pick(invoice.vehicleType, inv.vehicleType, sd.car_category),
+      items: itemsSource.length
+        ? itemsSource.map((item) => ({
+            description: item.description || '',
+            quantity: item.quantity ?? 1,
+            unitPrice: item.unitPrice ?? '',
+            taxRate: item.taxRate ?? 0,
+          }))
+        : [createEmptyItem()],
+      discountAmount: String(invoice.discountAmount ?? inv.discountAmount ?? 0),
+      notes: pick(invoice.notes, inv.notes, sd.notes),
+      paymentStatus: pick(invoice.paymentStatus, inv.paymentStatus, sd.payment_status) || 'pending',
+      paymentMethod: pick(invoice.paymentMethod, inv.paymentMethod) || 'cash',
+      paymentReference: pick(invoice.paymentReference, inv.paymentReference),
+      currency: pick(invoice.currency, inv.currency, sd.currency) || 'MAD',
+      includeCompanyStamp: invoice.includeCompanyStamp !== false
+        && invoice?.sourceData?._meta?.includeCompanyStamp !== false,
+    }
+  }
+
+  const applyInvoiceDocToEditState = (doc) => {
+    setEditing(doc)
+    setEditForm(invoiceToForm(doc))
+    setEditSource(normalizeSourceDataForEdit(doc.sourceData || {}))
+    setEditSections({
+      headerHtml: '',
+      bodyHtml: '',
+      termsHtml: '',
+      footerHtml: '',
+      customCss: '',
+      pageSize: 'A4',
+      logoUrl: '',
+      ...(doc.sections || {}),
+    })
+  }
+
+  const openEdit = async (invoice) => {
+    try {
+      const { data } = await axios.get(`/api/invoices/${invoice._id}`)
+      if (!data.success) {
+        toast.error(data.message)
+        return
+      }
+      applyInvoiceDocToEditState(data.invoice)
+      setEditTab('fields')
+      setEditOpen(true)
+      setVersionsLoading(true)
+      const ver = await axios.get(`/api/invoices/${invoice._id}/versions`)
+      if (ver.data.success) setVersions(ver.data.versions || [])
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setVersionsLoading(false)
+    }
+  }
+
+  const saveEdit = async ({ regeneratePdf = true } = {}) => {
+    if (!editing) return
+    if (!editForm.customerName.trim()) {
+      toast.error(t('admin.invoices.customerRequired'))
+      return
+    }
+    const items = editForm.items.filter((item) => item.description || item.quantity || item.unitPrice)
+    if (!items.length) {
+      toast.error(t('admin.invoices.itemRequired'))
+      return
+    }
+
+    setEditSaving(true)
+    try {
+      const syncedSource = {
+        ...editSource,
+        customer_name: editForm.customerName,
+        customerName: editForm.customerName,
+        customer_email: editForm.customerEmail,
+        customerEmail: editForm.customerEmail,
+        customer_phone: editForm.customerPhone,
+        customerPhone: editForm.customerPhone,
+        customer_address: editForm.customerAddress,
+        customerAddress: editForm.customerAddress,
+        car_brand: editForm.vehicleBrand,
+        carBrand: editForm.vehicleBrand,
+        car_model: editForm.vehicleModel,
+        carModel: editForm.vehicleModel,
+        car_year: editForm.vehicleYear,
+        carYear: editForm.vehicleYear,
+        car_registration: editForm.vehiclePlate,
+        carRegistration: editForm.vehiclePlate,
+        car_category: editForm.vehicleType,
+        carCategory: editForm.vehicleType,
+        currency: editForm.currency,
+        payment_status: editForm.paymentStatus,
+        paymentStatus: editForm.paymentStatus,
+        notes: editForm.notes,
+        contract_number: editForm.invoiceNumber || editSource.contract_number,
+        contractNumber: editForm.invoiceNumber || editSource.contractNumber,
+        _meta: {
+          ...(editSource._meta || {}),
+          includeCompanyStamp: editForm.includeCompanyStamp,
+        },
+        invoice: {
+          ...(editSource.invoice || {}),
+          invoiceNumber: editForm.invoiceNumber,
+          invoiceDate: editForm.invoiceDate,
+          dueDate: editForm.dueDate,
+          currency: editForm.currency,
+          customerName: editForm.customerName,
+          customerEmail: editForm.customerEmail,
+          customerPhone: editForm.customerPhone,
+          customerAddress: editForm.customerAddress,
+          customerTaxId: editForm.customerTaxId,
+          vehicleBrand: editForm.vehicleBrand,
+          vehicleModel: editForm.vehicleModel,
+          vehicleYear: editForm.vehicleYear,
+          vehiclePlate: editForm.vehiclePlate,
+          vehicleType: editForm.vehicleType,
+          items,
+          discountAmount: Number(editForm.discountAmount || 0),
+          notes: editForm.notes,
+          paymentStatus: editForm.paymentStatus,
+          paymentMethod: editForm.paymentMethod,
+          paymentReference: editForm.paymentReference,
+        },
+      }
+      const { data } = await axios.patch(`/api/invoices/${editing._id}`, {
+        expectedUpdatedAt: editing.updatedAt,
+        regeneratePdf,
+        sections: editSections,
+        sourceData: syncedSource,
+        invoiceNumber: editForm.invoiceNumber,
+        invoiceDate: editForm.invoiceDate,
+        dueDate: editForm.dueDate,
+        customerName: editForm.customerName,
+        customerEmail: editForm.customerEmail,
+        customerPhone: editForm.customerPhone,
+        customerAddress: editForm.customerAddress,
+        customerTaxId: editForm.customerTaxId,
+        vehicleBrand: editForm.vehicleBrand,
+        vehicleModel: editForm.vehicleModel,
+        vehicleYear: editForm.vehicleYear,
+        vehiclePlate: editForm.vehiclePlate,
+        vehicleType: editForm.vehicleType,
+        items,
+        discountAmount: Number(editForm.discountAmount || 0),
+        notes: editForm.notes,
+        paymentStatus: editForm.paymentStatus,
+        paymentMethod: editForm.paymentMethod,
+        paymentReference: editForm.paymentReference,
+        currency: editForm.currency,
+        includeCompanyStamp: editForm.includeCompanyStamp,
+      })
+      if (data.success) {
+        toast.success(data.message || t('admin.documents.saved'))
+        applyInvoiceDocToEditState(data.invoice)
+        setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
+        const ver = await axios.get(`/api/invoices/${editing._id}/versions`)
+        if (ver.data.success) setVersions(ver.data.versions || [])
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      if (error.response?.status === 409) {
+        toast.error(t('admin.documents.conflict'))
+        openEdit(editing)
+      } else {
+        toast.error(getErrorMessage(error))
+      }
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const regenerateOnly = async ({ fromBooking = false } = {}) => {
+    if (!editing) return
+    if (fromBooking && !window.confirm(t('admin.documents.refreshFromBookingConfirm'))) return
+    setEditSaving(true)
+    try {
+      const { data } = await axios.post(`/api/invoices/${editing._id}/regenerate`, {
+        expectedUpdatedAt: editing.updatedAt,
+        fromBooking,
+      })
+      if (data.success) {
+        toast.success(data.message)
+        applyInvoiceDocToEditState(data.invoice)
+        setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
+      } else toast.error(data.message)
+    } catch (error) {
+      if (error.response?.status === 409) toast.error(t('admin.documents.conflict'))
+      else toast.error(getErrorMessage(error))
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const restoreVersion = async (version) => {
+    if (!editing || !window.confirm(t('admin.documents.restoreConfirm'))) return
+    setEditSaving(true)
+    try {
+      const { data } = await axios.post(`/api/invoices/${editing._id}/versions/${version}/restore`)
+      if (data.success) {
+        toast.success(data.message)
+        applyInvoiceDocToEditState(data.invoice)
+        setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
+        const ver = await axios.get(`/api/invoices/${editing._id}/versions`)
+        if (ver.data.success) setVersions(ver.data.versions || [])
+      } else toast.error(data.message)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const handleCreateInvoice = async (e) => {
@@ -278,15 +559,26 @@ const Invoices = () => {
                       <td className="px-4 py-3 font-medium">{invoice.invoiceNumber}</td>
                       <td className="px-4 py-3">{invoice.source === 'manual' ? t('admin.invoices.manual') : (booking.reservationId || '—')}</td>
                       <td className="px-4 py-3">
-                        <p>{invoice.customerName || booking.customerName || '—'}</p>
-                        <p className="text-xs text-gray-500">{invoice.customerPhone || booking.customerPhone || ''}</p>
+                        <p>{invoice.customerName || invoice.sourceData?.customer_name || booking.customerName || '—'}</p>
+                        <p className="text-xs text-gray-500">{invoice.customerPhone || invoice.sourceData?.customer_phone || booking.customerPhone || ''}</p>
                       </td>
                       <td className="px-4 py-3">{invoice.totalAmount != null ? `${invoice.currency || currency}${Number(invoice.totalAmount).toFixed(2)}` : (booking.price != null ? `${currency}${booking.price}` : '—')}</td>
-                      <td className="px-4 py-3">{formatDateTime(invoice.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <button type="button" onClick={() => handleDownload(invoice)} className="text-primary text-xs font-medium">
-                          {t('admin.invoices.download')}
-                        </button>
+                        <p>{formatDateTime(invoice.updatedAt || invoice.createdAt)}</p>
+                        <p className="text-[10px] text-gray-400">
+                          v{invoice.version || 1}
+                          {invoice.contentLocked ? ` · ${t('admin.documents.edited')}` : ''}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => openEdit(invoice)} className="text-primary text-xs font-medium">
+                            {t('admin.common.edit')}
+                          </button>
+                          <button type="button" onClick={() => handleDownload(invoice)} className="text-gray-700 text-xs font-medium">
+                            {t('admin.invoices.download')}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -462,6 +754,158 @@ const Invoices = () => {
           </div>
         </div>
       )}
+
+      <DocumentEditPanel
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title={editing ? `${t('admin.common.edit')} ${editing.invoiceNumber}` : ''}
+        activeTab={editTab}
+        setActiveTab={setEditTab}
+        saving={editSaving}
+        onSave={() => saveEdit({ regeneratePdf: true })}
+        onSaveAndRegenerate={() => saveEdit({ regeneratePdf: true })}
+        onRegenerate={() => regenerateOnly({ fromBooking: false })}
+        onRefreshFromSource={editing?.booking ? () => regenerateOnly({ fromBooking: true }) : undefined}
+        versions={versions}
+        versionsLoading={versionsLoading}
+        onRestoreVersion={restoreVersion}
+        sections={editSections}
+        setSections={setEditSections}
+        t={t}
+        fieldsContent={(
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <label className={labelClass}>{t('admin.invoices.invoiceNumber')}</label>
+                <input className={inputClass} value={editForm.invoiceNumber} onChange={(e) => updateEditForm({ invoiceNumber: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.invoiceDate')}</label>
+                <input type="date" className={inputClass} value={editForm.invoiceDate} onChange={(e) => updateEditForm({ invoiceDate: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.dueDate')}</label>
+                <input type="date" className={inputClass} value={editForm.dueDate} onChange={(e) => updateEditForm({ dueDate: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.customerName')}</label>
+                <input className={inputClass} value={editForm.customerName} onChange={(e) => updateEditForm({ customerName: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.customerEmail')}</label>
+                <input type="email" className={inputClass} value={editForm.customerEmail} onChange={(e) => updateEditForm({ customerEmail: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.customerPhone')}</label>
+                <input className={inputClass} value={editForm.customerPhone} onChange={(e) => updateEditForm({ customerPhone: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.customerAddress')}</label>
+                <input className={inputClass} value={editForm.customerAddress} onChange={(e) => updateEditForm({ customerAddress: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.customerTaxId')}</label>
+                <input className={inputClass} value={editForm.customerTaxId} onChange={(e) => updateEditForm({ customerTaxId: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.currency')}</label>
+                <input className={inputClass} value={editForm.currency} onChange={(e) => updateEditForm({ currency: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.vehicleBrand')}</label>
+                <input className={inputClass} value={editForm.vehicleBrand} onChange={(e) => updateEditForm({ vehicleBrand: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.vehicleModel')}</label>
+                <input className={inputClass} value={editForm.vehicleModel} onChange={(e) => updateEditForm({ vehicleModel: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.vehiclePlate')}</label>
+                <input className={inputClass} value={editForm.vehiclePlate} onChange={(e) => updateEditForm({ vehiclePlate: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.vehicleYear')}</label>
+                <input className={inputClass} value={editForm.vehicleYear} onChange={(e) => updateEditForm({ vehicleYear: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.vehicleType')}</label>
+                <input className={inputClass} value={editForm.vehicleType} onChange={(e) => updateEditForm({ vehicleType: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.paymentStatus')}</label>
+                <select className={inputClass} value={editForm.paymentStatus} onChange={(e) => updateEditForm({ paymentStatus: e.target.value })}>
+                  <option value="pending">{t('admin.invoices.pending')}</option>
+                  <option value="paid">{t('admin.invoices.paid')}</option>
+                  <option value="partial">{t('admin.invoices.partial')}</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.paymentMethod')}</label>
+                <select className={inputClass} value={editForm.paymentMethod} onChange={(e) => updateEditForm({ paymentMethod: e.target.value })}>
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="card">Card</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.paymentReference')}</label>
+                <input className={inputClass} value={editForm.paymentReference} onChange={(e) => updateEditForm({ paymentReference: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-borderColor bg-gray-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold text-gray-700">{t('admin.invoices.items')}</h4>
+                <button type="button" onClick={addEditItem} className="rounded-lg border border-borderColor bg-white px-3 py-1.5 text-sm">{t('admin.invoices.addItem')}</button>
+              </div>
+              <div className="mt-3 space-y-3">
+                {editForm.items.map((item, index) => (
+                  <div key={`edit-item-${index}`} className="grid gap-2 rounded-lg border border-borderColor bg-white p-3 md:grid-cols-[2fr_0.8fr_1fr_0.7fr_auto]">
+                    <input className={inputClass} value={item.description} onChange={(e) => updateEditItem(index, 'description', e.target.value)} placeholder={t('admin.invoices.itemDescription')} />
+                    <input type="number" min="1" className={inputClass} value={item.quantity} onChange={(e) => updateEditItem(index, 'quantity', e.target.value)} />
+                    <input type="number" min="0" step="0.01" className={inputClass} value={item.unitPrice} onChange={(e) => updateEditItem(index, 'unitPrice', e.target.value)} />
+                    <input type="number" min="0" max="100" step="0.01" className={inputClass} value={item.taxRate} onChange={(e) => updateEditItem(index, 'taxRate', e.target.value)} />
+                    <button type="button" onClick={() => removeEditItem(index)} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600">×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>{t('admin.invoices.discount')}</label>
+                <input type="number" min="0" step="0.01" className={inputClass} value={editForm.discountAmount} onChange={(e) => updateEditForm({ discountAmount: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelClass}>{t('admin.invoices.notes')}</label>
+                <textarea rows="3" className={inputClass} value={editForm.notes} onChange={(e) => updateEditForm({ notes: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+              <div>
+                <div>{t('admin.invoices.subtotal')}: {currency}{Number(editLineTotals.subtotal).toFixed(2)}</div>
+                <div>{t('admin.invoices.tax')}: {currency}{Number(editLineTotals.taxAmount).toFixed(2)}</div>
+                <div className="font-semibold">{t('admin.invoices.total')}: {currency}{Number(editLineTotals.totalAmount).toFixed(2)}</div>
+              </div>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={editForm.includeCompanyStamp} onChange={(e) => updateEditForm({ includeCompanyStamp: e.target.checked })} />
+                {t('admin.invoices.includeStamp')}
+              </label>
+            </div>
+
+            <div className="border-t border-borderColor pt-4">
+              <DocumentSourceFields
+                sourceData={editSource}
+                setSourceData={setEditSource}
+                t={t}
+                title={t('admin.documents.allFields')}
+              />
+            </div>
+          </div>
+        )}
+      />
     </div>
   )
 }

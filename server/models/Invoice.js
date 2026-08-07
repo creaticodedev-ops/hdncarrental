@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { documentSectionsSchema, templateSnapshotSchema } from './Contract.js';
 
 const invoiceItemSchema = new mongoose.Schema({
   description: { type: String, default: '' },
@@ -38,8 +39,16 @@ const invoiceSchema = new mongoose.Schema({
   renderedHtml: { type: String, default: '' },
   pdfUrl: { type: String, default: '' },
   pdfPath: { type: String, default: '' },
+  sourceData: { type: mongoose.Schema.Types.Mixed, default: {} },
+  sections: { type: documentSectionsSchema, default: () => ({}) },
+  templateSnapshot: { type: templateSnapshotSchema, default: () => ({}) },
+  version: { type: Number, default: 1 },
   generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   includeCompanyStamp: { type: Boolean, default: true },
+  /** When true, booking regenerate must not overwrite edited content */
+  contentLocked: { type: Boolean, default: false, index: true },
   status: {
     type: String,
     enum: ['draft', 'final'],
