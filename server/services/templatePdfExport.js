@@ -7,7 +7,7 @@ import {
   renderTemplate,
 } from './templateEngine.js';
 import { publicUploadUrl } from './pdfDocuments.js';
-import { launchPdfBrowser } from '../utils/launchPdfBrowser.js';
+import { withPdfPage } from '../utils/launchPdfBrowser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTRACTS_ROOT = path.join(__dirname, '..', 'uploads', 'contracts');
@@ -41,6 +41,29 @@ const mimeFromUrlOrPath = (value = '') => {
   return 'image/jpeg';
 };
 
+/** In-memory cache for remote images embedded into PDFs (logos / stamps on CDN). */
+const remoteImageCache = new Map();
+const REMOTE_IMAGE_CACHE_MAX = 64;
+const REMOTE_IMAGE_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const getCachedRemoteImage = (url) => {
+  const hit = remoteImageCache.get(url);
+  if (!hit) return null;
+  if (Date.now() - hit.at > REMOTE_IMAGE_CACHE_TTL_MS) {
+    remoteImageCache.delete(url);
+    return null;
+  }
+  return hit.dataUri;
+};
+
+const setCachedRemoteImage = (url, dataUri) => {
+  if (remoteImageCache.size >= REMOTE_IMAGE_CACHE_MAX) {
+    const oldest = remoteImageCache.keys().next().value;
+    if (oldest) remoteImageCache.delete(oldest);
+  }
+  remoteImageCache.set(url, { dataUri, at: Date.now() });
+};
+
 /**
  * Embed remote <img src="http(s):..."> as data URIs so PDF rendering does not
  * depend on networkidle / external CDN availability.
@@ -54,9 +77,14 @@ const embedRemoteImagesAsDataUris = async (html) => {
 
   await Promise.all(
     uniqueUrls.map(async (url) => {
+      const cached = getCachedRemoteImage(url);
+      if (cached) {
+        replacements.set(url, cached);
+        return;
+      }
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 12_000);
+        const timer = setTimeout(() => controller.abort(), 8_000);
         const res = await fetch(url, { signal: controller.signal });
         clearTimeout(timer);
         if (!res.ok) return;
@@ -64,7 +92,9 @@ const embedRemoteImagesAsDataUris = async (html) => {
         if (!contentType.startsWith('image/')) return;
         const buf = Buffer.from(await res.arrayBuffer());
         if (!buf.length || buf.length > 8 * 1024 * 1024) return;
-        replacements.set(url, `data:${contentType};base64,${buf.toString('base64')}`);
+        const dataUri = `data:${contentType};base64,${buf.toString('base64')}`;
+        setCachedRemoteImage(url, dataUri);
+        replacements.set(url, dataUri);
       } catch (error) {
         console.warn('[PDF_GEN] Could not embed remote image:', url.slice(0, 120), error.message);
       }
@@ -80,10 +110,8 @@ const embedRemoteImagesAsDataUris = async (html) => {
 
 const renderHtmlToPdf = async (html, filePath, pageSize = 'A4') => {
   const preparedHtml = await embedRemoteImagesAsDataUris(html);
-  const browser = await launchPdfBrowser();
 
-  try {
-    const page = await browser.newPage();
+  await withPdfPage(async (page) => {
     page.setDefaultNavigationTimeout(45_000);
     // Prefer load over networkidle0 — remote beacons/CDNs must not block PDF generation.
     await page.setContent(preparedHtml, { waitUntil: 'load', timeout: 45_000 });
@@ -94,16 +122,14 @@ const renderHtmlToPdf = async (html, filePath, pageSize = 'A4') => {
       printBackground: true,
       margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
     });
-  } finally {
-    await browser.close();
-  }
+  });
 };
 
-export const generatePdfFromTemplate = async ({ template, variables, filePath, title = 'Document' }) => {
+export const generatePdfFromTemplate = async ({ template, variables, filePath, title = 'Document', html } = {}) => {
   ensureDir(path.dirname(filePath));
-  const fullHtml = buildDocumentHtml(template, variables);
-  const html = fullHtml.replace(/<title>.*?<\/title>/i, `<title>${title}</title>`);
-  await renderHtmlToPdf(html, filePath, template?.pageSize || 'A4');
+  const fullHtml = html || buildDocumentHtml(template, variables);
+  const titled = fullHtml.replace(/<title>.*?<\/title>/i, `<title>${title}</title>`);
+  await renderHtmlToPdf(titled, filePath, template?.pageSize || 'A4');
   return filePath;
 };
 
@@ -137,11 +163,13 @@ export const generateContractPdf = async ({ template, booking, contractNumber, o
   const fileName = `contract-${safeNumber}-${token}.pdf`;
   const filePath = path.join(dir, fileName);
 
+  // Pass prebuilt HTML to avoid building the document twice
   await generatePdfFromTemplate({
     template,
     variables,
     filePath,
     title: `Contract ${contractNumber}`,
+    html: fullHtml,
   });
 
   return {
@@ -171,6 +199,7 @@ export const generateDocumentFromTemplate = async ({ template, booking, owner, d
     variables,
     filePath,
     title: documentTitle || template.name,
+    html: fullHtml,
   });
 
   return {

@@ -209,11 +209,26 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(
     '[routes] Booking workflow: POST /api/booking-completion/owner/ensure-link, /api/bookings/owner/completion/ensure-link',
   );
 });
+
+const shutdown = async (signal) => {
+  console.log(`[shutdown] ${signal} received`);
+  try {
+    const { closePdfBrowser } = await import('./utils/launchPdfBrowser.js');
+    await closePdfBrowser();
+  } catch (error) {
+    console.warn('[shutdown] PDF browser close:', error.message);
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 8_000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;

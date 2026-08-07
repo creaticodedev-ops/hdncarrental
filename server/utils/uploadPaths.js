@@ -25,14 +25,32 @@ export const resolveLocalUploadPath = (publicUrl) => {
   return fs.existsSync(abs) ? abs : null;
 };
 
-/** Read logo file as data URI for reliable HTML/PDF embedding */
+/** Read logo file as data URI for reliable HTML/PDF embedding (mtime-aware cache). */
+const dataUriCache = new Map();
+
 export const logoToDataUri = (logoUrl) => {
   const filePath = resolveLocalUploadPath(logoUrl);
   if (!filePath) return null;
+  let mtimeMs = 0;
+  try {
+    mtimeMs = fs.statSync(filePath).mtimeMs;
+  } catch {
+    return null;
+  }
+  const cacheKey = `${filePath}|${mtimeMs}`;
+  const cached = dataUriCache.get(cacheKey);
+  if (cached) return cached;
+
   const ext = path.extname(filePath).toLowerCase();
   const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
   const buf = fs.readFileSync(filePath);
-  return `data:${mime};base64,${buf.toString('base64')}`;
+  const dataUri = `data:${mime};base64,${buf.toString('base64')}`;
+  if (dataUriCache.size > 48) {
+    const first = dataUriCache.keys().next().value;
+    if (first) dataUriCache.delete(first);
+  }
+  dataUriCache.set(cacheKey, dataUri);
+  return dataUri;
 };
 
 export default { resolveLocalUploadPath, logoToDataUri };

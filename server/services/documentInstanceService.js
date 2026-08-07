@@ -191,6 +191,7 @@ export const persistPdfFromInstance = async ({
     variables: sourceData || {},
     filePath,
     title: documentTitle || templateLike.name,
+    html: renderedHtml,
   });
 
   return {

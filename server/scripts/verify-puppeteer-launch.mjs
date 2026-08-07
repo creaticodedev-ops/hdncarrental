@@ -6,8 +6,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
-  launchPdfBrowser,
+  withPdfPage,
+  closePdfBrowser,
   resolveChromeExecutablePath,
+  getPdfBrowserStats,
 } from '../utils/launchPdfBrowser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,16 +22,16 @@ console.log('Resolved executablePath:', resolved || '(puppeteer default / .puppe
 console.log('PUPPETEER_CACHE_DIR:', process.env.PUPPETEER_CACHE_DIR || '(unset)');
 console.log('PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH || '(unset)');
 
-const browser = await launchPdfBrowser();
 try {
-  const page = await browser.newPage();
-  await page.setContent(
-    '<!DOCTYPE html><html><body><h1>Puppeteer OK</h1><p>PDF probe</p></body></html>',
-    { waitUntil: 'load', timeout: 30000 },
-  );
-  await page.pdf({ path: outFile, format: 'A4' });
+  await withPdfPage(async (page) => {
+    await page.setContent(
+      '<!DOCTYPE html><html><body><h1>Puppeteer OK</h1><p>PDF probe</p></body></html>',
+      { waitUntil: 'load', timeout: 30000 },
+    );
+    await page.pdf({ path: outFile, format: 'A4' });
+  });
 } finally {
-  await browser.close();
+  await closePdfBrowser();
 }
 
 const size = fs.statSync(outFile).size;
@@ -40,3 +42,4 @@ if (size < 500) {
 
 console.log('PASS: Chrome launched and PDF written');
 console.log('PDF:', outFile, 'bytes:', size);
+console.log('Pool stats:', getPdfBrowserStats());
