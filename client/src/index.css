@@ -153,6 +153,26 @@ textarea {
   min-width: 0;
 }
 
+/* Document PDF generation overlay — real-request indeterminate bar */
+@keyframes docgen-indeterminate {
+  0% {
+    transform: translateX(-120%);
+    width: 42%;
+  }
+  50% {
+    width: 55%;
+  }
+  100% {
+    transform: translateX(280%);
+    width: 42%;
+  }
+}
+
+.docgen-bar-running {
+  width: 42%;
+  animation: docgen-indeterminate 1.35s ease-in-out infinite;
+}
+
 /* Prevent sticky/mobile drawers from causing body scroll lock class */
 body.nav-open {
   overflow: hidden;

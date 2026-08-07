@@ -9,6 +9,8 @@ import { useI18n } from '../i18n/I18nContext'
 import { useAppContext } from '../context/AppContext'
 import { getErrorMessage } from '../utils/apiError'
 import Loader from '../components/Loader'
+import DocumentGenerationOverlay from '../components/DocumentGenerationOverlay'
+import { useDocumentGeneration } from '../hooks/useDocumentGeneration'
 import {
   FormField,
   SectionCard,
@@ -94,6 +96,7 @@ const CompleteBooking = () => {
   })
   const [detailsSaved, setDetailsSaved] = useState(true)
   const [savingDetails, setSavingDetails] = useState(false)
+  const docGen = useDocumentGeneration()
 
   const c = booking?.completion
 
@@ -287,21 +290,39 @@ const CompleteBooking = () => {
       return
     }
     if (!validateClientDetails()) return
+    if (docGen.running || signing) return
+
     setSigning(true)
     try {
-      await saveCompletionDetails({ force: true })
-      const { data } = await api.post(`/api/booking-completion/${token}/signature`, {
-        signatureDataUrl: signature,
-        secondDriverSignatureDataUrl: secondDriverOn ? secondDriverSignature : undefined,
-        agreed: true,
-        ...buildDetailsPayload(),
-      })
-      if (!data.success) throw new Error(data.message)
-      setBooking(data.booking)
-      toast.success(data.message)
-      setStep('done')
+      await docGen.run(
+        async () => {
+          await saveCompletionDetails({ force: true })
+          const { data } = await api.post(`/api/booking-completion/${token}/signature`, {
+            signatureDataUrl: signature,
+            secondDriverSignatureDataUrl: secondDriverOn ? secondDriverSignature : undefined,
+            agreed: true,
+            ...buildDetailsPayload(),
+          })
+          if (!data.success) throw new Error(data.message)
+          setBooking(data.booking)
+          return data
+        },
+        {
+          mode: 'finalize',
+          extractPdfUrl: (data) => data?.booking?.completion?.contractPdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message)
+            // Smooth handoff to ready view after real backend success
+            window.setTimeout(() => {
+              setStep('done')
+              docGen.close()
+            }, 900)
+          },
+        },
+      )
     } catch (err) {
-      toast.error(getErrorMessage(err))
+      // Overlay shows error + retry; toast as secondary signal
+      if (!docGen.open) toast.error(getErrorMessage(err))
     } finally {
       setSigning(false)
     }
@@ -327,7 +348,22 @@ const CompleteBooking = () => {
     details.secondDriverEnabled || Boolean(booking?.secondDriver?.enabled)
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#f5efe8_0%,_#faf8f5_45%,_#f0ebe4_100%)] pb-20">
+    <div className="relative min-h-screen bg-[radial-gradient(ellipse_at_top,_#f5efe8_0%,_#faf8f5_45%,_#f0ebe4_100%)] pb-20">
+      <DocumentGenerationOverlay
+        open={docGen.open}
+        status={docGen.status}
+        mode={docGen.mode}
+        error={docGen.error}
+        pdfUrl={docGen.pdfUrl || c?.contractPdfUrl || ''}
+        onRetry={() => docGen.retry()}
+        onDismiss={() => {
+          if (docGen.status === 'success') setStep('done')
+          docGen.close()
+        }}
+        embedPdf={docGen.status === 'success'}
+        position="fixed"
+      />
+
       <div className="relative overflow-hidden bg-ink text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(143,31,31,0.35),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.08),transparent_40%)]" />
         <div className="relative page-pad py-12 md:py-16">
@@ -578,11 +614,11 @@ const CompleteBooking = () => {
 
               <button
                 type="button"
-                disabled={signing || signDone}
+                disabled={signing || signDone || docGen.running}
                 onClick={handleSign}
                 className="w-full py-3 rounded-xl bg-primary hover:bg-primary-dull text-white text-sm font-medium cursor-pointer disabled:opacity-60"
               >
-                {signDone ? t('completion.signed') : signing ? t('completion.processing') : t('completion.signSubmit')}
+                {signDone ? t('completion.signed') : (signing || docGen.running) ? t('completion.processing') : t('completion.signSubmit')}
               </button>
             </div>
           )}
@@ -600,6 +636,19 @@ const CompleteBooking = () => {
                 <p><span className="font-medium text-ink">{t('confirmation.from')}:</span> {new Date(booking.pickupDate).toLocaleString()}</p>
                 <p><span className="font-medium text-ink">{t('confirmation.total')}:</span> {currency}{booking.price}</p>
               </div>
+
+              {c?.contractPdfUrl && (
+                <div className="mt-6 text-left">
+                  <p className="mb-2 text-sm font-medium text-ink">{t('completion.viewingContract')}</p>
+                  <div className="overflow-hidden rounded-xl border border-borderColor bg-sand/30">
+                    <iframe
+                      title={t('docGen.pdfPreview')}
+                      src={c.contractPdfUrl}
+                      className="h-[min(70vh,32rem)] w-full bg-white"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                 {c?.contractPdfUrl && (

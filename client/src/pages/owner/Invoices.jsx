@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Title from '../../components/owner/Title'
 import DocumentEditPanel, { inputClass, labelClass } from '../../components/owner/DocumentEditPanel'
 import DocumentSourceFields, { normalizeSourceDataForEdit } from '../../components/owner/DocumentSourceFields'
+import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
@@ -55,6 +56,7 @@ const Invoices = () => {
   const [editSource, setEditSource] = useState({})
   const [editSections, setEditSections] = useState({})
   const [editSaving, setEditSaving] = useState(false)
+  const docGen = useDocumentGeneration()
   const [versions, setVersions] = useState([])
   const [versionsLoading, setVersionsLoading] = useState(false)
 
@@ -269,7 +271,7 @@ const Invoices = () => {
   }
 
   const saveEdit = async ({ regeneratePdf = true } = {}) => {
-    if (!editing) return
+    if (!editing || docGen.running || editSaving) return
     if (!editForm.customerName.trim()) {
       toast.error(t('admin.invoices.customerRequired'))
       return
@@ -336,47 +338,56 @@ const Invoices = () => {
           paymentReference: editForm.paymentReference,
         },
       }
-      const { data } = await axios.patch(`/api/invoices/${editing._id}`, {
-        expectedUpdatedAt: editing.updatedAt,
-        regeneratePdf,
-        sections: editSections,
-        sourceData: syncedSource,
-        invoiceNumber: editForm.invoiceNumber,
-        invoiceDate: editForm.invoiceDate,
-        dueDate: editForm.dueDate,
-        customerName: editForm.customerName,
-        customerEmail: editForm.customerEmail,
-        customerPhone: editForm.customerPhone,
-        customerAddress: editForm.customerAddress,
-        customerTaxId: editForm.customerTaxId,
-        vehicleBrand: editForm.vehicleBrand,
-        vehicleModel: editForm.vehicleModel,
-        vehicleYear: editForm.vehicleYear,
-        vehiclePlate: editForm.vehiclePlate,
-        vehicleType: editForm.vehicleType,
-        items,
-        discountAmount: Number(editForm.discountAmount || 0),
-        notes: editForm.notes,
-        paymentStatus: editForm.paymentStatus,
-        paymentMethod: editForm.paymentMethod,
-        paymentReference: editForm.paymentReference,
-        currency: editForm.currency,
-        includeCompanyStamp: editForm.includeCompanyStamp,
-      })
-      if (data.success) {
-        toast.success(data.message || t('admin.documents.saved'))
-        applyInvoiceDocToEditState(data.invoice)
-        setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
-        const ver = await axios.get(`/api/invoices/${editing._id}/versions`)
-        if (ver.data.success) setVersions(ver.data.versions || [])
-      } else {
-        toast.error(data.message)
-      }
+      await docGen.run(
+        async () => {
+          const { data } = await axios.patch(`/api/invoices/${editing._id}`, {
+            expectedUpdatedAt: editing.updatedAt,
+            regeneratePdf,
+            sections: editSections,
+            sourceData: syncedSource,
+            invoiceNumber: editForm.invoiceNumber,
+            invoiceDate: editForm.invoiceDate,
+            dueDate: editForm.dueDate,
+            customerName: editForm.customerName,
+            customerEmail: editForm.customerEmail,
+            customerPhone: editForm.customerPhone,
+            customerAddress: editForm.customerAddress,
+            customerTaxId: editForm.customerTaxId,
+            vehicleBrand: editForm.vehicleBrand,
+            vehicleModel: editForm.vehicleModel,
+            vehicleYear: editForm.vehicleYear,
+            vehiclePlate: editForm.vehiclePlate,
+            vehicleType: editForm.vehicleType,
+            items,
+            discountAmount: Number(editForm.discountAmount || 0),
+            notes: editForm.notes,
+            paymentStatus: editForm.paymentStatus,
+            paymentMethod: editForm.paymentMethod,
+            paymentReference: editForm.paymentReference,
+            currency: editForm.currency,
+            includeCompanyStamp: editForm.includeCompanyStamp,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          extractPdfUrl: (data) => data?.invoice?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message || t('admin.documents.saved'))
+            applyInvoiceDocToEditState(data.invoice)
+            setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
+            const ver = await axios.get(`/api/invoices/${data.invoice._id}/versions`)
+            if (ver.data.success) setVersions(ver.data.versions || [])
+          },
+        },
+      )
     } catch (error) {
       if (error.response?.status === 409) {
         toast.error(t('admin.documents.conflict'))
         openEdit(editing)
-      } else {
+        docGen.close()
+      } else if (!docGen.open) {
         toast.error(getErrorMessage(error))
       }
     } finally {
@@ -385,22 +396,36 @@ const Invoices = () => {
   }
 
   const regenerateOnly = async ({ fromBooking = false } = {}) => {
-    if (!editing) return
+    if (!editing || docGen.running || editSaving) return
     if (fromBooking && !window.confirm(t('admin.documents.refreshFromBookingConfirm'))) return
     setEditSaving(true)
     try {
-      const { data } = await axios.post(`/api/invoices/${editing._id}/regenerate`, {
-        expectedUpdatedAt: editing.updatedAt,
-        fromBooking,
-      })
-      if (data.success) {
-        toast.success(data.message)
-        applyInvoiceDocToEditState(data.invoice)
-        setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
-      } else toast.error(data.message)
+      await docGen.run(
+        async () => {
+          const { data } = await axios.post(`/api/invoices/${editing._id}/regenerate`, {
+            expectedUpdatedAt: editing.updatedAt,
+            fromBooking,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          extractPdfUrl: (data) => data?.invoice?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message)
+            applyInvoiceDocToEditState(data.invoice)
+            setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
+          },
+        },
+      )
     } catch (error) {
-      if (error.response?.status === 409) toast.error(t('admin.documents.conflict'))
-      else toast.error(getErrorMessage(error))
+      if (error.response?.status === 409) {
+        toast.error(t('admin.documents.conflict'))
+        docGen.close()
+      } else if (!docGen.open) {
+        toast.error(getErrorMessage(error))
+      }
     } finally {
       setEditSaving(false)
     }
@@ -408,18 +433,29 @@ const Invoices = () => {
 
   const restoreVersion = async (version) => {
     if (!editing || !window.confirm(t('admin.documents.restoreConfirm'))) return
+    if (docGen.running || editSaving) return
     setEditSaving(true)
     try {
-      const { data } = await axios.post(`/api/invoices/${editing._id}/versions/${version}/restore`)
-      if (data.success) {
-        toast.success(data.message)
-        applyInvoiceDocToEditState(data.invoice)
-        setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
-        const ver = await axios.get(`/api/invoices/${editing._id}/versions`)
-        if (ver.data.success) setVersions(ver.data.versions || [])
-      } else toast.error(data.message)
+      await docGen.run(
+        async () => {
+          const { data } = await axios.post(`/api/invoices/${editing._id}/versions/${version}/restore`)
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          extractPdfUrl: (data) => data?.invoice?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message)
+            applyInvoiceDocToEditState(data.invoice)
+            setInvoices((prev) => prev.map((inv) => (inv._id === data.invoice._id ? { ...inv, ...data.invoice } : inv)))
+            const ver = await axios.get(`/api/invoices/${data.invoice._id}/versions`)
+            if (ver.data.success) setVersions(ver.data.versions || [])
+          },
+        },
+      )
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      if (!docGen.open) toast.error(getErrorMessage(error))
     } finally {
       setEditSaving(false)
     }
@@ -757,11 +793,15 @@ const Invoices = () => {
 
       <DocumentEditPanel
         open={editOpen}
-        onClose={() => setEditOpen(false)}
+        onClose={() => {
+          if (docGen.running) return
+          setEditOpen(false)
+          docGen.close()
+        }}
         title={editing ? `${t('admin.common.edit')} ${editing.invoiceNumber}` : ''}
         activeTab={editTab}
         setActiveTab={setEditTab}
-        saving={editSaving}
+        saving={editSaving || docGen.running}
         onSave={() => saveEdit({ regeneratePdf: true })}
         onSaveAndRegenerate={() => saveEdit({ regeneratePdf: true })}
         onRegenerate={() => regenerateOnly({ fromBooking: false })}
@@ -772,6 +812,16 @@ const Invoices = () => {
         sections={editSections}
         setSections={setEditSections}
         t={t}
+        generation={{
+          open: docGen.open,
+          status: docGen.status,
+          mode: docGen.mode,
+          error: docGen.error,
+          pdfUrl: docGen.pdfUrl || editing?.pdfUrl || '',
+          running: docGen.running,
+          onRetry: () => docGen.retry(),
+          onDismiss: () => docGen.close(),
+        }}
         fieldsContent={(
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

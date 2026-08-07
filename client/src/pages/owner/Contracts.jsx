@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import Title from '../../components/owner/Title'
 import DocumentEditPanel, { inputClass } from '../../components/owner/DocumentEditPanel'
 import DocumentSourceFields, { normalizeSourceDataForEdit } from '../../components/owner/DocumentSourceFields'
+import DocumentGenerationOverlay from '../../components/DocumentGenerationOverlay'
+import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
@@ -56,6 +58,23 @@ const Contracts = () => {
   const [editSource, setEditSource] = useState({})
   const [editSections, setEditSections] = useState({})
   const [editSaving, setEditSaving] = useState(false)
+  const docGen = useDocumentGeneration()
+
+  const applyEditedContract = (contract) => {
+    setEditing(contract)
+    setEditSource(normalizeSourceDataForEdit(contract.sourceData || {}))
+    setEditSections({
+      headerHtml: '',
+      bodyHtml: '',
+      termsHtml: '',
+      footerHtml: '',
+      customCss: '',
+      pageSize: 'A4',
+      logoUrl: '',
+      ...(contract.sections || {}),
+    })
+    setContracts((prev) => prev.map((c) => (c._id === contract._id ? { ...c, ...contract } : c)))
+  }
   const [versions, setVersions] = useState([])
   const [versionsLoading, setVersionsLoading] = useState(false)
 
@@ -220,25 +239,37 @@ const Contracts = () => {
       toast.error(t('admin.contracts.bookingRequired'))
       return
     }
+    if (docGen.running || generating) return
     setGenerating(true)
     try {
-      const saved = await saveContractDetails()
-      if (!saved) return
-      const { data } = await axios.post('/api/contracts/generate', {
-        bookingId: generateForm.bookingId,
-        templateId: generateForm.templateId || undefined,
-        includeCompanyStamp: generateForm.includeCompanyStamp,
-      })
-      if (data.success) {
-        toast.success(data.message)
-        setShowGenerate(false)
-        setPreviewHtml('')
-        fetchContracts()
-      } else {
-        toast.error(data.message)
-      }
+      await docGen.run(
+        async () => {
+          const saved = await saveContractDetails()
+          if (!saved) throw new Error(t('admin.contracts.bookingRequired'))
+          const { data } = await axios.post('/api/contracts/generate', {
+            bookingId: generateForm.bookingId,
+            templateId: generateForm.templateId || undefined,
+            includeCompanyStamp: generateForm.includeCompanyStamp,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'generate',
+          extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message)
+            setShowGenerate(false)
+            setPreviewHtml('')
+            fetchContracts()
+            if (data.contract?.pdfUrl) {
+              window.open(data.contract.pdfUrl, '_blank', 'noopener,noreferrer')
+            }
+          },
+        },
+      )
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      if (!docGen.open) toast.error(getErrorMessage(error))
     } finally {
       setGenerating(false)
     }
@@ -304,41 +335,43 @@ const Contracts = () => {
   }
 
   const saveEdit = async ({ regeneratePdf = true } = {}) => {
-    if (!editing) return
+    if (!editing || docGen.running || editSaving) return
     setEditSaving(true)
     try {
-      const { data } = await axios.patch(`/api/contracts/${editing._id}`, {
-        expectedUpdatedAt: editing.updatedAt,
-        sourceData: editSource,
-        sections: editSections,
-        regeneratePdf,
-        includeCompanyStamp: editSource?._meta?.includeCompanyStamp !== false,
-      })
-      if (data.success) {
-        toast.success(data.message || t('admin.documents.saved'))
-        setEditing(data.contract)
-        setEditSource(normalizeSourceDataForEdit(data.contract.sourceData || {}))
-        setEditSections({
-          headerHtml: '',
-          bodyHtml: '',
-          termsHtml: '',
-          footerHtml: '',
-          customCss: '',
-          pageSize: 'A4',
-          logoUrl: '',
-          ...(data.contract.sections || {}),
-        })
-        setContracts((prev) => prev.map((c) => (c._id === data.contract._id ? { ...c, ...data.contract } : c)))
-        const ver = await axios.get(`/api/contracts/${editing._id}/versions`)
-        if (ver.data.success) setVersions(ver.data.versions || [])
-      } else {
-        toast.error(data.message)
-      }
+      await docGen.run(
+        async () => {
+          const { data } = await axios.patch(`/api/contracts/${editing._id}`, {
+            expectedUpdatedAt: editing.updatedAt,
+            sourceData: editSource,
+            sections: editSections,
+            regeneratePdf,
+            includeCompanyStamp: editSource?._meta?.includeCompanyStamp !== false,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message || t('admin.documents.saved'))
+            applyEditedContract(data.contract)
+            const ver = await axios.get(`/api/contracts/${data.contract._id}/versions`)
+            if (ver.data.success) setVersions(ver.data.versions || [])
+            if (data.contract?.pdfUrl) {
+              // Soft refresh preview if open
+              setPreviewHtml('')
+              setPreviewTitle(data.contract.contractNumber)
+            }
+          },
+        },
+      )
     } catch (error) {
       if (error.response?.status === 409) {
         toast.error(t('admin.documents.conflict'))
         openEdit(editing)
-      } else {
+        docGen.close()
+      } else if (!docGen.open) {
         toast.error(getErrorMessage(error))
       }
     } finally {
@@ -347,33 +380,37 @@ const Contracts = () => {
   }
 
   const regenerateOnly = async ({ fromBooking = false } = {}) => {
-    if (!editing) return
+    if (!editing || docGen.running || editSaving) return
     if (fromBooking && !window.confirm(t('admin.documents.refreshFromBookingConfirm'))) return
     setEditSaving(true)
     try {
-      const { data } = await axios.post(`/api/contracts/${editing._id}/regenerate`, {
-        expectedUpdatedAt: editing.updatedAt,
-        fromBooking,
-      })
-      if (data.success) {
-        toast.success(data.message)
-        setEditing(data.contract)
-        setEditSource(normalizeSourceDataForEdit(data.contract.sourceData || {}))
-        setEditSections({
-          headerHtml: '',
-          bodyHtml: '',
-          termsHtml: '',
-          footerHtml: '',
-          customCss: '',
-          pageSize: 'A4',
-          logoUrl: '',
-          ...(data.contract.sections || {}),
-        })
-        setContracts((prev) => prev.map((c) => (c._id === data.contract._id ? { ...c, ...data.contract } : c)))
-      } else toast.error(data.message)
+      await docGen.run(
+        async () => {
+          const { data } = await axios.post(`/api/contracts/${editing._id}/regenerate`, {
+            expectedUpdatedAt: editing.updatedAt,
+            fromBooking,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message)
+            applyEditedContract(data.contract)
+            const ver = await axios.get(`/api/contracts/${data.contract._id}/versions`)
+            if (ver.data.success) setVersions(ver.data.versions || [])
+          },
+        },
+      )
     } catch (error) {
-      if (error.response?.status === 409) toast.error(t('admin.documents.conflict'))
-      else toast.error(getErrorMessage(error))
+      if (error.response?.status === 409) {
+        toast.error(t('admin.documents.conflict'))
+        docGen.close()
+      } else if (!docGen.open) {
+        toast.error(getErrorMessage(error))
+      }
     } finally {
       setEditSaving(false)
     }
@@ -381,29 +418,29 @@ const Contracts = () => {
 
   const restoreVersion = async (version) => {
     if (!editing || !window.confirm(t('admin.documents.restoreConfirm'))) return
+    if (docGen.running || editSaving) return
     setEditSaving(true)
     try {
-      const { data } = await axios.post(`/api/contracts/${editing._id}/versions/${version}/restore`)
-      if (data.success) {
-        toast.success(data.message)
-        setEditing(data.contract)
-        setEditSource(normalizeSourceDataForEdit(data.contract.sourceData || {}))
-        setEditSections({
-          headerHtml: '',
-          bodyHtml: '',
-          termsHtml: '',
-          footerHtml: '',
-          customCss: '',
-          pageSize: 'A4',
-          logoUrl: '',
-          ...(data.contract.sections || {}),
-        })
-        fetchContracts()
-        const ver = await axios.get(`/api/contracts/${editing._id}/versions`)
-        if (ver.data.success) setVersions(ver.data.versions || [])
-      } else toast.error(data.message)
+      await docGen.run(
+        async () => {
+          const { data } = await axios.post(`/api/contracts/${editing._id}/versions/${version}/restore`)
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
+          onSuccess: async (data) => {
+            toast.success(data.message)
+            applyEditedContract(data.contract)
+            fetchContracts()
+            const ver = await axios.get(`/api/contracts/${data.contract._id}/versions`)
+            if (ver.data.success) setVersions(ver.data.versions || [])
+          },
+        },
+      )
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      if (!docGen.open) toast.error(getErrorMessage(error))
     } finally {
       setEditSaving(false)
     }
@@ -446,13 +483,29 @@ const Contracts = () => {
   }
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0 space-y-6">
+    <div className="relative px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0 space-y-6">
+      {!editOpen && (
+        <DocumentGenerationOverlay
+          open={docGen.open}
+          status={docGen.status}
+          mode={docGen.mode}
+          error={docGen.error}
+          pdfUrl={docGen.pdfUrl}
+          onRetry={() => docGen.retry()}
+          onDismiss={() => docGen.close()}
+          autoDismissMs={docGen.status === 'success' ? 850 : 0}
+          embedPdf={docGen.status === 'success' && Boolean(docGen.pdfUrl)}
+          position="fixed"
+        />
+      )}
+
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <Title title={t('admin.contracts.title')} subTitle={t('admin.contracts.subtitle')} />
         <button
           type="button"
+          disabled={docGen.running}
           onClick={openGenerate}
-          className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90"
+          className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-60"
         >
           {t('admin.contracts.generate')}
         </button>
@@ -507,10 +560,17 @@ const Contracts = () => {
       </form>
 
       {showGenerate && (
-        <div className="rounded-2xl border border-borderColor bg-white p-5 space-y-4">
+        <div className="relative rounded-2xl border border-borderColor bg-white p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-lg">{t('admin.contracts.generate')}</h2>
-            <button type="button" onClick={() => setShowGenerate(false)} className="text-sm text-gray-500">×</button>
+            <button
+              type="button"
+              disabled={docGen.running || generating}
+              onClick={() => setShowGenerate(false)}
+              className="text-sm text-gray-500 disabled:opacity-40"
+            >
+              ×
+            </button>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
@@ -631,11 +691,11 @@ const Contracts = () => {
             </button>
             <button
               type="button"
-              disabled={generating}
+              disabled={generating || docGen.running}
               onClick={generateContract}
               className="px-4 py-2 rounded-xl bg-primary text-white text-sm disabled:opacity-60"
             >
-              {generating ? t('admin.contracts.generating') : t('admin.contracts.generateFinal')}
+              {(generating || docGen.running) ? t('admin.contracts.generating') : t('admin.contracts.generateFinal')}
             </button>
           </div>
         </div>
@@ -737,11 +797,15 @@ const Contracts = () => {
 
       <DocumentEditPanel
         open={editOpen}
-        onClose={() => setEditOpen(false)}
+        onClose={() => {
+          if (docGen.running) return
+          setEditOpen(false)
+          docGen.close()
+        }}
         title={editing ? `${t('admin.common.edit')} ${editing.contractNumber}` : ''}
         activeTab={editTab}
         setActiveTab={setEditTab}
-        saving={editSaving}
+        saving={editSaving || docGen.running}
         onSave={() => saveEdit({ regeneratePdf: true })}
         onSaveAndRegenerate={() => saveEdit({ regeneratePdf: true })}
         onRegenerate={() => regenerateOnly({ fromBooking: false })}
@@ -752,6 +816,16 @@ const Contracts = () => {
         sections={editSections}
         setSections={setEditSections}
         t={t}
+        generation={{
+          open: docGen.open,
+          status: docGen.status,
+          mode: docGen.mode,
+          error: docGen.error,
+          pdfUrl: docGen.pdfUrl || editing?.pdfUrl || '',
+          running: docGen.running,
+          onRetry: () => docGen.retry(),
+          onDismiss: () => docGen.close(),
+        }}
         fieldsContent={(
           <div className="space-y-4">
             <label className="flex items-center gap-2 text-sm text-gray-600">
