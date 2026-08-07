@@ -5,7 +5,30 @@ import { useAppContext } from '../context/AppContext'
 import { motion as Motion } from 'framer-motion'
 import LanguageSwitcher from './LanguageSwitcher'
 import { useI18n } from '../i18n/I18nContext'
-import { BRAND_NAME } from '../constants/brand'
+import { BRAND_NAME, INSTAGRAM_URL } from '../constants/brand'
+
+/** Thin monochrome Instagram glyph — matches HDN header line weight */
+const InstagramGlyph = ({ className = 'h-[21px] w-[21px]' }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <rect
+      x="3.25"
+      y="3.25"
+      width="17.5"
+      height="17.5"
+      rx="5"
+      stroke="currentColor"
+      strokeWidth="1.35"
+    />
+    <circle cx="12" cy="12" r="4.15" stroke="currentColor" strokeWidth="1.35" />
+    <circle cx="17.15" cy="6.85" r="0.95" fill="currentColor" />
+  </svg>
+)
 
 const Navbar = () => {
   const { logout, isOwner } = useAppContext()
@@ -59,7 +82,64 @@ const Navbar = () => {
           : 'bg-transparent border-transparent text-ink'
       }`}
     >
-      <div className="page-pad page-shell flex items-center justify-between gap-4 py-3.5 sm:py-4">
+      {/* —— Mobile: [Menu][IG] · logo centered · [Search][FR] —— */}
+      <div className="page-pad page-shell relative flex items-center justify-between sm:hidden min-h-14 py-1.5">
+        <div className="relative z-10 flex items-center -ml-1.5">
+          <button
+            type="button"
+            className="booking-tap flex h-11 w-11 shrink-0 items-center justify-center text-ink/80 transition-opacity active:opacity-55 cursor-pointer"
+            aria-label="Menu"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <img
+              src={open ? assets.close_icon : assets.menu_icon}
+              alt=""
+              className="block h-5 w-5 object-contain"
+            />
+          </button>
+
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="booking-tap flex h-11 w-11 shrink-0 items-center justify-center text-ink/70 transition-opacity hover:text-ink hover:opacity-100 active:opacity-55"
+            aria-label={`${BRAND_NAME} Instagram`}
+          >
+            <InstagramGlyph />
+          </a>
+        </div>
+
+        <Link
+          to="/"
+          className="pointer-events-auto absolute left-1/2 top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 flex items-center"
+          aria-label={BRAND_NAME}
+        >
+          <img
+            src={assets.logo}
+            alt={BRAND_NAME}
+            width={140}
+            height={36}
+            decoding="async"
+            className="block h-8 w-auto max-h-8 object-contain"
+          />
+        </Link>
+
+        <div className="relative z-10 flex items-center -mr-1.5">
+          <button
+            type="button"
+            onClick={() => navigate('/cars')}
+            className="booking-tap flex h-11 w-11 shrink-0 items-center justify-center text-ink/70 transition-opacity hover:text-ink active:opacity-55 cursor-pointer"
+            aria-label={t('nav.cars')}
+          >
+            <img src={assets.search_icon} alt="" className="block h-[18px] w-[18px] object-contain opacity-80" />
+          </button>
+          <LanguageSwitcher variant="bare" className="shrink-0" />
+        </div>
+      </div>
+
+      {/* —— Desktop: unchanged —— */}
+      <div className="page-pad page-shell hidden sm:flex items-center justify-between gap-4 py-3.5 sm:py-4">
         <Link to="/" className="relative z-10 shrink-0 flex items-center">
           <Motion.img
             whileHover={{ scale: 1.03 }}
@@ -72,8 +152,7 @@ const Navbar = () => {
           />
         </Link>
 
-        {/* Desktop: logo left, controls right — independent of mobile drawer */}
-        <nav className="hidden sm:flex items-center gap-5 lg:gap-7 shrink-0">
+        <nav className="flex items-center gap-5 lg:gap-7 shrink-0">
           {menuLinks.map((link, index) => (
             <Link
               key={index}
@@ -103,16 +182,6 @@ const Navbar = () => {
             </>
           ) : null}
         </nav>
-
-        <button
-          type="button"
-          className="booking-tap relative z-10 -mr-1 flex h-12 w-12 shrink-0 items-center justify-center sm:hidden cursor-pointer"
-          aria-label="Menu"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <img src={open ? assets.close_icon : assets.menu_icon} alt="" className="block h-5 w-5 object-contain" />
-        </button>
       </div>
 
       {open && (
@@ -134,10 +203,7 @@ const Navbar = () => {
                 {navLabels[link.name] || link.name}
               </Link>
             ))}
-            <div className="py-3">
-              <LanguageSwitcher />
-            </div>
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-4">
               {isOwner ? (
                 <>
                   <button

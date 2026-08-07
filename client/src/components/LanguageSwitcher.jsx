@@ -6,22 +6,29 @@ const LanguageSwitcher = ({ className = '', variant = 'default' }) => {
   const [open, setOpen] = useState(false)
 
   const isLight = variant === 'light'
-  const btnClass = isLight
-    ? 'border-white/25 text-white/90 hover:bg-white/10'
-    : 'border-borderColor text-ink hover:bg-sand/80'
+  const isBare = variant === 'bare'
+  const btnClass = isBare
+    ? 'border-transparent text-ink/80 hover:text-ink min-h-11 min-w-11 justify-center px-1.5'
+    : isLight
+      ? 'border-white/25 text-white/90 hover:bg-white/10'
+      : 'border-borderColor text-ink hover:bg-sand/80'
 
   return (
     <div className={`relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm transition-colors cursor-pointer ${btnClass}`}
+        className={`flex items-center gap-1 rounded-lg border text-sm transition-colors cursor-pointer ${
+          isBare ? btnClass : `gap-1.5 px-2.5 py-1.5 ${btnClass}`
+        }`}
         aria-label="Change language"
       >
         <span className="font-medium tracking-wide">{language.toUpperCase()}</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        {!isBare && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        )}
       </button>
 
       {open && (

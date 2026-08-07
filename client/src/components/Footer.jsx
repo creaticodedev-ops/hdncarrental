@@ -3,7 +3,7 @@ import { assets } from '../assets/assets'
 import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import { Link } from "react-router-dom";
-import { BRAND_NAME } from '../constants/brand'
+import { BRAND_NAME, INSTAGRAM_URL } from '../constants/brand'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -40,13 +40,24 @@ const Footer = () => {
             {...fadeUp(0.4)}
             className="flex items-center gap-4 mt-6"
           >
-            {[assets.facebook_logo, assets.instagram_logo, assets.twitter_logo, assets.gmail_logo].map(
-              (logo, i) => (
-                <a key={i} href="#" aria-label="Social link">
-                  <img src={logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
-                </a>
-              )
-            )}
+            <a href="#" aria-label="Facebook" className="inline-flex">
+              <img src={assets.facebook_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
+            </a>
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${BRAND_NAME} Instagram`}
+              className="inline-flex"
+            >
+              <img src={assets.instagram_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
+            </a>
+            <a href="#" aria-label="Twitter" className="inline-flex">
+              <img src={assets.twitter_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
+            </a>
+            <a href="mailto:haddanecar@gmail.com" aria-label="Email" className="inline-flex">
+              <img src={assets.gmail_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
+            </a>
           </Motion.div>
         </div>
 
