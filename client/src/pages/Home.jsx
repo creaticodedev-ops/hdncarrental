@@ -4,7 +4,7 @@ import Hero from '../components/Hero'
 const FeaturedSection = lazy(() => import('../components/FeaturedSection'))
 const Banner = lazy(() => import('../components/Banner'))
 const Testimonial = lazy(() => import('../components/Testimonial'))
-const Newsletter = lazy(() => import('../components/Newsletter'))
+const WhyChoose = lazy(() => import('../components/WhyChoose'))
 
 const SectionFallback = () => (
   <div className="min-h-[12rem] w-full" aria-hidden />
@@ -24,7 +24,7 @@ const Home = () => {
         <Testimonial />
       </Suspense>
       <Suspense fallback={<SectionFallback />}>
-        <Newsletter />
+        <WhyChoose />
       </Suspense>
     </>
   )

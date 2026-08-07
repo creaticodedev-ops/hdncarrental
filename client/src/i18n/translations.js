@@ -78,13 +78,29 @@ export const en = {
       },
     ],
   },
-  newsletter: {
-    eyebrow: 'Stay informed',
-    title: 'Offers, arrivals, exclusives',
-    subtitle: 'Subscribe for seasonal rates and new vehicles — we keep it infrequent and useful.',
-    placeholder: 'Enter your email',
-    subscribe: 'Subscribe',
-    thanks: 'Thank you for subscribing!',
+  whyChoose: {
+    title: 'Why choose HDN Car?',
+    subtitle: 'A rental experience designed for a worry-free journey.',
+    cta: 'Need help? Contact us on WhatsApp',
+    whatsappMessage: 'Hello {{brand}}, I would like some help with a rental.',
+    benefits: [
+      {
+        title: 'Carefully selected vehicles',
+        description: 'Well-maintained cars chosen for comfort, safety, and reliability.',
+      },
+      {
+        title: 'Simple & fast booking',
+        description: 'Reserve in minutes — clear pricing, no unnecessary steps.',
+      },
+      {
+        title: 'Available across Morocco',
+        description: 'Airport delivery and city pickups wherever your trip takes you.',
+      },
+      {
+        title: 'Responsive customer service',
+        description: 'A team that answers quickly when you need support on the road.',
+      },
+    ],
   },
   cars: {
     title: 'Available Cars',
@@ -371,13 +387,29 @@ export const fr = {
       },
     ],
   },
-  newsletter: {
-    eyebrow: 'Restez informé',
-    title: 'Offres, nouveautés, exclusivités',
-    subtitle: 'Recevez les tarifs saisonniers et les nouveaux véhicules — rarement, et utilement.',
-    placeholder: 'Entrez votre e-mail',
-    subscribe: 'S\'abonner',
-    thanks: 'Merci pour votre inscription !',
+  whyChoose: {
+    title: 'Pourquoi choisir HDN Car ?',
+    subtitle: 'Une expérience de location pensée pour un voyage sans souci.',
+    cta: 'Besoin d’aide ? Contactez-nous sur WhatsApp',
+    whatsappMessage: 'Bonjour {{brand}}, j’aimerais de l’aide pour une location.',
+    benefits: [
+      {
+        title: 'Véhicules soigneusement sélectionnés',
+        description: 'Des voitures bien entretenues, choisies pour le confort, la sécurité et la fiabilité.',
+      },
+      {
+        title: 'Réservation simple et rapide',
+        description: 'Réservez en quelques minutes — tarifs clairs, sans étapes inutiles.',
+      },
+      {
+        title: 'Disponible partout au Maroc',
+        description: 'Livraison aéroport et prises en ville, où que vous alliez.',
+      },
+      {
+        title: 'Service client réactif',
+        description: 'Une équipe qui répond vite quand vous avez besoin d’assistance.',
+      },
+    ],
   },
   cars: {
     title: 'Voitures disponibles',
@@ -663,13 +695,29 @@ export const es = {
       },
     ],
   },
-  newsletter: {
-    eyebrow: 'Mantente informado',
-    title: 'Ofertas, novedades, exclusivas',
-    subtitle: 'Recibe tarifas de temporada y nuevos vehículos — poco frecuente y útil.',
-    placeholder: 'Introduzca su correo',
-    subscribe: 'Suscribirse',
-    thanks: '¡Gracias por suscribirte!',
+  whyChoose: {
+    title: '¿Por qué elegir HDN Car?',
+    subtitle: 'Una experiencia de alquiler pensada para un viaje sin preocupaciones.',
+    cta: '¿Necesita ayuda? Contáctenos por WhatsApp',
+    whatsappMessage: 'Hola {{brand}}, me gustaría ayuda con un alquiler.',
+    benefits: [
+      {
+        title: 'Vehículos cuidadosamente seleccionados',
+        description: 'Coches bien mantenidos, elegidos por comodidad, seguridad y fiabilidad.',
+      },
+      {
+        title: 'Reserva simple y rápida',
+        description: 'Reserve en minutos — precios claros, sin pasos innecesarios.',
+      },
+      {
+        title: 'Disponible en todo Marruecos',
+        description: 'Entrega en aeropuerto y recogidas en ciudad, dondequiera que vaya.',
+      },
+      {
+        title: 'Atención al cliente receptiva',
+        description: 'Un equipo que responde rápido cuando necesita asistencia en ruta.',
+      },
+    ],
   },
   cars: {
     title: 'Coches disponibles',
