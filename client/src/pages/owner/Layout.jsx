@@ -1,14 +1,16 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import NavbarOwner from '../../components/owner/NavbarOwner'
 import Sidebar from '../../components/owner/Sidebar'
 import TrialExpired from '../../components/owner/TrialExpired'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 
 const Layout = () => {
   const { isOwner, navigate, authReady, setShowLogin, licenseLocked } = useAppContext()
   const { t } = useI18n()
+  const location = useLocation()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     if (authReady && !isOwner) {
@@ -17,6 +19,11 @@ const Layout = () => {
       navigate('/')
     }
   }, [isOwner, authReady, navigate, setShowLogin])
+
+  // Close drawer on route change
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname])
 
   if (!authReady) {
     return (
@@ -40,9 +47,12 @@ const Layout = () => {
 
   return (
     <div className="flex flex-col min-h-svh bg-light">
-      <NavbarOwner />
+      <NavbarOwner
+        mobileNavOpen={mobileNavOpen}
+        onToggleMobileNav={() => setMobileNavOpen((open) => !open)}
+      />
       <div className="flex flex-1 min-w-0">
-        <Sidebar />
+        <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
         <main className="flex-1 min-w-0 admin-page pb-12">
           <Outlet />
         </main>

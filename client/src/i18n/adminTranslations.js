@@ -19,6 +19,13 @@ export const adminEn = {
     invoices: 'Invoices',
     templates: 'Export Templates',
   },
+  menuGroups: {
+    overview: 'Overview',
+    bookings: 'Bookings',
+    fleet: 'Fleet',
+    documents: 'Documents',
+    reporting: 'Reporting & System',
+  },
   shell: {
     welcome: 'Welcome, {{name}}',
     logout: 'Logout',
@@ -35,6 +42,9 @@ export const adminEn = {
     backDashboard: 'Back to dashboard',
     loadError: 'Could not load data. Please try again.',
     retry: 'Retry',
+    openMenu: 'Open navigation',
+    closeMenu: 'Close navigation',
+    navigation: 'Admin navigation',
   },
   trial: {
     eyebrow: 'HDN Car',
@@ -733,6 +743,13 @@ export const adminFr = {
     invoices: 'Factures',
     templates: 'Modèles d\'export',
   },
+  menuGroups: {
+    overview: 'Vue d\'ensemble',
+    bookings: 'Réservations',
+    fleet: 'Flotte',
+    documents: 'Documents',
+    reporting: 'Rapports & système',
+  },
   shell: {
     welcome: 'Bienvenue, {{name}}',
     logout: 'Déconnexion',
@@ -749,6 +766,9 @@ export const adminFr = {
     backDashboard: 'Retour au tableau de bord',
     loadError: 'Impossible de charger les données. Veuillez réessayer.',
     retry: 'Réessayer',
+    openMenu: 'Ouvrir la navigation',
+    closeMenu: 'Fermer la navigation',
+    navigation: 'Navigation admin',
   },
   trial: {
     eyebrow: 'HDN Car',
@@ -1443,6 +1463,13 @@ export const adminEs = {
     invoices: 'Facturas',
     templates: 'Plantillas de exportación',
   },
+  menuGroups: {
+    overview: 'Resumen',
+    bookings: 'Reservas',
+    fleet: 'Flota',
+    documents: 'Documentos',
+    reporting: 'Informes y sistema',
+  },
   shell: {
     welcome: 'Bienvenido, {{name}}',
     logout: 'Cerrar sesión',
@@ -1459,6 +1486,9 @@ export const adminEs = {
     backDashboard: 'Volver al panel',
     loadError: 'No se pudieron cargar los datos. Inténtelo de nuevo.',
     retry: 'Reintentar',
+    openMenu: 'Abrir navegación',
+    closeMenu: 'Cerrar navegación',
+    navigation: 'Navegación de administración',
   },
   trial: {
     eyebrow: 'HDN Car',

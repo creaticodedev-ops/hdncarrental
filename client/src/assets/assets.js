@@ -82,21 +82,55 @@ export const menuLinks = [
     { name: "Cars", path: "/cars" },
 ]
 
-export const ownerMenuLinks = [
-    { nameKey: "admin.menu.dashboard", path: "/owner", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "dashboard" },
-    { nameKey: "admin.menu.analytics", path: "/owner/analytics", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "analytics" },
-    { nameKey: "admin.menu.reservations", path: "/owner/manage-bookings", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
-    { nameKey: "admin.menu.walkIn", path: "/owner/walk-in", icon: addIcon, coloredIcon: addIconColored, permission: "bookings" },
-    { nameKey: "admin.menu.calendar", path: "/owner/calendar", icon: calendar_icon_colored, coloredIcon: calendar_icon_colored, permission: "calendar" },
-    { nameKey: "admin.menu.customers", path: "/owner/customers", icon: users_icon, coloredIcon: users_icon, permission: "customers" },
-    { nameKey: "admin.menu.addCar", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored, permission: "fleet" },
-    { nameKey: "admin.menu.fleet", path: "/owner/manage-cars", icon: carIcon, coloredIcon: carIconColored, permission: "fleet" },
-    { nameKey: "admin.menu.vehicleStats", path: "/owner/vehicle-stats", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "fleet" },
-    { nameKey: "admin.menu.maintenance", path: "/owner/maintenance", icon: cautionIconColored, coloredIcon: cautionIconColored, permission: "maintenance" },
-    { nameKey: "admin.menu.locations", path: "/owner/locations", icon: location_icon, coloredIcon: location_icon_colored, permission: "locations" },
-    { nameKey: "admin.menu.reports", path: "/owner/reports", icon: listIcon, coloredIcon: listIconColored, permission: "reports" },
-    { nameKey: "admin.menu.contracts", path: "/owner/contracts", icon: listIcon, coloredIcon: listIconColored, permission: "contracts" },
-    { nameKey: "admin.menu.invoices", path: "/owner/invoices", icon: listIcon, coloredIcon: listIconColored, permission: "contracts" },
-    { nameKey: "admin.menu.templates", path: "/owner/templates", icon: edit_icon, coloredIcon: edit_icon, permission: "templates" },
-    { nameKey: "admin.menu.audit", path: "/owner/audit", icon: listIcon, coloredIcon: listIconColored, permission: "audit" },
+/** Admin sidebar: grouped navigation (permissions + paths unchanged). */
+export const ownerNavGroups = [
+    {
+        id: 'overview',
+        labelKey: 'admin.menuGroups.overview',
+        items: [
+            { nameKey: "admin.menu.dashboard", path: "/owner", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "dashboard" },
+            { nameKey: "admin.menu.analytics", path: "/owner/analytics", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "analytics" },
+        ],
+    },
+    {
+        id: 'bookings',
+        labelKey: 'admin.menuGroups.bookings',
+        items: [
+            { nameKey: "admin.menu.reservations", path: "/owner/manage-bookings", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
+            { nameKey: "admin.menu.walkIn", path: "/owner/walk-in", icon: addIcon, coloredIcon: addIconColored, permission: "bookings" },
+            { nameKey: "admin.menu.calendar", path: "/owner/calendar", icon: calendar_icon_colored, coloredIcon: calendar_icon_colored, permission: "calendar" },
+            { nameKey: "admin.menu.customers", path: "/owner/customers", icon: users_icon, coloredIcon: users_icon, permission: "customers" },
+        ],
+    },
+    {
+        id: 'fleet',
+        labelKey: 'admin.menuGroups.fleet',
+        items: [
+            { nameKey: "admin.menu.addCar", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored, permission: "fleet" },
+            { nameKey: "admin.menu.fleet", path: "/owner/manage-cars", icon: carIcon, coloredIcon: carIconColored, permission: "fleet" },
+            { nameKey: "admin.menu.vehicleStats", path: "/owner/vehicle-stats", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "fleet" },
+            { nameKey: "admin.menu.maintenance", path: "/owner/maintenance", icon: cautionIconColored, coloredIcon: cautionIconColored, permission: "maintenance" },
+            { nameKey: "admin.menu.locations", path: "/owner/locations", icon: location_icon, coloredIcon: location_icon_colored, permission: "locations" },
+        ],
+    },
+    {
+        id: 'documents',
+        labelKey: 'admin.menuGroups.documents',
+        items: [
+            { nameKey: "admin.menu.contracts", path: "/owner/contracts", icon: listIcon, coloredIcon: listIconColored, permission: "contracts" },
+            { nameKey: "admin.menu.invoices", path: "/owner/invoices", icon: listIcon, coloredIcon: listIconColored, permission: "contracts" },
+            { nameKey: "admin.menu.templates", path: "/owner/templates", icon: edit_icon, coloredIcon: edit_icon, permission: "templates" },
+        ],
+    },
+    {
+        id: 'reporting',
+        labelKey: 'admin.menuGroups.reporting',
+        items: [
+            { nameKey: "admin.menu.reports", path: "/owner/reports", icon: listIcon, coloredIcon: listIconColored, permission: "reports" },
+            { nameKey: "admin.menu.audit", path: "/owner/audit", icon: listIcon, coloredIcon: listIconColored, permission: "audit" },
+        ],
+    },
 ]
+
+/** Flat list for any legacy consumers — same items/permissions as before. */
+export const ownerMenuLinks = ownerNavGroups.flatMap((group) => group.items)

@@ -8,7 +8,7 @@ import LanguageSwitcher from '../LanguageSwitcher'
 import NotificationBell from './NotificationBell'
 import GlobalSearch from './GlobalSearch'
 
-const NavbarOwner = () => {
+const NavbarOwner = ({ mobileNavOpen = false, onToggleMobileNav }) => {
   const { user, logout, license, licenseLocked } = useAppContext()
   const { t } = useI18n()
 
@@ -19,9 +19,27 @@ const NavbarOwner = () => {
 
   return (
     <div className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 md:px-8 lg:px-10 py-3 text-gray-500 border-b border-borderColor bg-white min-h-[57px]">
-      <Link to="/" className="shrink-0">
-        <img src={assets.logo} alt={BRAND_NAME} className="block h-8 sm:h-9 w-auto max-h-9 object-contain" />
-      </Link>
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {!licenseLocked && onToggleMobileNav && (
+          <button
+            type="button"
+            className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-borderColor/90 text-ink hover:bg-sand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            onClick={onToggleMobileNav}
+            aria-label={mobileNavOpen ? t('admin.shell.closeMenu') : t('admin.shell.openMenu')}
+            aria-expanded={mobileNavOpen}
+            aria-controls="owner-sidebar"
+          >
+            <img
+              src={mobileNavOpen ? assets.close_icon : assets.menu_icon}
+              alt=""
+              className="h-4 w-4 opacity-80"
+            />
+          </button>
+        )}
+        <Link to="/" className="shrink-0">
+          <img src={assets.logo} alt={BRAND_NAME} className="block h-8 sm:h-9 w-auto max-h-9 object-contain" />
+        </Link>
+      </div>
 
       {!licenseLocked && (
         <div className="hidden md:flex min-w-0 flex-1 justify-center px-2 lg:px-6">
