@@ -13,6 +13,7 @@ export const en = {
     es: 'Spanish',
   },
   hero: {
+    badge: 'Premium car rental Morocco',
     title: 'Drive with distinction',
     subtitle: 'Curated premium vehicles, transparent pricing, and effortless booking across Morocco.',
     bookingLabel: 'Plan your journey',
@@ -322,6 +323,7 @@ export const fr = {
     es: 'Espagnol',
   },
   hero: {
+    badge: 'Location premium au Maroc',
     title: 'Roulez avec distinction',
     subtitle: 'Véhicules premium sélectionnés, tarifs transparents et réservation fluide partout au Maroc.',
     bookingLabel: 'Planifiez votre trajet',
@@ -630,6 +632,7 @@ export const es = {
     es: 'Español',
   },
   hero: {
+    badge: 'Alquiler premium en Marruecos',
     title: 'Conduce con distinción',
     subtitle: 'Vehículos premium seleccionados, precios transparentes y reservas sencillas en todo Marruecos.',
     bookingLabel: 'Planifica tu viaje',

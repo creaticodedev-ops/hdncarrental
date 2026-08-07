@@ -56,6 +56,28 @@ const Hero = () => {
           transition={{ duration: 0.65, ease: 'easeOut' }}
           className="w-full max-w-3xl text-center"
         >
+          <div className="mb-4 flex justify-center sm:mb-5 md:mb-6">
+            <div
+              className="inline-flex max-w-[min(100%,22rem)] items-center gap-2 rounded-full border border-borderColor/70 bg-white/80 px-3 py-1.5 shadow-[0_1px_2px_rgba(22,18,16,0.05)] backdrop-blur-md sm:max-w-none sm:gap-2.5 sm:px-3.5 sm:py-[0.4rem]"
+              role="status"
+            >
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted/70"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 truncate text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-ink sm:text-[11px] sm:tracking-[0.09em]">
+                {t('hero.badge')}
+              </span>
+              <span
+                className="inline-flex shrink-0 translate-y-[0.5px] items-center text-[11px] leading-none sm:text-[12px]"
+                role="img"
+                aria-label="Morocco"
+              >
+                🇲🇦
+              </span>
+            </div>
+          </div>
+
           <p className="font-display text-5xl font-medium leading-none tracking-tight text-primary sm:text-6xl md:text-7xl">
             {BRAND_NAME}
           </p>
