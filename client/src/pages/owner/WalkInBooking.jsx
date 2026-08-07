@@ -7,6 +7,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { getCarLocations } from '../../utils/carLocations'
+import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../../utils/pricing'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 
 const emptyForm = {
@@ -96,18 +97,26 @@ const WalkInBooking = () => {
       setQuote(null)
       return
     }
-    const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)))
     const pickup = pickupLocations.find((l) => l._id === form.pickupLocationId)
     const dropoff = pickupLocations.find((l) => l._id === form.returnLocationId)
-    const pickupFee = Number(pickup?.deliveryFee) || 0
-    const dropoffFee = Number(dropoff?.deliveryFee) || 0
-    const rental = days * Number(selectedCar.pricePerDay || 0)
+    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickup, dropoff)
+    const preview = calculateBookingPricePreview({
+      pricePerDay: selectedCar.pricePerDay,
+      pickupDate: form.pickupDate,
+      returnDate: form.returnDate,
+      pickupDeliveryFee,
+      dropoffDeliveryFee,
+    })
+    if (!preview.ready) {
+      setQuote(null)
+      return
+    }
     setQuote({
-      days,
-      rental,
-      pickupFee,
-      dropoffFee,
-      total: rental + pickupFee + dropoffFee,
+      days: preview.days,
+      rental: preview.rentalPrice,
+      pickupFee: preview.pickupDeliveryFee,
+      dropoffFee: preview.dropoffDeliveryFee,
+      total: preview.total,
     })
   }, [selectedCar, form.pickupDate, form.returnDate, form.pickupLocationId, form.returnLocationId, pickupLocations])
 

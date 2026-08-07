@@ -17,6 +17,26 @@ const toMoney = (value) => {
   return Math.round(n * 100) / 100;
 };
 
+const normalizeCityKey = (city) => String(city || '').trim().toLowerCase();
+
+/**
+ * Mirrors server resolveLocationDeliveryFees:
+ * same city → pickup fee only; different cities → both fees.
+ */
+export const resolveLocationDeliveryFees = (pickupLoc, returnLoc) => {
+  const pickupDeliveryFee = toMoney(pickupLoc?.deliveryFee ?? 0);
+  const dropoffRaw = toMoney(returnLoc?.deliveryFee ?? 0);
+  const pickupCity = normalizeCityKey(pickupLoc?.city);
+  const returnCity = normalizeCityKey(returnLoc?.city);
+  const sameCity = Boolean(pickupCity && returnCity && pickupCity === returnCity);
+
+  return {
+    pickupDeliveryFee,
+    dropoffDeliveryFee: sameCity ? 0 : dropoffRaw,
+    sameCity,
+  };
+};
+
 export const calculateBookingPricePreview = ({
   pricePerDay = 0,
   pickupDate,

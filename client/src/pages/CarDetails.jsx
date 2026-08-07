@@ -8,7 +8,7 @@ import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { formatLocationsDisplay, getCarLocations } from '../utils/carLocations'
-import { calculateBookingPricePreview } from '../utils/pricing'
+import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../utils/pricing'
 import { isPhoneValid } from '../components/PhoneInput'
 import { buildGuestReservationWaUrl } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
@@ -103,12 +103,13 @@ const CarDetails = () => {
     if (!car) return null
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
+    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickupLoc, returnLoc)
     return calculateBookingPricePreview({
       pricePerDay: car.pricePerDay,
       pickupDate: pickup,
       returnDate: ret,
-      pickupDeliveryFee: pickupLoc?.deliveryFee ?? 0,
-      dropoffDeliveryFee: returnLoc?.deliveryFee ?? 0,
+      pickupDeliveryFee,
+      dropoffDeliveryFee,
     })
   }, [car, pickupDate, returnDate, pickupLoc, returnLoc])
 

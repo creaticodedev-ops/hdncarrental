@@ -119,6 +119,27 @@ export const calculateBookingPrice = ({
 export const getLocationDeliveryFee = (location) =>
   toMoney(location?.deliveryFee ?? 0);
 
+const normalizeCityKey = (city) => String(city || '').trim().toLowerCase();
+
+/**
+ * Pickup + drop-off delivery fees.
+ * Same city (case-insensitive): charge pickup fee only; drop-off fee is 0.
+ * Different cities: charge both location fees as usual.
+ */
+export const resolveLocationDeliveryFees = (pickupLoc, returnLoc) => {
+  const pickupDeliveryFee = getLocationDeliveryFee(pickupLoc);
+  const dropoffRaw = getLocationDeliveryFee(returnLoc);
+  const pickupCity = normalizeCityKey(pickupLoc?.city);
+  const returnCity = normalizeCityKey(returnLoc?.city);
+  const sameCity = Boolean(pickupCity && returnCity && pickupCity === returnCity);
+
+  return {
+    pickupDeliveryFee,
+    dropoffDeliveryFee: sameCity ? 0 : dropoffRaw,
+    sameCity,
+  };
+};
+
 /**
  * Format location label for booking storage / display.
  */

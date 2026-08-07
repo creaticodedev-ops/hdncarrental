@@ -15,7 +15,7 @@ import { buildGuestToAgencyWhatsAppUrl, getAgencyWhatsAppDial } from "../service
 import {
   calculateBookingPrice,
   formatLocationLabel,
-  getLocationDeliveryFee,
+  resolveLocationDeliveryFees,
 } from "../services/pricingEngine.js";
 import { initiateBookingCompletion, generateCompletionLink } from "../services/bookingCompletionService.js";
 import {
@@ -323,12 +323,13 @@ export const createBooking = async (req, res) => {
       }
     }
 
+    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickupLoc, returnLoc);
     const priceBreakdown = calculateBookingPrice({
       pricePerDay: carForBooking.pricePerDay,
       pickupDate: dates.picked,
       returnDate: dates.returned,
-      pickupDeliveryFee: getLocationDeliveryFee(pickupLoc),
-      dropoffDeliveryFee: getLocationDeliveryFee(returnLoc),
+      pickupDeliveryFee,
+      dropoffDeliveryFee,
       discounts: [],
     });
     const price = priceBreakdown.total;
@@ -555,12 +556,13 @@ export const createWalkInBooking = async (req, res) => {
       }
     }
 
+    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickupLoc, returnLoc);
     const priceBreakdown = calculateBookingPrice({
       pricePerDay: carData.pricePerDay,
       pickupDate: dates.picked,
       returnDate: dates.returned,
-      pickupDeliveryFee: getLocationDeliveryFee(pickupLoc),
-      dropoffDeliveryFee: getLocationDeliveryFee(returnLoc),
+      pickupDeliveryFee,
+      dropoffDeliveryFee,
       discounts: [],
     });
     const price = priceBreakdown.total;
@@ -1007,8 +1009,14 @@ export const updateBooking = async (req, res) => {
             ? PickupLocation.findById(booking.returnLocationId)
             : null,
         ]);
-        if (pickupLoc) pickupFee = getLocationDeliveryFee(pickupLoc);
-        if (returnLoc) dropoffFee = getLocationDeliveryFee(returnLoc);
+        if (pickupLoc && returnLoc) {
+          const resolved = resolveLocationDeliveryFees(pickupLoc, returnLoc);
+          pickupFee = resolved.pickupDeliveryFee;
+          dropoffFee = resolved.dropoffDeliveryFee;
+        } else {
+          if (pickupLoc) pickupFee = resolveLocationDeliveryFees(pickupLoc, null).pickupDeliveryFee;
+          if (returnLoc) dropoffFee = resolveLocationDeliveryFees(null, returnLoc).dropoffDeliveryFee;
+        }
       }
 
       const priceBreakdown = calculateBookingPrice({
