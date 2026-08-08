@@ -40,6 +40,10 @@ import {
   getMaintenanceCalendar,
   getMaintenanceReport,
 } from "../controllers/maintenanceController.js";
+import {
+  getCatalogOrder,
+  updateCatalogOrder,
+} from "../controllers/catalogOrderController.js";
 
 const ownerRouter = express.Router();
 const gate = (perm) => [protect, requireOwner, requirePermission(perm)];
@@ -53,6 +57,8 @@ ownerRouter.get("/vehicles/:id/stats", ...gate('fleet'), getVehicleStats);
 ownerRouter.post("/update-car", ...gate('fleet'), upload.single("image"), handleMulterError, updateCar);
 ownerRouter.post("/toggle-car", ...gate('fleet'), toggleCarAvailability);
 ownerRouter.post("/delete-car", ...gate('fleet'), deleteCar);
+ownerRouter.get("/catalog-order", ...gate('fleet'), getCatalogOrder);
+ownerRouter.put("/catalog-order", ...gate('fleet'), updateCatalogOrder);
 
 ownerRouter.get('/dashboard', ...gate('dashboard'), getDashboardData);
 ownerRouter.get('/ops-dashboard', ...gate('dashboard'), getOpsDashboard);

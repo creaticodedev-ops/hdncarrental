@@ -22,6 +22,7 @@ const Analytics = lazy(() => import('./pages/owner/Analytics'))
 const AddCar = lazy(() => import('./pages/owner/AddCar'))
 const EditCar = lazy(() => import('./pages/owner/EditCar'))
 const ManageCars = lazy(() => import('./pages/owner/ManageCars'))
+const CatalogOrder = lazy(() => import('./pages/owner/CatalogOrder'))
 const VehicleStatsPage = lazy(() => import('./pages/owner/VehicleStatsPage'))
 const VehicleStatsListPage = lazy(() => import('./pages/owner/VehicleStatsListPage'))
 const ManageBookings = lazy(() => import('./pages/owner/ManageBookings'))
@@ -105,6 +106,7 @@ const App = () => {
               <Route path="add-car" element={withPerm('fleet', AddCar)} />
               <Route path="edit-car/:id" element={withPerm('fleet', EditCar)} />
               <Route path="manage-cars" element={withPerm('fleet', ManageCars)} />
+              <Route path="catalog-order" element={withPerm('fleet', CatalogOrder)} />
               <Route path="vehicle-stats" element={withPerm('fleet', VehicleStatsListPage)} />
               <Route path="vehicle-stats/:id" element={withPerm('fleet', VehicleStatsPage)} />
               <Route path="manage-bookings" element={withPerm('bookings', ManageBookings)} />

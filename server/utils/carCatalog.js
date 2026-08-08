@@ -1,5 +1,7 @@
 import Car from '../models/Car.js';
 import Booking from '../models/Booking.js';
+import CarModelOrder from '../models/CarModelOrder.js';
+import { normalizeCategory } from './fleetAssets.js';
 
 /** Convert Mongoose doc or lean object to a plain JSON-safe car record. */
 export const toPlainCar = (car) => {
@@ -14,25 +16,47 @@ export const toPlainCar = (car) => {
   return { ...car };
 };
 
+export const normalizeBrandKey = (brand) => String(brand || '').trim().toLowerCase();
+export const normalizeModelKey = (model) => String(model || '').trim().toLowerCase();
+
 export const buildModelKey = (car) => {
   const plain = toPlainCar(car) || {};
-  return `${String(plain.owner || '')}|${String(plain.brand || '').trim().toLowerCase()}|${String(plain.model || '').trim().toLowerCase()}`;
+  return `${String(plain.owner || '')}|${normalizeBrandKey(plain.brand)}|${normalizeModelKey(plain.model)}`;
 };
 
-/** Group physical units into one public catalog entry per brand+model (per owner). */
+/** Stable lookup for persisted catalog order rows. */
+export const buildOrderLookupKey = (owner, category, brand, model) =>
+  `${String(owner || '')}|${normalizeCategory(category)}|${normalizeBrandKey(brand)}|${normalizeModelKey(model)}`;
+
+const unitSortValue = (car) => {
+  const t = car?.createdAt ? new Date(car.createdAt).getTime() : 0;
+  return Number.isFinite(t) ? t : 0;
+};
+
+/**
+ * Group physical units into one public catalog entry per brand+model (per owner).
+ * Representative unit is deterministic: oldest createdAt, then _id.
+ */
 export const groupCarsForCatalog = (cars = []) => {
+  const sorted = cars
+    .map((raw) => toPlainCar(raw))
+    .filter((car) => car?._id)
+    .sort((a, b) => {
+      const byCreated = unitSortValue(a) - unitSortValue(b);
+      if (byCreated !== 0) return byCreated;
+      return String(a._id).localeCompare(String(b._id));
+    });
+
   const map = new Map();
 
-  for (const raw of cars) {
-    const car = toPlainCar(raw);
-    if (!car?._id) continue;
-
+  for (const car of sorted) {
     const key = buildModelKey(car);
     const id = car._id;
 
     if (!map.has(key)) {
       map.set(key, {
         ...car,
+        category: normalizeCategory(car.category),
         unitCount: 1,
         unitIds: [id],
       });
@@ -44,6 +68,43 @@ export const groupCarsForCatalog = (cars = []) => {
   }
 
   return Array.from(map.values());
+};
+
+/** Stamp displayOrder onto grouped catalog entries from CarModelOrder docs. */
+export const applyDisplayOrders = (groupedCars = [], orderDocs = []) => {
+  const map = new Map(
+    orderDocs.map((doc) => [
+      buildOrderLookupKey(doc.owner, doc.category, doc.brandKey || doc.brand, doc.modelKey || doc.model),
+      Number(doc.displayOrder),
+    ])
+  );
+
+  return groupedCars.map((car) => {
+    const key = buildOrderLookupKey(car.owner, car.category, car.brand, car.model);
+    const displayOrder = map.has(key) ? map.get(key) : null;
+    return { ...car, displayOrder };
+  });
+};
+
+/** Load order rows for the owners present in grouped catalog cars and attach them. */
+export const withCatalogDisplayOrders = async (groupedCars = []) => {
+  if (!groupedCars.length) return groupedCars;
+
+  const ownerIds = [
+    ...new Set(
+      groupedCars
+        .map((car) => car.owner)
+        .filter(Boolean)
+        .map((id) => String(id))
+    ),
+  ];
+
+  if (!ownerIds.length) {
+    return groupedCars.map((car) => ({ ...car, displayOrder: null }));
+  }
+
+  const orderDocs = await CarModelOrder.find({ owner: { $in: ownerIds } }).lean();
+  return applyDisplayOrders(groupedCars, orderDocs);
 };
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'active'];
@@ -103,7 +164,12 @@ export const resolveAvailableCarUnit = async ({
 export default {
   toPlainCar,
   buildModelKey,
+  buildOrderLookupKey,
+  normalizeBrandKey,
+  normalizeModelKey,
   groupCarsForCatalog,
+  applyDisplayOrders,
+  withCatalogDisplayOrders,
   isCarAvailableForDates,
   resolveAvailableCarUnit,
 };

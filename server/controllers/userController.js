@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import Car from "../models/Car.js";
 import mongoose from 'mongoose';
-import { groupCarsForCatalog } from '../utils/carCatalog.js';
+import { groupCarsForCatalog, withCatalogDisplayOrders } from '../utils/carCatalog.js';
 import {
   syncLicenseStatus,
   serializeLicense,
@@ -134,7 +134,10 @@ export const getCars = async (req, res) => {
         })
             .sort({ createdAt: -1 })
             .lean();
-        res.json({ success: true, cars: groupCarsForCatalog(cars) });
+        res.json({
+            success: true,
+            cars: await withCatalogDisplayOrders(groupCarsForCatalog(cars)),
+        });
     } catch (error) {
         console.error(error.message);
         res.status(500).json({ success: false, message: 'Failed to fetch cars' });

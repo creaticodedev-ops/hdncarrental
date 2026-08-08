@@ -108,6 +108,7 @@ export const ownerNavGroups = [
         items: [
             { nameKey: "admin.menu.addCar", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored, permission: "fleet" },
             { nameKey: "admin.menu.fleet", path: "/owner/manage-cars", icon: carIcon, coloredIcon: carIconColored, permission: "fleet" },
+            { nameKey: "admin.menu.catalogOrder", path: "/owner/catalog-order", icon: listIcon, coloredIcon: listIconColored, permission: "fleet" },
             { nameKey: "admin.menu.vehicleStats", path: "/owner/vehicle-stats", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "fleet" },
             { nameKey: "admin.menu.maintenance", path: "/owner/maintenance", icon: cautionIconColored, coloredIcon: cautionIconColored, permission: "maintenance" },
             { nameKey: "admin.menu.locations", path: "/owner/locations", icon: location_icon, coloredIcon: location_icon_colored, permission: "locations" },

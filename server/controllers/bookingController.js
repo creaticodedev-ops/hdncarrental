@@ -23,7 +23,7 @@ import {
   locationAvailabilityFilter,
 } from "../utils/carLocations.js";
 import { normalizeToE164 } from "../utils/phoneValidation.js";
-import { groupCarsForCatalog, resolveAvailableCarUnit } from "../utils/carCatalog.js";
+import { groupCarsForCatalog, resolveAvailableCarUnit, withCatalogDisplayOrders } from "../utils/carCatalog.js";
 import { channelQuery } from "../utils/bookingChannel.js";
 
 const BOOKING_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'active', 'completed', 'cancelled'];
@@ -215,7 +215,10 @@ export const checkAvailabilityOfCar = async (req, res) => {
       if (isAvailable) availableCars.push(car);
     }
 
-    res.json({ success: true, availableCars: groupCarsForCatalog(availableCars) });
+    res.json({
+      success: true,
+      availableCars: await withCatalogDisplayOrders(groupCarsForCatalog(availableCars)),
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to check availability' });
