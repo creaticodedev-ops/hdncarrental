@@ -5,8 +5,9 @@
  */
 
 export const GA_MEASUREMENT_ID =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GA_MEASUREMENT_ID) ||
-  'G-M4SR5C4KGH'
+  (typeof window !== 'undefined' && window.__HDN_GA_ID__)
+  || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GA_MEASUREMENT_ID)
+  || 'G-M4SR5C4KGH'
 
 const BLOCKED_PARAM_KEYS = new Set([
   'token',
@@ -135,32 +136,67 @@ const dedupeEvent = (name, params, windowMs = 1500) => {
   return true
 }
 
+const ensureGtagStub = () => {
+  window.dataLayer = window.dataLayer || []
+  if (typeof window.gtag !== 'function') {
+    window.gtag = function gtag() {
+      // Google’s stub must push the Arguments object (not a plain array).
+      window.dataLayer.push(arguments)
+    }
+  }
+}
+
+const injectGtagScript = (measurementId) => {
+  if (document.getElementById('ga4-gtag')) return
+  const existing = document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`)
+  if (existing) {
+    existing.id = existing.id || 'ga4-gtag'
+    return
+  }
+  const script = document.createElement('script')
+  script.id = 'ga4-gtag'
+  script.async = true
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`
+  document.head.appendChild(script)
+}
+
+/**
+ * Bootstrap gtag.js + config. Safe to call multiple times.
+ * Prefer the early snippet in index.html; this is the SPA fallback.
+ */
 export const initGa4 = (measurementId = GA_MEASUREMENT_ID) => {
-  if (!isBrowser() || initialized) return
+  if (!isBrowser()) return
   if (!measurementId || !String(measurementId).startsWith('G-')) return
 
-  window.dataLayer = window.dataLayer || []
-  window.gtag = window.gtag || function gtag() {
-    window.dataLayer.push(arguments)
+  ensureGtagStub()
+  injectGtagScript(measurementId)
+
+  if (!initialized) {
+    window.gtag('js', new Date())
+    const config = {
+      send_page_view: false,
+      anonymize_ip: true,
+      cookie_domain: 'auto',
+    }
+    if (isGaDebugMode()) config.debug_mode = true
+    window.gtag('config', measurementId, config)
+    initialized = true
+    return
   }
 
-  window.gtag('js', new Date())
-  window.gtag('config', measurementId, {
-    send_page_view: false,
-    anonymize_ip: true,
-    debug_mode: isGaDebugMode(),
-  })
-
-  if (!document.getElementById('ga4-gtag')) {
-    const script = document.createElement('script')
-    script.id = 'ga4-gtag'
-    script.async = true
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`
-    document.head.appendChild(script)
+  // Late ?debug_mode=1 after first init — upgrade into DebugView without a second page_view.
+  if (isGaDebugMode()) {
+    window.gtag('config', measurementId, {
+      send_page_view: false,
+      debug_mode: true,
+    })
   }
-
-  initialized = true
 }
+
+const withSendTo = (payload = {}) => ({
+  ...payload,
+  send_to: GA_MEASUREMENT_ID,
+})
 
 export const trackPageView = (pathname, search = '') => {
   if (!isBrowser() || !shouldTrackRoute(pathname)) return
@@ -169,11 +205,12 @@ export const trackPageView = (pathname, search = '') => {
   if (pagePath === lastPageKey) return
   lastPageKey = pagePath
 
-  const payload = {
+  const payload = withSendTo({
     page_path: pagePath,
     page_title: document.title || 'HDN Car',
+    // Full browser URL (origin + path + safe query), not a reconstructed guess
     page_location: `${window.location.origin}${pagePath}`,
-  }
+  })
   if (isGaDebugMode()) payload.debug_mode = true
 
   window.gtag('event', 'page_view', payload)
@@ -183,7 +220,7 @@ export const trackEvent = (name, params = {}) => {
   if (!isBrowser() || !name) return
   if (!shouldTrackRoute(window.location.pathname)) return
   initGa4()
-  const scrubbed = scrubEventParams(params)
+  const scrubbed = withSendTo(scrubEventParams(params))
   if (!dedupeEvent(name, scrubbed)) return
   if (isGaDebugMode()) scrubbed.debug_mode = true
   window.gtag('event', name, scrubbed)
