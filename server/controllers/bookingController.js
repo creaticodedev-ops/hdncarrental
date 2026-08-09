@@ -25,6 +25,7 @@ import {
 import { normalizeToE164 } from "../utils/phoneValidation.js";
 import { groupCarsForCatalog, resolveAvailableCarUnit, withCatalogDisplayOrders } from "../utils/carCatalog.js";
 import { channelQuery } from "../utils/bookingChannel.js";
+import { applyCompletionDetailsToBooking } from "../utils/applyCompletionDetails.js";
 
 const BOOKING_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'active', 'completed', 'cancelled'];
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
@@ -471,8 +472,20 @@ export const createWalkInBooking = async (req, res) => {
       nationality,
       driverLicenseNumber,
       driverLicenseExpiry,
+      driverLicenseIssuedOn,
       passportNumber,
       dateOfBirth,
+      customerAddress,
+      placeOfBirth,
+      identityDocumentNumber,
+      identityIssuedOn,
+      secondDriver,
+      deliveredBy,
+      receivedBy,
+      fuelLevelStart,
+      kmDepart,
+      kmRetour,
+      franchiseAmount,
     } = req.body;
 
     const hasLocationIds =
@@ -588,9 +601,21 @@ export const createWalkInBooking = async (req, res) => {
           ? requestedPayment
           : 'pending';
 
+    // Synthetic email keeps CRM upsert working when desk omits email;
+    // templateEngine strips @local.americonfort from printed contracts.
     const guestEmail =
       normalizedEmail ||
       `walkin+${phoneCheck.e164.replace(/\D/g, '').slice(-9) || Date.now()}@local.americonfort`;
+
+    const franchiseFromCar = Number(carData.securityDeposit) || 0;
+    const franchiseResolved =
+      franchiseAmount !== undefined && franchiseAmount !== null && franchiseAmount !== ''
+        ? Number(franchiseAmount)
+        : franchiseFromCar;
+    const kmDepartResolved =
+      kmDepart !== undefined && kmDepart !== null && String(kmDepart).trim() !== ''
+        ? String(kmDepart).trim()
+        : (carData.mileage != null ? String(carData.mileage) : '');
 
     const booking = await Booking.create({
       reservationId,
@@ -613,9 +638,30 @@ export const createWalkInBooking = async (req, res) => {
       notes: notes || '',
       nationality: nationality || '',
       dateOfBirth: dateOfBirth || '',
+      customerAddress: customerAddress || '',
+      placeOfBirth: placeOfBirth || '',
+      identityDocumentNumber: identityDocumentNumber || '',
+      identityIssuedOn: identityIssuedOn || '',
       driverLicenseNumber: driverLicenseNumber || '',
       driverLicenseExpiry: driverLicenseExpiry || '',
+      driverLicenseIssuedOn: driverLicenseIssuedOn || '',
       passportNumber: passportNumber || '',
+      deliveredBy: deliveredBy || '',
+      receivedBy: receivedBy || '',
+      fuelLevelStart: fuelLevelStart || '',
+      kmDepart: kmDepartResolved,
+      kmRetour: kmRetour || '',
+      franchiseAmount: Number.isFinite(franchiseResolved) ? franchiseResolved : franchiseFromCar,
+      secondDriver: {
+        enabled: Boolean(secondDriver?.enabled),
+        fullName: secondDriver?.fullName?.trim() || '',
+        dateOfBirth: secondDriver?.dateOfBirth?.trim() || '',
+        nationality: secondDriver?.nationality?.trim() || '',
+        driverLicenseNumber: secondDriver?.driverLicenseNumber?.trim() || '',
+        driverLicenseExpiry: secondDriver?.driverLicenseExpiry?.trim() || '',
+        passportNumber: secondDriver?.passportNumber?.trim() || '',
+        phone: secondDriver?.phone?.trim() || '',
+      },
       status,
       paymentStatus,
       completion: {
@@ -926,10 +972,21 @@ export const updateBooking = async (req, res) => {
       carId,
       dateOfBirth,
       nationality,
+      customerAddress,
+      placeOfBirth,
+      identityDocumentNumber,
+      identityIssuedOn,
       driverLicenseNumber,
       driverLicenseExpiry,
+      driverLicenseIssuedOn,
       passportNumber,
       secondDriver,
+      deliveredBy,
+      receivedBy,
+      fuelLevelStart,
+      kmDepart,
+      kmRetour,
+      franchiseAmount,
     } = req.body;
 
     if (!mongoose.isValidObjectId(bookingId)) {
@@ -1048,23 +1105,25 @@ export const updateBooking = async (req, res) => {
       }
       booking.customerPhone = phoneCheck.e164;
     }
-    if (dateOfBirth !== undefined) booking.dateOfBirth = String(dateOfBirth).trim();
-    if (nationality !== undefined) booking.nationality = String(nationality).trim();
-    if (driverLicenseNumber !== undefined) booking.driverLicenseNumber = String(driverLicenseNumber).trim();
-    if (driverLicenseExpiry !== undefined) booking.driverLicenseExpiry = String(driverLicenseExpiry).trim();
-    if (passportNumber !== undefined) booking.passportNumber = String(passportNumber).trim();
-    if (secondDriver !== undefined && typeof secondDriver === 'object') {
-      booking.secondDriver = {
-        enabled: Boolean(secondDriver.enabled),
-        fullName: secondDriver.fullName?.trim() || '',
-        dateOfBirth: secondDriver.dateOfBirth?.trim() || '',
-        nationality: secondDriver.nationality?.trim() || '',
-        driverLicenseNumber: secondDriver.driverLicenseNumber?.trim() || '',
-        driverLicenseExpiry: secondDriver.driverLicenseExpiry?.trim() || '',
-        passportNumber: secondDriver.passportNumber?.trim() || '',
-        phone: secondDriver.phone?.trim() || '',
-      };
-    }
+    applyCompletionDetailsToBooking(booking, {
+      dateOfBirth,
+      nationality,
+      customerAddress,
+      placeOfBirth,
+      identityDocumentNumber,
+      identityIssuedOn,
+      driverLicenseNumber,
+      driverLicenseExpiry,
+      driverLicenseIssuedOn,
+      passportNumber,
+      secondDriver,
+      deliveredBy,
+      receivedBy,
+      fuelLevelStart,
+      kmDepart,
+      kmRetour,
+      franchiseAmount,
+    });
     if (notes !== undefined) booking.notes = notes;
     if (status) booking.status = status;
     if (paymentStatus) booking.paymentStatus = paymentStatus;

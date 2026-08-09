@@ -1,6 +1,7 @@
 import { defaultAgencyName } from '../utils/brand.js';
 import { logoToDataUri } from '../utils/uploadPaths.js';
 import { appendSignedQuery } from '../middleware/uploadAccess.js';
+import { isSyntheticWalkInEmail } from '../utils/applyCompletionDetails.js';
 
 export const TEMPLATE_VARIABLES = [
   { key: 'contract_number', label: 'Contract Number', group: 'contract' },
@@ -200,20 +201,25 @@ export const buildTemplateVariables = (booking, { contractNumber, owner, agency 
   const b = mergedBooking?.priceBreakdown || {};
   const currency = agency.currency || process.env.CURRENCY || 'MAD';
   const sd = mergedBooking?.secondDriver || {};
+  // Keep ID and passport distinct — do not copy passport into identity_document
+  // (that caused walk-in CIN/passport swaps when only passport was collected).
   const identityDoc =
-    firstNonEmpty(mergedBooking, ['identityDocumentNumber', 'passportNumber']) ||
+    firstNonEmpty(mergedBooking, ['identityDocumentNumber', 'identity_document']) ||
     '—';
+  const franchiseRaw = mergedBooking?.franchiseAmount;
   const franchise =
-    booking?.franchiseAmount ??
-    car.securityDeposit ??
-    0;
+    franchiseRaw !== undefined && franchiseRaw !== null && franchiseRaw !== ''
+      ? Number(franchiseRaw)
+      : (car.securityDeposit ?? 0);
+  const rawEmail = firstNonEmpty(mergedBooking, ['customerEmail', 'customer_email']);
+  const customerEmail = rawEmail && !isSyntheticWalkInEmail(rawEmail) ? rawEmail : '—';
   console.log('[TEMPLATE_VARS] Building for booking:', booking?.reservationId, 'signature:', booking?.completion?.signatureUrl);
 
   const values = {
     contract_number: contractNumber || '—',
     reservation_id: firstNonEmpty(mergedBooking, ['reservationId', 'reservation_id']) || '—',
     customer_name: firstNonEmpty(mergedBooking, ['customerName', 'customer_name']) || '—',
-    customer_email: firstNonEmpty(mergedBooking, ['customerEmail', 'customer_email']) || '—',
+    customer_email: customerEmail,
     customer_phone: firstNonEmpty(mergedBooking, ['customerPhone', 'customer_phone']) || '—',
     customer_nationality: firstNonEmpty(mergedBooking, ['nationality', 'customerNationality']) || '—',
     customer_dob: firstNonEmpty(mergedBooking, ['dateOfBirth', 'customerDob']) || '—',

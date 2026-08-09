@@ -33,15 +33,26 @@ const Contracts = () => {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
-  const [generateForm, setGenerateForm] = useState({
+  const emptyGenerateForm = {
     bookingId: '',
     templateId: '',
     includeCompanyStamp: true,
     dateOfBirth: '',
     nationality: '',
+    customerAddress: '',
+    placeOfBirth: '',
+    identityDocumentNumber: '',
+    identityIssuedOn: '',
     driverLicenseNumber: '',
     driverLicenseExpiry: '',
+    driverLicenseIssuedOn: '',
     passportNumber: '',
+    deliveredBy: '',
+    receivedBy: '',
+    fuelLevelStart: '',
+    kmDepart: '',
+    kmRetour: '',
+    franchiseAmount: '',
     secondDriverEnabled: false,
     secondDriverFullName: '',
     secondDriverDob: '',
@@ -50,7 +61,8 @@ const Contracts = () => {
     secondDriverLicenseExpiry: '',
     secondDriverPassport: '',
     secondDriverPhone: '',
-  })
+  }
+  const [generateForm, setGenerateForm] = useState(emptyGenerateForm)
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewTitle, setPreviewTitle] = useState('')
   const [editOpen, setEditOpen] = useState(false)
@@ -133,24 +145,7 @@ const Contracts = () => {
   }, [axios])
 
   const openGenerate = () => {
-    setGenerateForm({
-      bookingId: '',
-      templateId: '',
-      includeCompanyStamp: true,
-      dateOfBirth: '',
-      nationality: '',
-      driverLicenseNumber: '',
-      driverLicenseExpiry: '',
-      passportNumber: '',
-      secondDriverEnabled: false,
-      secondDriverFullName: '',
-      secondDriverDob: '',
-      secondDriverNationality: '',
-      secondDriverLicense: '',
-      secondDriverLicenseExpiry: '',
-      secondDriverPassport: '',
-      secondDriverPhone: '',
-    })
+    setGenerateForm({ ...emptyGenerateForm })
     setShowGenerate(true)
     setPreviewHtml('')
   }
@@ -164,9 +159,20 @@ const Contracts = () => {
       bookingId,
       dateOfBirth: booking.dateOfBirth || '',
       nationality: booking.nationality || '',
+      customerAddress: booking.customerAddress || '',
+      placeOfBirth: booking.placeOfBirth || '',
+      identityDocumentNumber: booking.identityDocumentNumber || '',
+      identityIssuedOn: booking.identityIssuedOn || '',
       driverLicenseNumber: booking.driverLicenseNumber || '',
       driverLicenseExpiry: booking.driverLicenseExpiry || '',
+      driverLicenseIssuedOn: booking.driverLicenseIssuedOn || '',
       passportNumber: booking.passportNumber || '',
+      deliveredBy: booking.deliveredBy || '',
+      receivedBy: booking.receivedBy || '',
+      fuelLevelStart: booking.fuelLevelStart || '',
+      kmDepart: booking.kmDepart || '',
+      kmRetour: booking.kmRetour || '',
+      franchiseAmount: booking.franchiseAmount != null ? String(booking.franchiseAmount) : '',
       secondDriverEnabled: Boolean(sd.enabled),
       secondDriverFullName: sd.fullName || '',
       secondDriverDob: sd.dateOfBirth || '',
@@ -184,9 +190,20 @@ const Contracts = () => {
       bookingId: generateForm.bookingId,
       dateOfBirth: generateForm.dateOfBirth,
       nationality: generateForm.nationality,
+      customerAddress: generateForm.customerAddress,
+      placeOfBirth: generateForm.placeOfBirth,
+      identityDocumentNumber: generateForm.identityDocumentNumber,
+      identityIssuedOn: generateForm.identityIssuedOn,
       driverLicenseNumber: generateForm.driverLicenseNumber,
       driverLicenseExpiry: generateForm.driverLicenseExpiry,
+      driverLicenseIssuedOn: generateForm.driverLicenseIssuedOn,
       passportNumber: generateForm.passportNumber,
+      deliveredBy: generateForm.deliveredBy,
+      receivedBy: generateForm.receivedBy,
+      fuelLevelStart: generateForm.fuelLevelStart,
+      kmDepart: generateForm.kmDepart,
+      kmRetour: generateForm.kmRetour,
+      franchiseAmount: generateForm.franchiseAmount === '' ? undefined : generateForm.franchiseAmount,
       secondDriver: {
         enabled: generateForm.secondDriverEnabled,
         fullName: generateForm.secondDriverFullName,
@@ -628,17 +645,61 @@ const Contracts = () => {
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.nationality')}</label>
                 <input className={inputClass} value={generateForm.nationality} onChange={(e) => setGenerateForm((f) => ({ ...f, nationality: e.target.value }))} />
               </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.address')}</label>
+                <input className={inputClass} value={generateForm.customerAddress} onChange={(e) => setGenerateForm((f) => ({ ...f, customerAddress: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.placeOfBirth')}</label>
+                <input className={inputClass} value={generateForm.placeOfBirth} onChange={(e) => setGenerateForm((f) => ({ ...f, placeOfBirth: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.identityNumber')}</label>
+                <input className={inputClass} value={generateForm.identityDocumentNumber} onChange={(e) => setGenerateForm((f) => ({ ...f, identityDocumentNumber: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.identityIssued')}</label>
+                <input type="date" className={inputClass} value={generateForm.identityIssuedOn} onChange={(e) => setGenerateForm((f) => ({ ...f, identityIssuedOn: e.target.value }))} />
+              </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.driverLicense')}</label>
                 <input className={inputClass} value={generateForm.driverLicenseNumber} onChange={(e) => setGenerateForm((f) => ({ ...f, driverLicenseNumber: e.target.value }))} />
               </div>
               <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.licenseIssued')}</label>
+                <input type="date" className={inputClass} value={generateForm.driverLicenseIssuedOn} onChange={(e) => setGenerateForm((f) => ({ ...f, driverLicenseIssuedOn: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.licenseExpiry')}</label>
                 <input type="date" className={inputClass} value={generateForm.driverLicenseExpiry} onChange={(e) => setGenerateForm((f) => ({ ...f, driverLicenseExpiry: e.target.value }))} />
               </div>
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.passport')}</label>
                 <input className={inputClass} value={generateForm.passportNumber} onChange={(e) => setGenerateForm((f) => ({ ...f, passportNumber: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.franchise')}</label>
+                <input type="number" min="0" step="0.01" className={inputClass} value={generateForm.franchiseAmount} onChange={(e) => setGenerateForm((f) => ({ ...f, franchiseAmount: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.fuelLevel')}</label>
+                <input className={inputClass} value={generateForm.fuelLevelStart} onChange={(e) => setGenerateForm((f) => ({ ...f, fuelLevelStart: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.kmDepart')}</label>
+                <input className={inputClass} value={generateForm.kmDepart} onChange={(e) => setGenerateForm((f) => ({ ...f, kmDepart: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.kmRetour')}</label>
+                <input className={inputClass} value={generateForm.kmRetour} onChange={(e) => setGenerateForm((f) => ({ ...f, kmRetour: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.deliveredBy')}</label>
+                <input className={inputClass} value={generateForm.deliveredBy} onChange={(e) => setGenerateForm((f) => ({ ...f, deliveredBy: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">{t('admin.contracts.receivedBy')}</label>
+                <input className={inputClass} value={generateForm.receivedBy} onChange={(e) => setGenerateForm((f) => ({ ...f, receivedBy: e.target.value }))} />
               </div>
             </div>
 

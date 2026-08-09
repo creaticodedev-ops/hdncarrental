@@ -1,5 +1,7 @@
 /**
- * Persist customer contract fields from the completion form onto a Booking document.
+ * Persist customer / desk contract fields onto a Booking document.
+ * Shared by online completion, walk-in create, and admin booking updates
+ * so template sourceData stays consistent across channels.
  */
 export const applyCompletionDetailsToBooking = (booking, body = {}) => {
   const {
@@ -17,6 +19,12 @@ export const applyCompletionDetailsToBooking = (booking, body = {}) => {
     driverLicenseIssuedOn,
     passportNumber,
     secondDriver,
+    deliveredBy,
+    receivedBy,
+    fuelLevelStart,
+    kmDepart,
+    kmRetour,
+    franchiseAmount,
   } = body;
 
   if (customerName !== undefined) booking.customerName = String(customerName).trim();
@@ -32,9 +40,17 @@ export const applyCompletionDetailsToBooking = (booking, body = {}) => {
   if (driverLicenseExpiry !== undefined) booking.driverLicenseExpiry = String(driverLicenseExpiry).trim();
   if (driverLicenseIssuedOn !== undefined) booking.driverLicenseIssuedOn = String(driverLicenseIssuedOn).trim();
   if (passportNumber !== undefined) booking.passportNumber = String(passportNumber).trim();
+  if (deliveredBy !== undefined) booking.deliveredBy = String(deliveredBy).trim();
+  if (receivedBy !== undefined) booking.receivedBy = String(receivedBy).trim();
+  if (fuelLevelStart !== undefined) booking.fuelLevelStart = String(fuelLevelStart).trim();
+  if (kmDepart !== undefined) booking.kmDepart = String(kmDepart).trim();
+  if (kmRetour !== undefined) booking.kmRetour = String(kmRetour).trim();
+  if (franchiseAmount !== undefined && franchiseAmount !== null && franchiseAmount !== '') {
+    const n = Number(franchiseAmount);
+    booking.franchiseAmount = Number.isFinite(n) ? n : booking.franchiseAmount;
+  }
 
   if (secondDriver !== undefined && typeof secondDriver === 'object') {
-    const prev = booking.secondDriver || {};
     booking.secondDriver = {
       enabled: Boolean(secondDriver.enabled),
       fullName: secondDriver.fullName?.trim() || '',
@@ -53,6 +69,13 @@ export const applyCompletionDetailsToBooking = (booking, body = {}) => {
   }
 
   return booking;
+};
+
+/** True for synthetic walk-in placeholder emails that must not print on contracts. */
+export const isSyntheticWalkInEmail = (email) => {
+  const value = String(email || '').trim().toLowerCase();
+  if (!value) return false;
+  return value.endsWith('@local.americonfort') || value.startsWith('walkin+');
 };
 
 /** Required fields before signature / contract generation */
