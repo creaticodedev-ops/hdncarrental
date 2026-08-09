@@ -44,6 +44,10 @@ import {
   getCatalogOrder,
   updateCatalogOrder,
 } from "../controllers/catalogOrderController.js";
+import {
+  getAgencySettings,
+  updateAgencySettings,
+} from "../controllers/agencySettingsController.js";
 
 const ownerRouter = express.Router();
 const gate = (perm) => [protect, requireOwner, requirePermission(perm)];
@@ -84,5 +88,10 @@ ownerRouter.get('/audit-logs', ...gate('audit'), getAuditLogs);
 ownerRouter.get('/search', protect, requireOwner, globalSearch);
 ownerRouter.get('/reports/export', ...gate('reports'), exportReport);
 ownerRouter.post('/update-image', protect, requireOwner, upload.single("image"), handleMulterError, updateUserImage);
+
+ownerRouter.get('/settings', protect, requireOwner, getAgencySettings);
+ownerRouter.put('/settings', protect, requireOwner, updateAgencySettings);
+ownerRouter.get('/settings/whatsapp', protect, requireOwner, getAgencySettings);
+ownerRouter.put('/settings/whatsapp', protect, requireOwner, updateAgencySettings);
 
 export default ownerRouter;

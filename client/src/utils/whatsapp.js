@@ -19,7 +19,8 @@ const formatDateTime = (value) => {
 }
 
 export const buildWaMeUrl = (text, dial = getAgencyWhatsAppDial()) => {
-  const to = String(dial).replace(/\D/g, '') || DEFAULT_AGENCY_WHATSAPP
+  const to = String(dial || '').replace(/\D/g, '') || DEFAULT_AGENCY_WHATSAPP
+  if (!text?.trim()) return `https://wa.me/${to}`
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`
 }
 
@@ -87,7 +88,7 @@ export const createExternalTabOpener = () => {
 }
 
 /** Guest reservation after form submit */
-export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD' } = {}) => {
+export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD', dial } = {}) => {
   const lines = [
     `Hello, I would like to confirm my ${BRAND_NAME} car rental reservation.`,
     '',
@@ -101,11 +102,11 @@ export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD' } = {
     `Total: ${currency}${reservation.price ?? '—'}`,
   ]
   if (reservation.notes?.trim()) lines.push(`Notes: ${reservation.notes.trim()}`)
-  return buildWaMeUrl(lines.join('\n'))
+  return buildWaMeUrl(lines.join('\n'), dial || reservation.whatsappDial || getAgencyWhatsAppDial())
 }
 
 /** Owner dashboard — open WhatsApp to agency with message to forward to customer */
-export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = 'MAD' } = {}) => {
+export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = 'MAD', dial } = {}) => {
   const reservationId = booking.reservationId || `RES-${booking._id?.toString().slice(-8).toUpperCase()}`
   const vehicle = booking.car
     ? `${booking.car.brand} ${booking.car.model}${booking.car.licensePlate ? ` (${booking.car.licensePlate})` : ''}`
@@ -128,7 +129,7 @@ export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = '
     '',
     `(Customer: ${booking.customerPhone || '—'})`,
   ]
-  return buildWaMeUrl(lines.join('\n'))
+  return buildWaMeUrl(lines.join('\n'), dial || getAgencyWhatsAppDial())
 }
 
 /** @deprecated use buildOwnerCompletionWaUrl */

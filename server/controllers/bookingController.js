@@ -11,7 +11,8 @@ import { upsertGuestFromBooking, refreshGuestStats } from "../services/guestCrm.
 import { createNotification, logAudit } from "../utils/adminOps.js";
 import GuestCustomer from "../models/GuestCustomer.js";
 import PickupLocation from "../models/PickupLocation.js";
-import { buildGuestToAgencyWhatsAppUrl, getAgencyWhatsAppDial } from "../services/whatsappNotify.js";
+import { buildGuestToAgencyWhatsAppUrl } from "../services/whatsappNotify.js";
+import { resolveWhatsAppDials } from "../services/agencySettingsService.js";
 import {
   calculateBookingPrice,
   formatLocationLabel,
@@ -406,8 +407,13 @@ export const createBooking = async (req, res) => {
       console.error('Post-booking side effects failed:', sideEffectError.message);
     }
 
-    const whatsappUrl = isWhatsApp
-      ? buildGuestToAgencyWhatsAppUrl({
+    let whatsappUrl = null;
+    let whatsappDial = null;
+    if (isWhatsApp) {
+      const dials = await resolveWhatsAppDials(carForBooking.owner);
+      whatsappDial = dials.reservationDial;
+      whatsappUrl = buildGuestToAgencyWhatsAppUrl(
+        {
           reservationId,
           customerName: booking.customerName,
           customerPhone: booking.customerPhone,
@@ -420,8 +426,10 @@ export const createBooking = async (req, res) => {
           price: booking.price,
           priceBreakdown: booking.priceBreakdown,
           notes: booking.notes,
-        })
-      : null;
+        },
+        whatsappDial,
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -435,7 +443,7 @@ export const createBooking = async (req, res) => {
       price,
       priceBreakdown,
       ...(whatsappUrl ? { whatsappUrl } : {}),
-      ...(isWhatsApp ? { whatsappDial: getAgencyWhatsAppDial() } : {}),
+      ...(whatsappDial ? { whatsappDial } : {}),
     });
   } catch (error) {
     console.error(error.message);

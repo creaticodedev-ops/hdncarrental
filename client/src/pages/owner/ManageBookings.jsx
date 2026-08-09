@@ -81,6 +81,10 @@ const ManageBookings = () => {
   const [identityType, setIdentityType] = useState('national_id')
   const [completionLinkCache, setCompletionLinkCache] = useState({})
   const [openingWhatsApp, setOpeningWhatsApp] = useState(false)
+  const [whatsappDials, setWhatsappDials] = useState({
+    reservationDial: '',
+    confirmationDial: '',
+  })
 
   const resolveCompletionUrl = (booking) =>
     booking?.completion?.shareableCompletionUrl ||
@@ -133,6 +137,20 @@ const ManageBookings = () => {
   useEffect(() => {
     axios.get('/api/owner/cars')
       .then(({ data }) => { if (data.success) setFleetCars(data.cars || []) })
+      .catch(() => {})
+  }, [axios])
+
+  useEffect(() => {
+    axios
+      .get('/api/owner/settings')
+      .then(({ data }) => {
+        if (data.success) {
+          setWhatsappDials({
+            reservationDial: data.settings?.effective?.reservationDial || '',
+            confirmationDial: data.settings?.effective?.confirmationDial || '',
+          })
+        }
+      })
       .catch(() => {})
   }, [axios])
 
@@ -218,10 +236,7 @@ const ManageBookings = () => {
     }
   }
 
-  const ensureCompletionUrl = async (booking) => {
-    const cached = resolveCompletionUrl(booking)
-    if (cached) return cached
-
+  const ensureCompletionLinkPayload = async (booking) => {
     const bookingId = booking._id
     const tryEnsure = async (url) => {
       const { data } = await axios.post(url, { bookingId })
@@ -244,11 +259,21 @@ const ManageBookings = () => {
       throw new Error(data.message || t('admin.bookings.noCompletionLink'))
     }
     cacheCompletionUrl(bookingId, url)
-    return url
+    return data
   }
 
-  const openCompletionWaMe = (booking, completionUrl) => {
-    const url = buildOwnerCompletionWaUrl(booking, completionUrl, { currency })
+  const ensureCompletionUrl = async (booking) => {
+    const cached = resolveCompletionUrl(booking)
+    if (cached) return cached
+    const data = await ensureCompletionLinkPayload(booking)
+    return data.shareableCompletionUrl || data.completionUrl
+  }
+
+  const openCompletionWaMe = (booking, completionUrl, dial) => {
+    const url = buildOwnerCompletionWaUrl(booking, completionUrl, {
+      currency,
+      dial: dial || whatsappDials.confirmationDial,
+    })
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -257,8 +282,17 @@ const ManageBookings = () => {
     if (!booking?._id) return
     setOpeningWhatsApp(true)
     try {
-      const completionUrl = await ensureCompletionUrl(booking)
-      openCompletionWaMe(booking, completionUrl)
+      const data = await ensureCompletionLinkPayload(booking)
+      const completionUrl = data.shareableCompletionUrl || data.completionUrl
+      if (data.whatsappConfirmationUrl) {
+        window.open(data.whatsappConfirmationUrl, '_blank', 'noopener,noreferrer')
+      } else {
+        openCompletionWaMe(
+          booking,
+          completionUrl,
+          data.whatsappConfirmationDial || whatsappDials.confirmationDial,
+        )
+      }
       fetchOwnerBookings()
     } catch (error) {
       toast.error(getErrorMessage(error), { duration: 8000 })
@@ -427,7 +461,11 @@ const ManageBookings = () => {
       `Vehicle: ${vehicle}`,
       `Status: ${booking.status || '—'}`,
     ].join('\n')
-    window.open(buildWaMeUrl(text), '_blank', 'noopener,noreferrer')
+    window.open(
+      buildWaMeUrl(text, whatsappDials.confirmationDial || whatsappDials.reservationDial),
+      '_blank',
+      'noopener,noreferrer',
+    )
   }
 
   const exportCsv = async () => {

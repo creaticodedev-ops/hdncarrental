@@ -433,12 +433,45 @@ export const ensureCompletionLink = async (req, res) => {
     }
 
     const result = await ensureBookingCompletionLink(bookingId, { refresh: Boolean(refresh) });
+
+    let whatsappConfirmationUrl = null;
+    let whatsappConfirmationDial = null;
+    try {
+      const { resolveWhatsAppDials } = await import('../services/agencySettingsService.js');
+      const { buildCompletionToAgencyWhatsAppUrl } = await import('../services/whatsappNotify.js');
+      const dials = await resolveWhatsAppDials(booking.owner);
+      whatsappConfirmationDial = dials.confirmationDial;
+      const populated = await Booking.findById(bookingId).populate('car', 'brand model licensePlate').lean();
+      const car = populated?.car;
+      const vehicle = car
+        ? `${car.brand} ${car.model}${car.licensePlate ? ` (${car.licensePlate})` : ''}`
+        : '—';
+      whatsappConfirmationUrl = buildCompletionToAgencyWhatsAppUrl({
+        reservationId: populated?.reservationId || booking.reservationId,
+        customerName: populated?.customerName || booking.customerName,
+        customerPhone: populated?.customerPhone || booking.customerPhone,
+        vehicle,
+        pickupLocation: populated?.pickupLocation || booking.pickupLocation,
+        returnLocation: populated?.returnLocation || booking.returnLocation,
+        pickupDate: populated?.pickupDate || booking.pickupDate,
+        returnDate: populated?.returnDate || booking.returnDate,
+        price: populated?.price ?? booking.price,
+        currency: process.env.CURRENCY || 'MAD',
+        completionUrl: result.completionUrl,
+        dial: whatsappConfirmationDial,
+      });
+    } catch (waError) {
+      console.error('[ensureCompletionLink] WhatsApp URL', waError.message);
+    }
+
     res.status(200).json({
       success: true,
       completionUrl: result.completionUrl,
       shareableCompletionUrl: result.completionUrl,
       created: result.created,
       status: result.booking.status,
+      ...(whatsappConfirmationUrl ? { whatsappConfirmationUrl } : {}),
+      ...(whatsappConfirmationDial ? { whatsappConfirmationDial } : {}),
     });
   } catch (error) {
     console.error(error.message);

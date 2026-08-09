@@ -129,6 +129,7 @@ export const ownerNavGroups = [
         items: [
             { nameKey: "admin.menu.reports", path: "/owner/reports", icon: listIcon, coloredIcon: listIconColored, permission: "reports" },
             { nameKey: "admin.menu.audit", path: "/owner/audit", icon: listIcon, coloredIcon: listIconColored, permission: "audit" },
+            { nameKey: "admin.menu.settings", path: "/owner/settings", icon: edit_icon, coloredIcon: edit_icon },
         ],
     },
 ]

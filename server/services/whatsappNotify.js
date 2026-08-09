@@ -1,28 +1,30 @@
 /**
  * WhatsApp — wa.me deep links only (no Meta/Twilio API).
+ * Dial numbers are resolved from AgencySettings (DB) with env fallback.
  */
 import { BRAND_NAME } from '../utils/brand.js';
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116';
 
-const normalizePhone = (phone) => {
+export const normalizeWhatsAppDial = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '');
   if (!digits) return '';
   if (digits.startsWith('0') && digits.length === 10) return `212${digits.slice(1)}`;
   return digits;
 };
 
+/** Sync fallback for callers that do not have an owner context yet. */
 export const getAgencyWhatsAppDial = () => {
   const raw =
     process.env.WHATSAPP_BUSINESS_NUMBER ||
     process.env.WHATSAPP_TO ||
     process.env.AGENCY_PHONE ||
     DEFAULT_AGENCY_WHATSAPP;
-  return normalizePhone(raw) || DEFAULT_AGENCY_WHATSAPP;
+  return normalizeWhatsAppDial(raw) || DEFAULT_AGENCY_WHATSAPP;
 };
 
 export const buildWaMeUrl = (text, dial = getAgencyWhatsAppDial()) => {
-  const to = normalizePhone(dial) || DEFAULT_AGENCY_WHATSAPP;
+  const to = normalizeWhatsAppDial(dial) || DEFAULT_AGENCY_WHATSAPP;
   if (!text?.trim()) return `https://wa.me/${to}`;
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
 };
@@ -74,10 +76,10 @@ export const buildReservationWhatsAppMessage = ({
 };
 
 /** Guest reservation → chat with agency on wa.me */
-export const buildGuestToAgencyWhatsAppUrl = (reservation = {}) => {
+export const buildGuestToAgencyWhatsAppUrl = (reservation = {}, dial) => {
   const currency = process.env.WHATSAPP_CURRENCY || process.env.CURRENCY || 'MAD';
   const body = buildReservationWhatsAppMessage({ ...reservation, currency });
-  return buildWaMeUrl(body);
+  return buildWaMeUrl(body, dial || getAgencyWhatsAppDial());
 };
 
 /** Owner: message to agency with customer + completion link (review & send in WhatsApp) */
@@ -93,6 +95,7 @@ export const buildCompletionToAgencyWhatsAppUrl = ({
   price,
   currency = 'MAD',
   completionUrl,
+  dial,
 }) => {
   const lines = [
     `${BRAND_NAME} — booking confirmation (please send to customer):`,
@@ -111,7 +114,7 @@ export const buildCompletionToAgencyWhatsAppUrl = ({
     '',
     `Customer phone: ${customerPhone || '—'}`,
   ];
-  return buildWaMeUrl(lines.join('\n'));
+  return buildWaMeUrl(lines.join('\n'), dial || getAgencyWhatsAppDial());
 };
 
 /** Legacy no-op — API disabled */
