@@ -4,6 +4,7 @@ import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import { useAppContext } from '../context/AppContext'
 import { booking } from '../components/ui/bookingUi'
+import NoIndexHead from '../seo/NoIndexHead'
 
 const formatDisplay = (value) => {
   if (!value) return '—'
@@ -91,6 +92,7 @@ const BookingConfirmation = () => {
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className={`page-pad page-shell mt-8 sm:mt-14 ${booking.pageBottom}`}
     >
+      <NoIndexHead title="Confirmation de réservation" />
       <div className="mx-auto max-w-xl">
         <div className={`${booking.card} overflow-hidden`}>
           <div className="relative border-b border-borderColor/70 px-5 pb-6 pt-8 text-center sm:px-8 sm:pt-10">

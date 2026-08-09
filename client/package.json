@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/generate-sitemap.mjs && node scripts/prerender-seo.mjs",
+    "sitemap": "node scripts/generate-sitemap.mjs",
+    "prerender": "node scripts/prerender-seo.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "optimize:images": "node scripts/optimize-images.mjs && node scripts/optimize-logo.mjs"
@@ -17,6 +19,7 @@
     "motion": "^12.42.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-helmet-async": "^3.0.0",
     "react-hot-toast": "^2.5.2",
     "react-phone-number-input": "^3.4.17",
     "react-router-dom": "^7.6.2",

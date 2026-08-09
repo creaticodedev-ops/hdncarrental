@@ -1,18 +1,26 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { assets } from '../assets/assets'
 import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom'
 import { BRAND_NAME, INSTAGRAM_URL } from '../constants/brand'
+import { getPublishedCities } from '../seo/data/cities'
+import { SEO_CATEGORIES } from '../seo/data/categories'
+import { useAppContext } from '../context/AppContext'
+import { airportsFromLocations } from '../seo/data/airports'
+import { NAP } from '../seo/constants'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
   transition: { duration: 0.6, delay },
-});
+})
 
 const Footer = () => {
-  const { t } = useI18n();
+  const { t } = useI18n()
+  const { pickupLocations } = useAppContext()
+  const cities = getPublishedCities().slice(0, 6)
+  const airports = useMemo(() => airportsFromLocations(pickupLocations).slice(0, 4), [pickupLocations])
 
   return (
     <footer className="page-pad page-shell mt-8 bg-light pb-[max(1.5rem,env(safe-area-inset-bottom))] text-sm text-muted md:mt-16">
@@ -36,13 +44,7 @@ const Footer = () => {
             {t('footer.description')}
           </Motion.p>
 
-          <Motion.div
-            {...fadeUp(0.4)}
-            className="flex items-center gap-4 mt-6"
-          >
-            <a href="#" aria-label="Facebook" className="inline-flex">
-              <img src={assets.facebook_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
-            </a>
+          <Motion.div {...fadeUp(0.4)} className="flex items-center gap-4 mt-6">
             <a
               href={INSTAGRAM_URL}
               target="_blank"
@@ -52,11 +54,8 @@ const Footer = () => {
             >
               <img src={assets.instagram_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
             </a>
-            <a href="#" aria-label="Twitter" className="inline-flex">
-              <img src={assets.twitter_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
-            </a>
             <a
-              href="mailto:haddanecar@gmail.com"
+              href={`mailto:${NAP.email}`}
               aria-label="Email"
               data-analytics-source="footer_social"
               className="inline-flex"
@@ -68,7 +67,7 @@ const Footer = () => {
 
         <Motion.div
           {...fadeUp(0.3)}
-          className="grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-10 w-full md:w-auto md:flex-1 md:max-w-2xl"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8 sm:gap-10 w-full md:w-auto md:flex-1 md:max-w-4xl"
         >
           <div>
             <h2 className="text-base font-medium text-gray-900 uppercase tracking-wide">
@@ -77,24 +76,41 @@ const Footer = () => {
             <ul className="mt-4 flex flex-col gap-2">
               <li><Link className="hover:text-gray-700 transition" to="/">{t('footer.home')}</Link></li>
               <li><Link className="hover:text-gray-700 transition" to="/cars">{t('footer.browseCars')}</Link></li>
-              <li><a className="hover:text-gray-700 transition" href="#">{t('footer.aboutUs')}</a></li>
+              <li><Link className="hover:text-gray-700 transition" to="/location-voiture-maroc">Location Maroc</Link></li>
+              <li><Link className="hover:text-gray-700 transition" to="/guide">Guides</Link></li>
             </ul>
           </div>
 
           <div>
-            <h2 className="text-base font-medium text-gray-900 uppercase tracking-wide">
-              {t('footer.resources')}
-            </h2>
+            <h2 className="text-base font-medium text-gray-900 uppercase tracking-wide">Villes</h2>
             <ul className="mt-4 flex flex-col gap-2">
-              {[t('footer.helpCenter'), t('footer.termsOfService'), t('footer.privacyPolicy'), t('footer.insurance')].map(
-                (item) => (
-                  <li key={item}>
-                    <a className="hover:text-gray-700 transition" href="#">
-                      {item}
-                    </a>
-                  </li>
-                )
-              )}
+              {cities.map((c) => (
+                <li key={c.slug}>
+                  <Link className="hover:text-gray-700 transition" to={`/location-voiture/${c.slug}`}>
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-base font-medium text-gray-900 uppercase tracking-wide">Catégories</h2>
+            <ul className="mt-4 flex flex-col gap-2">
+              {SEO_CATEGORIES.map((c) => (
+                <li key={c.slug}>
+                  <Link className="hover:text-gray-700 transition" to={`/cars/${c.slug}`}>
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
+              {airports.map((a) => (
+                <li key={a.slug}>
+                  <Link className="hover:text-gray-700 transition" to={`/location-voiture-aeroport/${a.slug}`}>
+                    {a.iata ? `Aéroport ${a.iata}` : a.locationName}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -103,24 +119,24 @@ const Footer = () => {
               {t('footer.contact')}
             </h2>
             <ul className="mt-4 flex flex-col gap-2 break-words">
-              <li>AB IBN BATTOUTA QUARTIER AZIB DERAI,SAFI</li>
-              <li>Safi, Maroc</li>
+              <li>{NAP.streetAddress}, {NAP.addressLocality}</li>
+              <li>{NAP.addressLocality}, Maroc</li>
               <li>
                 <a
-                  href="tel:+212661865184"
+                  href={`tel:${NAP.telephone}`}
                   data-analytics-source="footer"
                   className="hover:text-gray-700 transition"
                 >
-                  +212 6 61 86 51 84
+                  {NAP.telephoneDisplay}
                 </a>
               </li>
               <li>
                 <a
-                  href="mailto:haddanecar@gmail.com"
+                  href={`mailto:${NAP.email}`}
                   data-analytics-source="footer"
                   className="hover:text-gray-700 transition"
                 >
-                  haddanecar@gmail.com
+                  {NAP.email}
                 </a>
               </li>
             </ul>
@@ -136,16 +152,23 @@ const Footer = () => {
 
         <div className="flex flex-col items-center gap-2 md:items-end">
           <ul className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs sm:text-sm">
-          {[t('footer.privacy'), t('footer.terms'), t('footer.cookies')].map((item, i) => (
-            <React.Fragment key={item}>
-              <li>
-                <a className="hover:text-gray-800 transition" href="#">
-                  {item}
-                </a>
-              </li>
-              {i < 2 && <span className="text-borderColor" aria-hidden>|</span>}
-            </React.Fragment>
-          ))}
+            <li>
+              <Link className="hover:text-gray-800 transition" to="/guide/documents-location-voiture-maroc">
+                {t('footer.privacy')}
+              </Link>
+            </li>
+            <span className="text-borderColor" aria-hidden>|</span>
+            <li>
+              <Link className="hover:text-gray-800 transition" to="/guide/assurance-location-voiture-maroc">
+                {t('footer.terms')}
+              </Link>
+            </li>
+            <span className="text-borderColor" aria-hidden>|</span>
+            <li>
+              <Link className="hover:text-gray-800 transition" to="/guide/caution-location-voiture">
+                {t('footer.cookies')}
+              </Link>
+            </li>
           </ul>
           <Link
             to="/owner"
@@ -156,7 +179,7 @@ const Footer = () => {
         </div>
       </Motion.div>
     </footer>
-  );
-};
+  )
+}
 
-export default Footer;
+export default Footer

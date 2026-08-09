@@ -16,6 +16,7 @@ import {
   SectionCard,
   formInputOnLightClass,
 } from '../components/forms/PremiumFormUI'
+import NoIndexHead from '../seo/NoIndexHead'
 
 const STEPS = ['documents', 'signature', 'done']
 
@@ -349,6 +350,7 @@ const CompleteBooking = () => {
 
   return (
     <div className="relative min-h-screen bg-[radial-gradient(ellipse_at_top,_#f5efe8_0%,_#faf8f5_45%,_#f0ebe4_100%)] pb-20">
+      <NoIndexHead title="Finaliser la réservation" />
       <DocumentGenerationOverlay
         open={docGen.open}
         status={docGen.status}

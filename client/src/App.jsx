@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
@@ -48,6 +48,13 @@ const SuperAdminPermissions = lazy(() => import('./pages/superadmin/Permissions'
 const SuperAdminActivity = lazy(() => import('./pages/superadmin/Activity'))
 const SuperAdminAudit = lazy(() => import('./pages/superadmin/AuditLogs'))
 
+const MoroccoPillarPage = lazy(() => import('./pages/seo/MoroccoPillarPage'))
+const CityPage = lazy(() => import('./pages/seo/CityPage'))
+const AirportPage = lazy(() => import('./pages/seo/AirportPage'))
+const CarsSlugPage = lazy(() => import('./pages/seo/CarsSlugPage'))
+const GuideHubPage = lazy(() => import('./pages/seo/GuideHubPage'))
+const GuideArticlePage = lazy(() => import('./pages/seo/GuideArticlePage'))
+
 const withPerm = (permission, Component) => (
   <RequirePermission permission={permission}>{React.createElement(Component)}</RequirePermission>
 )
@@ -61,6 +68,11 @@ const App = () => {
   const isSuperAdminPath = pathname.startsWith('/superadmin')
   const hidePublicChrome = isOwnerPath || isSuperAdminPath
   const needsNavOffset = !hidePublicChrome && pathname !== '/'
+
+  // Remove build-time SEO body after hydration (crawlers still see it in raw HTML).
+  useEffect(() => {
+    document.getElementById('seo-prerender')?.remove()
+  }, [])
 
   return (
     <ErrorBoundary>
@@ -99,8 +111,14 @@ const App = () => {
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/location-voiture-maroc" element={<MoroccoPillarPage />} />
+            <Route path="/location-voiture/:city" element={<CityPage />} />
+            <Route path="/location-voiture-aeroport/:airport" element={<AirportPage />} />
+            <Route path="/guide" element={<GuideHubPage />} />
+            <Route path="/guide/:slug" element={<GuideArticlePage />} />
             <Route path="/car-details/:id" element={<CarDetails />} />
             <Route path="/cars" element={<Cars />} />
+            <Route path="/cars/:slug" element={<CarsSlugPage />} />
             <Route path="/booking-confirmation" element={<BookingConfirmation />} />
             <Route path="/complete-booking/:token" element={<CompleteBooking />} />
             <Route path="/admin" element={<Navigate to="/owner" replace />} />

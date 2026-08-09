@@ -19,6 +19,10 @@ import {
   trackReservationStarted,
   trackWhatsAppClick,
 } from '../analytics/ga4'
+import SeoHead from '../seo/SeoHead'
+import { uniqueCarSlug } from '../seo/slugify'
+import { vehicleProductJsonLd } from '../seo/jsonLd'
+import { SITE_NAME } from '../seo/constants'
 
 const toDateTimeLocal = (value) => {
   if (!value) return ''
@@ -277,8 +281,19 @@ const CarDetails = () => {
     { icon: assets.location_icon, text: formatLocationsDisplay(car) },
   ]
 
+  const seoSlug = uniqueCarSlug(car, cars)
+  const seoPath = seoSlug ? `/cars/${seoSlug}` : `/car-details/${car._id}`
+  const carName = `${car.brand || ''} ${car.model || ''}`.trim()
+
   return (
     <div className={`page-pad page-shell mt-4 overflow-x-clip bg-gradient-to-b from-white via-white to-sand/40 sm:mt-8 md:mt-10 ${booking.pageBottom}`}>
+      <SeoHead
+        title={`Location ${carName} Maroc`}
+        description={`Louez ${carName} avec ${SITE_NAME}. Réservation en ligne.`}
+        path={seoPath}
+        image={car.image || undefined}
+        jsonLd={[vehicleProductJsonLd(car, seoPath)]}
+      />
       <button
         type="button"
         onClick={() => navigate(-1)}
