@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useSuperAdmin, saError } from '../../context/SuperAdminContext'
+import { useI18n } from '../../i18n/I18nContext'
+import { summarizeAccess } from '../../utils/permissionMeta'
 
 const emptyForm = {
   name: '',
@@ -22,8 +24,10 @@ const tone = (s) => {
 
 const SuperAdminAdmins = () => {
   const { axios } = useSuperAdmin()
+  const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const [admins, setAdmins] = useState([])
+  const [catalog, setCatalog] = useState([])
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 })
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -48,6 +52,7 @@ const SuperAdminAdmins = () => {
       if (data.success) {
         setAdmins(data.admins)
         setPagination(data.pagination)
+        if (data.permissionCatalog) setCatalog(data.permissionCatalog)
       }
     } catch (error) {
       toast.error(saError(error))
@@ -195,12 +200,15 @@ const SuperAdminAdmins = () => {
                 <th className="px-4 py-3 font-medium">Agency</th>
                 <th className="px-4 py-3 font-medium">Account</th>
                 <th className="px-4 py-3 font-medium">License</th>
+                <th className="px-4 py-3 font-medium">{t('superadmin.perms.nav')}</th>
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
             <tbody>
-              {admins.map((admin) => (
+              {admins.map((admin) => {
+                const access = summarizeAccess(admin.permissions, catalog)
+                return (
                 <tr key={admin._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                   <td className="px-4 py-3">
                     <p className="text-white">{admin.name}</p>
@@ -216,6 +224,20 @@ const SuperAdminAdmins = () => {
                       <span className="text-slate-500"> · {admin.license.daysRemaining}d left</span>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      to="/superadmin/permissions"
+                      className={`text-xs ${access.mode === 'full' ? 'text-emerald-400' : 'text-cyan-400'} hover:underline`}
+                      title={t('superadmin.perms.nav')}
+                    >
+                      {access.mode === 'full'
+                        ? t('superadmin.perms.badgeFull')
+                        : t('superadmin.perms.badgeCount', {
+                            granted: access.granted,
+                            total: access.total,
+                          })}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">
                     {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString() : '—'}
                   </td>
@@ -228,10 +250,11 @@ const SuperAdminAdmins = () => {
                     </Link>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
               {!admins.length && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                     No admins match these filters.
                   </td>
                 </tr>

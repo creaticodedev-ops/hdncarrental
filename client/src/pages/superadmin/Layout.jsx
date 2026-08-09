@@ -1,17 +1,22 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
 import { useSuperAdmin } from '../../context/SuperAdminContext'
+import { useI18n } from '../../i18n/I18nContext'
 import { BRAND_NAME } from '../../constants/brand'
-
-const links = [
-  { to: '/superadmin', end: true, label: 'Overview' },
-  { to: '/superadmin/admins', label: 'Admins' },
-  { to: '/superadmin/activity', label: 'Activity' },
-  { to: '/superadmin/audit', label: 'Audit logs' },
-]
 
 const SuperAdminLayout = () => {
   const { authReady, isSuperAdmin, user, logout, navigate } = useSuperAdmin()
+  const { t } = useI18n()
+  const links = useMemo(
+    () => [
+      { to: '/superadmin', end: true, label: 'Overview' },
+      { to: '/superadmin/admins', label: 'Admins' },
+      { to: '/superadmin/permissions', label: t('superadmin.perms.nav') },
+      { to: '/superadmin/activity', label: 'Activity' },
+      { to: '/superadmin/audit', label: 'Audit logs' },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     if (authReady && !isSuperAdmin) {

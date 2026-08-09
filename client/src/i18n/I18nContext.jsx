@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { en as baseEn, fr as baseFr, es as baseEs } from './translations'
 import { adminEn, adminFr, adminEs } from './adminTranslations'
+import { superadminEn, superadminFr, superadminEs } from './superadminTranslations'
 
-const en = { ...baseEn, admin: adminEn }
-const fr = { ...baseFr, admin: adminFr }
-const es = { ...baseEs, admin: adminEs }
+const en = { ...baseEn, admin: adminEn, superadmin: superadminEn }
+const fr = { ...baseFr, admin: adminFr, superadmin: superadminFr }
+const es = { ...baseEs, admin: adminEs, superadmin: superadminEs }
 
 const dictionaries = { en, fr, es }
 

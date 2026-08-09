@@ -2,16 +2,21 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useSuperAdmin, saError } from '../../context/SuperAdminContext'
+import { useI18n } from '../../i18n/I18nContext'
+import PermissionMatrix from '../../components/superadmin/PermissionMatrix'
 
 const SuperAdminAdminDetail = () => {
   const { id } = useParams()
   const { axios, navigate } = useSuperAdmin()
+  const { t } = useI18n()
   const [admin, setAdmin] = useState(null)
   const [stats, setStats] = useState(null)
   const [catalog, setCatalog] = useState([])
+  const [peerAdmins, setPeerAdmins] = useState([])
   const [loading, setLoading] = useState(true)
   const [edit, setEdit] = useState({ name: '', email: '', agencyName: '', notes: '' })
   const [permissions, setPermissions] = useState([])
+  const [savedPermissions, setSavedPermissions] = useState([])
   const [newPassword, setNewPassword] = useState('')
   const [extendDays, setExtendDays] = useState(7)
   const [busy, setBusy] = useState('')
@@ -19,7 +24,10 @@ const SuperAdminAdminDetail = () => {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { data } = await axios.get(`/api/super-admin/admins/${id}`)
+      const [{ data }, peersRes] = await Promise.all([
+        axios.get(`/api/super-admin/admins/${id}`),
+        axios.get('/api/super-admin/admins?limit=100').catch(() => ({ data: null })),
+      ])
       if (data.success) {
         setAdmin(data.admin)
         setStats(data.stats)
@@ -30,7 +38,12 @@ const SuperAdminAdminDetail = () => {
           agencyName: data.admin.agencyName || '',
           notes: data.admin.notes || '',
         })
-        setPermissions(data.admin.permissions || [])
+        const perms = Array.isArray(data.admin.permissions) ? data.admin.permissions : []
+        setPermissions([...perms])
+        setSavedPermissions([...perms])
+      }
+      if (peersRes?.data?.success) {
+        setPeerAdmins(peersRes.data.admins || [])
       }
     } catch (error) {
       toast.error(saError(error))
@@ -246,70 +259,30 @@ const SuperAdminAdminDetail = () => {
         </div>
       </section>
 
-      {/* Permissions */}
-      <section className="border border-white/10 p-4 sm:p-6 space-y-4">
-        <h2 className="text-sm uppercase tracking-wider text-slate-400">Permissions</h2>
-        <p className="text-sm text-slate-500">
-          Leave all unchecked for full access. Checking any box restricts the admin to those areas only.
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-          {catalog.map((perm) => {
-            const checked = permissions.includes(perm)
-            return (
-              <label
-                key={perm}
-                className={`flex items-center gap-2 text-sm border px-3 py-2 cursor-pointer ${
-                  checked ? 'border-cyan-600/40 text-cyan-300' : 'border-white/10 text-slate-300'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() =>
-                    setPermissions((prev) =>
-                      checked ? prev.filter((p) => p !== perm) : [...prev, perm]
-                    )
-                  }
-                  className="accent-cyan-600"
-                />
-                {perm}
-              </label>
-            )
-          })}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPermissions([])}
-            className="text-xs text-slate-400 hover:text-white"
-          >
-            Clear → full access
-          </button>
-          <button
-            type="button"
-            onClick={() => setPermissions([...catalog])}
-            className="text-xs text-slate-400 hover:text-white"
-          >
-            Select all
-          </button>
-        </div>
-        <button
-          type="button"
-          disabled={busy === 'perms'}
-          onClick={() =>
-            run('perms', async () => {
-              const { data } = await axios.patch(`/api/super-admin/admins/${id}/permissions`, {
-                permissions,
-              })
-              if (!data.success) throw new Error(data.message)
-              toast.success('Permissions updated')
+      {/* Permissions — enterprise matrix (same API / permission keys) */}
+      <PermissionMatrix
+        catalog={catalog}
+        value={permissions}
+        baseline={savedPermissions}
+        onChange={setPermissions}
+        peerAdmins={peerAdmins}
+        currentAdminId={admin._id}
+        currentAdminName={admin.name || admin.email}
+        saving={busy === 'perms'}
+        updatedAt={admin.updatedAt}
+        onSave={(next) =>
+          run('perms', async () => {
+            const { data } = await axios.patch(`/api/super-admin/admins/${id}/permissions`, {
+              permissions: next,
             })
-          }
-          className="bg-cyan-700 hover:bg-cyan-600 disabled:opacity-60 text-sm px-4 py-2 text-white"
-        >
-          Save permissions
-        </button>
-      </section>
+            if (!data.success) throw new Error(data.message)
+            toast.success(t('superadmin.perms.saveSuccess'))
+            const saved = Array.isArray(data.admin?.permissions) ? data.admin.permissions : next
+            setPermissions([...saved])
+            setSavedPermissions([...saved])
+          })
+        }
+      />
 
       {/* Password */}
       <section className="border border-white/10 p-4 sm:p-6 space-y-3">
