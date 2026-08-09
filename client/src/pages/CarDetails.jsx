@@ -23,6 +23,7 @@ import SeoHead from '../seo/SeoHead'
 import { uniqueCarSlug } from '../seo/slugify'
 import { vehicleProductJsonLd } from '../seo/jsonLd'
 import { SITE_NAME } from '../seo/constants'
+import PromotionBadge from '../components/PromotionBadge'
 
 const toDateTimeLocal = (value) => {
   if (!value) return ''
@@ -381,7 +382,7 @@ const CarDetails = () => {
       <div className="grid grid-cols-1 gap-7 lg:grid-cols-12 lg:gap-10 xl:gap-14">
         <div className="order-2 min-w-0 lg:order-1 lg:col-span-7 xl:col-span-8">
           <Motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-            <div className="overflow-hidden rounded-[1.35rem] bg-sand/40 shadow-sm ring-1 ring-borderColor/70 sm:rounded-3xl">
+            <div className="relative overflow-hidden rounded-[1.35rem] bg-sand/40 shadow-sm ring-1 ring-borderColor/70 sm:rounded-3xl">
               <img
                 src={car.image || car.images?.[0] || fallbackImage}
                 onError={(e) => { e.currentTarget.src = fallbackImage }}
@@ -392,6 +393,9 @@ const CarDetails = () => {
                 decoding="async"
                 className="aspect-[16/10] w-full object-cover sm:aspect-[16/9]"
               />
+              {car.displayPromotion ? (
+                <PromotionBadge promotion={car.displayPromotion} currency={currency} />
+              ) : null}
             </div>
 
             <div className="mt-6 sm:mt-8">
@@ -400,6 +404,16 @@ const CarDetails = () => {
                 {car.brand} {car.model}
               </h1>
               <p className="mt-1.5 text-sm text-muted">{car.year}</p>
+              {car.displayPromotion ? (
+                <div className="mt-4 max-w-lg">
+                  <PromotionBadge
+                    promotion={car.displayPromotion}
+                    currency={currency}
+                    variant="detail"
+                    showPrice
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">

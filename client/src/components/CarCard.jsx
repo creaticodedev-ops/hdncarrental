@@ -3,12 +3,14 @@ import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nContext'
 import { formatLocationsDisplay } from '../utils/carLocations'
+import PromotionBadge, { PromotionPriceTag } from './PromotionBadge'
 
 const CarCard = ({ car }) => {
   const currency = import.meta.env.VITE_CURRENCY || 'MAD '
   const navigate = useNavigate()
   const { t } = useI18n()
   const fallbackImage = assets.car_image1
+  const promo = car?.displayPromotion || null
 
   return (
     <article
@@ -37,6 +39,8 @@ const CarCard = ({ car }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/55 via-ink/10 to-transparent opacity-90" />
 
+        {promo ? <PromotionBadge promotion={promo} currency={currency} /> : null}
+
         <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3 sm:bottom-3.5 sm:left-3.5 sm:right-3.5">
           <div className="min-w-0">
             {car.isAvaliable && (
@@ -49,10 +53,18 @@ const CarCard = ({ car }) => {
             </h3>
             <p className="mt-0.5 truncate text-xs text-white/70">{car.category} · {car.year}</p>
           </div>
-          <div className="shrink-0 rounded-xl bg-white/95 px-2.5 py-2 text-right shadow-sm backdrop-blur-sm">
-            <p className="text-sm font-semibold leading-none tabular-nums text-ink">{currency}{car.pricePerDay}</p>
-            <p className="mt-1 text-[10px] text-muted">{t('carCard.perDay')}</p>
-          </div>
+          {promo ? (
+            <PromotionPriceTag
+              promotion={promo}
+              currency={currency}
+              perDayLabel={t('carCard.perDay')}
+            />
+          ) : (
+            <div className="shrink-0 rounded-xl bg-white/95 px-2.5 py-2 text-right shadow-sm backdrop-blur-sm">
+              <p className="text-sm font-semibold leading-none tabular-nums text-ink">{currency}{car.pricePerDay}</p>
+              <p className="mt-1 text-[10px] text-muted">{t('carCard.perDay')}</p>
+            </div>
+          )}
         </div>
       </div>
 

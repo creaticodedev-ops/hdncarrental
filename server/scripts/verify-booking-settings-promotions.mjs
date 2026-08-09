@@ -319,4 +319,35 @@ if (process.env.MONGODB_URI) {
   console.log('  · skipped live Mongo concurrency tests (set MONGODB_URI to enable)');
 }
 
+// --- Presentation isolation: catalog badges must not feed pricing SSOT ---
+await check('pricing pipeline does not import promotionDisplayService', async () => {
+  const { readFileSync } = await import('fs');
+  const { fileURLToPath } = await import('url');
+  const { dirname, join } = await import('path');
+  const here = dirname(fileURLToPath(import.meta.url));
+  const pricingFiles = [
+    join(here, '../services/pricingEngine.js'),
+    join(here, '../services/bookingPricingFlow.js'),
+    join(here, '../services/promotionService.js'),
+  ];
+  for (const file of pricingFiles) {
+    const src = readFileSync(file, 'utf8');
+    assert.equal(
+      src.includes('promotionDisplayService'),
+      false,
+      `${file} must not import promotionDisplayService`,
+    );
+    assert.equal(
+      src.includes('displayPromotion'),
+      false,
+      `${file} must not reference displayPromotion`,
+    );
+  }
+  const displaySrc = readFileSync(join(here, '../services/promotionDisplayService.js'), 'utf8');
+  assert.ok(displaySrc.includes('Presentation-only') || displaySrc.includes('presentation'));
+  assert.equal(displaySrc.includes('calculateBookingPrice'), false);
+  assert.equal(displaySrc.includes('buildAuthoritativeQuote'), false);
+  assert.equal(displaySrc.includes('reservePromotionUsage'), false);
+});
+
 console.log(`verify-booking-settings-promotions: ${passed} assertions passed`);

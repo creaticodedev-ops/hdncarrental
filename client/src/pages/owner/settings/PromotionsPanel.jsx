@@ -2,19 +2,29 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../../utils/apiError'
 import { VEHICLE_CATEGORIES } from '../../../utils/vehicleCategories'
+import ConfirmDialog from '../../../components/owner/ConfirmDialog'
+import {
+  EmptyState,
+  Field,
+  LoadingBlock,
+  SettingsCard,
+  StatusPill,
+  settingsUi,
+} from './settingsUi'
 
 const OCCASIONS = [
   'custom', 'summer', 'winter', 'new_year', 'ramadan', 'eid',
   'black_friday', 'special_event', 'last_minute', 'long_stay',
 ]
 
+const toLocal = (d) => {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const emptyPromo = () => {
   const start = new Date()
   const end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-  const toLocal = (d) => {
-    const pad = (n) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
   return {
     name: '',
     description: '',
@@ -39,51 +49,94 @@ const emptyPromo = () => {
   }
 }
 
-const lifecycleBadge = (lifecycle, t) => {
-  const map = {
-    active: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    scheduled: 'bg-sky-50 text-sky-800 border-sky-200',
-    expired: 'bg-gray-100 text-gray-600 border-gray-200',
-    inactive: 'bg-amber-50 text-amber-800 border-amber-200',
+const formatRange = (start, end) => {
+  try {
+    const opts = { day: '2-digit', month: 'short', year: 'numeric' }
+    return `${new Date(start).toLocaleDateString(undefined, opts)} → ${new Date(end).toLocaleDateString(undefined, opts)}`
+  } catch {
+    return '—'
   }
-  return (
-    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium border ${map[lifecycle] || map.inactive}`}>
-      {t(`admin.settings.promoLifecycle.${lifecycle}`)}
-    </span>
-  )
 }
 
-const PromotionsPanel = ({ axios, t, currency, inputClass }) => {
+const toneForLifecycle = (lifecycle) => {
+  if (lifecycle === 'active') return 'success'
+  if (lifecycle === 'scheduled') return 'info'
+  if (lifecycle === 'expired') return 'neutral'
+  return 'warn'
+}
+
+const PromotionsPanel = ({ axios, t, currency }) => {
   const [promotions, setPromotions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [status, setStatus] = useState('all')
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyPromo())
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError('')
     try {
-      const params = {}
-      if (status !== 'all') params.status = status
-      if (q.trim()) params.q = q.trim()
-      const { data } = await axios.get('/api/owner/promotions', { params })
+      // Always fetch the full set so filter counts stay accurate.
+      const { data } = await axios.get('/api/owner/promotions')
       if (data.success) setPromotions(data.promotions || [])
-      else toast.error(data.message || t('admin.settings.promoLoadError'))
+      else {
+        setLoadError(data.message || t('admin.settings.promoLoadError'))
+        toast.error(data.message || t('admin.settings.promoLoadError'))
+      }
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      const msg = getErrorMessage(error)
+      setLoadError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
-  }, [axios, status, q, t])
+  }, [axios, t])
 
   useEffect(() => {
     load()
   }, [load])
 
+  // Lock background scroll while the editor sheet is open (mobile + desktop).
+  useEffect(() => {
+    if (!editing) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [editing])
+
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+
+  const counts = useMemo(() => {
+    const c = { all: promotions.length, active: 0, scheduled: 0, expired: 0, codes: 0 }
+    for (const p of promotions) {
+      if (p.lifecycle === 'active') c.active += 1
+      if (p.lifecycle === 'scheduled') c.scheduled += 1
+      if (p.lifecycle === 'expired') c.expired += 1
+      if (p.code) c.codes += 1
+    }
+    return c
+  }, [promotions])
+
+  const visible = useMemo(() => {
+    const query = q.trim().toLowerCase()
+    return promotions.filter((p) => {
+      if (status === 'active' && p.lifecycle !== 'active') return false
+      if (status === 'scheduled' && p.lifecycle !== 'scheduled') return false
+      if (status === 'expired' && p.lifecycle !== 'expired') return false
+      if (status === 'codes' && !p.code) return false
+      if (status === 'inactive' && p.isActive) return false
+      if (!query) return true
+      const hay = `${p.name || ''} ${p.code || ''} ${p.description || ''}`.toLowerCase()
+      return hay.includes(query)
+    })
+  }, [promotions, status, q])
 
   const openCreate = () => {
     setEditing('new')
@@ -92,11 +145,10 @@ const PromotionsPanel = ({ axios, t, currency, inputClass }) => {
   }
 
   const openEdit = (p) => {
-    const toLocal = (iso) => {
+    const toLocalIso = (iso) => {
       if (!iso) return ''
       const d = new Date(iso)
-      const pad = (n) => String(n).padStart(2, '0')
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+      return toLocal(d)
     }
     setEditing(p._id)
     setForm({
@@ -105,8 +157,8 @@ const PromotionsPanel = ({ axios, t, currency, inputClass }) => {
       code: p.code || '',
       discountType: p.discountType || 'percentage',
       discountValue: p.discountValue ?? 0,
-      startAt: toLocal(p.startAt),
-      endAt: toLocal(p.endAt),
+      startAt: toLocalIso(p.startAt),
+      endAt: toLocalIso(p.endAt),
       minRentalDays: p.minRentalDays ?? 1,
       maxRentalDays: p.maxRentalDays ?? 0,
       minBookingAmount: p.minBookingAmount ?? 0,
@@ -148,6 +200,10 @@ const PromotionsPanel = ({ axios, t, currency, inputClass }) => {
       toast.error(t('admin.settings.promoNameRequired'))
       return
     }
+    if (new Date(form.endAt) < new Date(form.startAt)) {
+      toast.error(t('admin.settings.promoDateError'))
+      return
+    }
     setSaving(true)
     try {
       const body = payloadFromForm()
@@ -173,19 +229,22 @@ const PromotionsPanel = ({ axios, t, currency, inputClass }) => {
       const { data } = await axios.patch(`/api/owner/promotions/${p._id}/active`, {
         isActive: !p.isActive,
       })
-      if (data.success) load()
-      else toast.error(data.message)
+      if (data.success) {
+        toast.success(p.isActive ? t('admin.settings.deactivated') : t('admin.settings.activated'))
+        load()
+      } else toast.error(data.message)
     } catch (error) {
       toast.error(getErrorMessage(error))
     }
   }
 
-  const onDelete = async (p) => {
-    if (!window.confirm(t('admin.settings.promoDeleteConfirm', { name: p.name }))) return
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
     try {
-      const { data } = await axios.delete(`/api/owner/promotions/${p._id}`)
+      const { data } = await axios.delete(`/api/owner/promotions/${pendingDelete._id}`)
       if (data.success) {
         toast.success(t('admin.settings.promoDeleted'))
+        setPendingDelete(null)
         load()
       } else toast.error(data.message)
     } catch (error) {
@@ -208,257 +267,371 @@ const PromotionsPanel = ({ axios, t, currency, inputClass }) => {
     }
   }
 
-  const counts = useMemo(() => {
-    const c = { all: promotions.length, active: 0, scheduled: 0, expired: 0, codes: 0 }
-    for (const p of promotions) {
-      if (p.lifecycle === 'active') c.active += 1
-      if (p.lifecycle === 'scheduled') c.scheduled += 1
-      if (p.lifecycle === 'expired') c.expired += 1
-      if (p.code) c.codes += 1
-    }
-    return c
-  }, [promotions])
-
-  const Field = ({ label, children, hint }) => (
-    <div className="space-y-1">
-      <label className="text-xs text-gray-500">{label}</label>
-      {children}
-      {hint ? <p className="text-[11px] text-gray-400">{hint}</p> : null}
-    </div>
+  const discountLabel = (p) => (
+    p.discountType === 'percentage'
+      ? `−${p.discountValue}%`
+      : `−${currency}${p.discountValue}`
   )
 
+  const filters = [
+    ['all', counts.all],
+    ['active', counts.active],
+    ['scheduled', counts.scheduled],
+    ['expired', counts.expired],
+    ['codes', counts.codes],
+  ]
+
   return (
-    <div className="space-y-5 max-w-5xl">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-            {t('admin.settings.promotionsSection')}
-          </h2>
-          <p className="text-xs text-gray-500 mt-1">{t('admin.settings.promotionsHint')}</p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium"
-        >
-          {t('admin.settings.promoCreate')}
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-2 items-center">
-        {[
-          ['all', counts.all],
-          ['active', counts.active],
-          ['scheduled', counts.scheduled],
-          ['expired', counts.expired],
-          ['codes', counts.codes],
-        ].map(([key, n]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setStatus(key)}
-            className={`px-3 py-1.5 rounded-lg text-xs border ${
-              status === key ? 'bg-primary text-white border-primary' : 'bg-white border-borderColor text-gray-600'
-            }`}
-          >
-            {t(`admin.settings.promoFilter.${key}`)} ({n})
+    <div className="space-y-5 min-w-0 overflow-x-clip">
+      <SettingsCard
+        soft
+        eyebrow={t('admin.settings.promotionsSection')}
+        title={t('admin.settings.promotionsTitle')}
+        description={t('admin.settings.promotionsHint')}
+        action={
+          <button type="button" onClick={openCreate} className={`${settingsUi.btnPrimary} w-full sm:w-auto`}>
+            {t('admin.settings.promoCreate')}
           </button>
-        ))}
-        <input
-          className={`${inputClass} max-w-xs`}
-          placeholder={t('admin.settings.promoSearch')}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
-
-      {editing && (
-        <form onSubmit={onSave} className="rounded-xl border border-borderColor bg-white p-4 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-gray-800">
-              {editing === 'new' ? t('admin.settings.promoCreate') : t('admin.settings.promoEdit')}
-            </h3>
-            <button type="button" className="text-sm text-gray-500" onClick={() => setEditing(null)}>
-              {t('admin.settings.cancel')}
-            </button>
+        }
+      >
+        <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max gap-2">
+            {filters.map(([key, n]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatus(key)}
+                className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 text-xs font-semibold transition ${
+                  status === key
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-borderColor bg-white text-ink/70 hover:border-ink/20'
+                }`}
+              >
+                {t(`admin.settings.promoFilter.${key}`)}
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${status === key ? 'bg-white/20' : 'bg-sand text-muted'}`}>
+                  {n}
+                </span>
+              </button>
+            ))}
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label={t('admin.settings.promoName')}>
-              <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} required />
-            </Field>
-            <Field label={t('admin.settings.promoOccasion')}>
-              <select className={inputClass} value={form.occasion} onChange={(e) => set('occasion', e.target.value)}>
-                {OCCASIONS.map((o) => (
-                  <option key={o} value={o}>{t(`admin.settings.promoOccasionLabel.${o}`)}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('admin.settings.promoCode')} hint={t('admin.settings.promoCodeHint')}>
-              <input className={inputClass} value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} />
-            </Field>
-            <Field label={t('admin.settings.promoPriority')}>
-              <input type="number" className={inputClass} value={form.priority} onChange={(e) => set('priority', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.discountType')}>
-              <select className={inputClass} value={form.discountType} onChange={(e) => set('discountType', e.target.value)}>
-                <option value="percentage">{t('admin.settings.discountPercentage')}</option>
-                <option value="fixed">{t('admin.settings.discountFixed')}</option>
-              </select>
-            </Field>
-            <Field label={t('admin.settings.discountValue')}>
-              <input type="number" min={0} step="0.01" className={inputClass}
-                value={form.discountValue} onChange={(e) => set('discountValue', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.startAt')}>
-              <input type="datetime-local" className={inputClass} value={form.startAt}
-                onChange={(e) => set('startAt', e.target.value)} required />
-            </Field>
-            <Field label={t('admin.settings.endAt')}>
-              <input type="datetime-local" className={inputClass} value={form.endAt}
-                onChange={(e) => set('endAt', e.target.value)} required />
-            </Field>
-            <Field label={t('admin.settings.minRentalDays')}>
-              <input type="number" min={1} className={inputClass} value={form.minRentalDays}
-                onChange={(e) => set('minRentalDays', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.promoMaxRentalDays')} hint={t('admin.settings.zeroUnlimited')}>
-              <input type="number" min={0} className={inputClass} value={form.maxRentalDays}
-                onChange={(e) => set('maxRentalDays', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.minBookingAmount')}>
-              <input type="number" min={0} className={inputClass} value={form.minBookingAmount}
-                onChange={(e) => set('minBookingAmount', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.maxDiscountAmount')} hint={t('admin.settings.zeroUnlimited')}>
-              <input type="number" min={0} className={inputClass} value={form.maxDiscountAmount}
-                onChange={(e) => set('maxDiscountAmount', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.globalUsageLimit')} hint={t('admin.settings.zeroUnlimited')}>
-              <input type="number" min={0} className={inputClass} value={form.globalUsageLimit}
-                onChange={(e) => set('globalUsageLimit', e.target.value)} />
-            </Field>
-            <Field label={t('admin.settings.perCustomerLimit')} hint={t('admin.settings.zeroUnlimited')}>
-              <input type="number" min={0} className={inputClass} value={form.perCustomerUsageLimit}
-                onChange={(e) => set('perCustomerUsageLimit', e.target.value)} />
-            </Field>
-          </div>
-
-          <Field label={t('admin.settings.promoDescription')}>
-            <textarea rows={2} className={inputClass} value={form.description}
-              onChange={(e) => set('description', e.target.value)} />
-          </Field>
-
-          <Field label={t('admin.settings.vehicleCategories')}>
-            <div className="flex flex-wrap gap-2">
-              {VEHICLE_CATEGORIES.map((cat) => {
-                const checked = form.vehicleCategories.includes(cat)
-                return (
-                  <label key={cat} className="inline-flex items-center gap-1.5 text-xs border border-borderColor rounded-md px-2 py-1 bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        set(
-                          'vehicleCategories',
-                          checked
-                            ? form.vehicleCategories.filter((c) => c !== cat)
-                            : [...form.vehicleCategories, cat],
-                        )
-                      }}
-                    />
-                    {cat}
-                  </label>
-                )
-              })}
-            </div>
-            <p className="text-[11px] text-gray-400 mt-1">{t('admin.settings.vehicleCategoriesHint')}</p>
-          </Field>
-
-          <Field label={t('admin.settings.vehicleModels')} hint={t('admin.settings.vehicleModelsHint')}>
-            <input className={inputClass} value={form.vehicleModels}
-              onChange={(e) => set('vehicleModels', e.target.value)} />
-          </Field>
-
-          <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} />
-              {t('admin.settings.promoActive')}
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.requirePromoCode} onChange={(e) => set('requirePromoCode', e.target.checked)} />
-              {t('admin.settings.requirePromoCode')}
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={form.allowStacking} onChange={(e) => set('allowStacking', e.target.checked)} />
-              {t('admin.settings.allowStacking')}
-            </label>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <button type="button" onClick={runPreview} className="px-3 py-2 rounded-lg border border-borderColor text-sm">
-              {t('admin.settings.pricingPreview')}
-            </button>
-            {preview && (
-              <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-                {currency}{preview.originalPrice} → −{preview.discountAmount} → {currency}{preview.finalPrice}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={saving}
-              className="ml-auto px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-60"
-            >
-              {saving ? t('admin.settings.saving') : t('admin.settings.save')}
-            </button>
-          </div>
-        </form>
-      )}
+        </div>
+        <div className="mt-3">
+          <input
+            className={settingsUi.input}
+            placeholder={t('admin.settings.promoSearch')}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+      </SettingsCard>
 
       {loading ? (
-        <p className="text-sm text-gray-500">{t('admin.settings.loading')}</p>
+        <LoadingBlock label={t('admin.settings.loading')} />
+      ) : loadError ? (
+        <EmptyState
+          title={t('admin.settings.promoLoadError')}
+          body={loadError}
+          action={
+            <button type="button" className={settingsUi.btnSecondary} onClick={load}>
+              {t('admin.settings.reload')}
+            </button>
+          }
+        />
       ) : promotions.length === 0 ? (
-        <p className="text-sm text-gray-500">{t('admin.settings.promoEmpty')}</p>
+        <EmptyState
+          title={t('admin.settings.promoEmpty')}
+          body={t('admin.settings.promoEmptyHint')}
+          action={
+            <button type="button" className={settingsUi.btnPrimary} onClick={openCreate}>
+              {t('admin.settings.promoCreate')}
+            </button>
+          }
+        />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          title={t('admin.settings.promoFilterEmpty')}
+          body={t('admin.settings.promoFilterEmptyHint')}
+          action={
+            <button type="button" className={settingsUi.btnSecondary} onClick={() => { setStatus('all'); setQ('') }}>
+              {t('admin.settings.promoFilterReset')}
+            </button>
+          }
+        />
       ) : (
-        <div className="space-y-2">
-          {promotions.map((p) => (
-            <div
-              key={p._id}
-              className="rounded-xl border border-borderColor bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
-                  {lifecycleBadge(p.lifecycle, t)}
-                  {p.code ? (
-                    <span className="text-[11px] font-mono bg-gray-100 px-2 py-0.5 rounded">{p.code}</span>
-                  ) : (
-                    <span className="text-[11px] text-gray-500">{t('admin.settings.autoPromo')}</span>
-                  )}
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          {visible.map((p) => (
+            <article key={p._id} className={`${settingsUi.card} p-4 sm:p-5 flex flex-col gap-4 min-w-0`}>
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-display text-lg text-ink truncate" title={p.name}>{p.name}</h3>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <StatusPill tone={toneForLifecycle(p.lifecycle)}>
+                      {t(`admin.settings.promoLifecycle.${p.lifecycle}`)}
+                    </StatusPill>
+                  </div>
+                  <p className="mt-1 text-xs text-muted break-words">
+                    {t(`admin.settings.promoOccasionLabel.${p.occasion || 'custom'}`)}
+                    {' · '}
+                    {formatRange(p.startAt, p.endAt)}
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {p.discountType === 'percentage' ? `${p.discountValue}%` : `${currency}${p.discountValue}`}
-                  {' · '}
-                  {t(`admin.settings.promoOccasionLabel.${p.occasion || 'custom'}`)}
-                  {' · '}
-                  {t('admin.settings.usageStat', { used: p.usageCount || 0, limit: p.globalUsageLimit || '∞' })}
-                </p>
+                <div className="shrink-0 rounded-2xl bg-sand/70 px-3 py-2 text-right">
+                  <p className="text-sm font-semibold tabular-nums text-ink">{discountLabel(p)}</p>
+                  <p className="text-[10px] text-muted mt-0.5">{t('admin.settings.priorityShort')} {p.priority}</p>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => openEdit(p)} className="px-3 py-1.5 text-xs border border-borderColor rounded-lg">
+
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {p.code ? (
+                  <span className="rounded-full border border-borderColor bg-light px-2.5 py-1 font-mono font-semibold text-ink">
+                    {p.code}
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-borderColor bg-light px-2.5 py-1 text-muted">
+                    {t('admin.settings.autoPromo')}
+                  </span>
+                )}
+                <span className="rounded-full border border-borderColor bg-light px-2.5 py-1 text-muted">
+                  {t('admin.settings.usageStat', { used: p.usageCount || 0, limit: p.globalUsageLimit || '∞' })}
+                </span>
+                {(p.vehicleCategories || []).slice(0, 3).map((c) => (
+                  <span key={c} className="rounded-full border border-borderColor bg-white px-2.5 py-1 text-ink/70">
+                    {c}
+                  </span>
+                ))}
+                {(p.vehicleCategories || []).length > 3 ? (
+                  <span className="rounded-full border border-borderColor px-2.5 py-1 text-muted">
+                    +{(p.vehicleCategories || []).length - 3}
+                  </span>
+                ) : null}
+                {!(p.vehicleCategories || []).length ? (
+                  <span className="rounded-full border border-borderColor px-2.5 py-1 text-muted">
+                    {t('admin.settings.allCategories')}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-auto flex flex-wrap gap-2 border-t border-borderColor/60 pt-3">
+                <button type="button" onClick={() => openEdit(p)} className={settingsUi.btnGhost}>
                   {t('admin.settings.edit')}
                 </button>
-                <button type="button" onClick={() => toggleActive(p)} className="px-3 py-1.5 text-xs border border-borderColor rounded-lg">
+                <button type="button" onClick={() => toggleActive(p)} className={settingsUi.btnGhost}>
                   {p.isActive ? t('admin.settings.deactivate') : t('admin.settings.activate')}
                 </button>
-                <button type="button" onClick={() => onDelete(p)} className="px-3 py-1.5 text-xs border border-red-200 text-red-700 rounded-lg">
+                <button type="button" onClick={() => setPendingDelete(p)} className={`${settingsUi.btnDanger} ml-auto`}>
                   {t('admin.settings.delete')}
                 </button>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
+
+      {editing && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-ink/40 p-0 sm:p-4">
+          <div
+            className="absolute inset-0"
+            onClick={() => !saving && setEditing(null)}
+            aria-hidden
+          />
+          <form
+            onSubmit={onSave}
+            className="relative z-[1] flex h-[min(92svh,100%)] max-h-[92svh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-t-[1.5rem] border border-borderColor bg-white shadow-2xl sm:h-auto sm:max-h-[90svh] sm:rounded-[1.5rem]"
+          >
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-borderColor sm:hidden" aria-hidden />
+            <div className="flex items-start justify-between gap-3 border-b border-borderColor/70 px-4 py-4 sm:px-6 shrink-0">
+              <div className="min-w-0">
+                <p className={`${settingsUi.sectionLabel} text-primary`}>
+                  {editing === 'new' ? t('admin.settings.promoCreate') : t('admin.settings.promoEdit')}
+                </p>
+                <h3 className="mt-1 font-display text-xl text-ink truncate" title={form.name || undefined}>
+                  {form.name || t('admin.settings.promoName')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-borderColor text-muted"
+                onClick={() => !saving && setEditing(null)}
+                aria-label={t('admin.settings.cancel')}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label={t('admin.settings.promoName')}>
+                  <input className={settingsUi.input} value={form.name} onChange={(e) => set('name', e.target.value)} required />
+                </Field>
+                <Field label={t('admin.settings.promoOccasion')}>
+                  <select className={settingsUi.select} value={form.occasion} onChange={(e) => set('occasion', e.target.value)}>
+                    {OCCASIONS.map((o) => (
+                      <option key={o} value={o}>{t(`admin.settings.promoOccasionLabel.${o}`)}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t('admin.settings.promoCode')} hint={t('admin.settings.promoCodeHint')}>
+                  <input className={`${settingsUi.input} uppercase`} value={form.code}
+                    onChange={(e) => set('code', e.target.value.toUpperCase())} />
+                </Field>
+                <Field label={t('admin.settings.promoPriority')} hint={t('admin.settings.promoPriorityHint')}>
+                  <input type="number" className={settingsUi.input} value={form.priority}
+                    onChange={(e) => set('priority', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.discountType')}>
+                  <select className={settingsUi.select} value={form.discountType}
+                    onChange={(e) => set('discountType', e.target.value)}>
+                    <option value="percentage">{t('admin.settings.discountPercentage')}</option>
+                    <option value="fixed">{t('admin.settings.discountFixed')}</option>
+                  </select>
+                </Field>
+                <Field label={t('admin.settings.discountValue')} hint={t('admin.settings.discountValueHint')}>
+                  <input type="number" min={0} step="0.01" className={settingsUi.input}
+                    value={form.discountValue} onChange={(e) => set('discountValue', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.startAt')} className="min-w-0">
+                  <input
+                    type="datetime-local"
+                    className={`${settingsUi.input} [color-scheme:light]`}
+                    value={form.startAt}
+                    onChange={(e) => set('startAt', e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label={t('admin.settings.endAt')} className="min-w-0">
+                  <input
+                    type="datetime-local"
+                    className={`${settingsUi.input} [color-scheme:light]`}
+                    value={form.endAt}
+                    onChange={(e) => set('endAt', e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label={t('admin.settings.minRentalDays')}>
+                  <input type="number" min={1} className={settingsUi.input} value={form.minRentalDays}
+                    onChange={(e) => set('minRentalDays', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.promoMaxRentalDays')} hint={t('admin.settings.zeroUnlimited')}>
+                  <input type="number" min={0} className={settingsUi.input} value={form.maxRentalDays}
+                    onChange={(e) => set('maxRentalDays', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.minBookingAmount')}>
+                  <input type="number" min={0} className={settingsUi.input} value={form.minBookingAmount}
+                    onChange={(e) => set('minBookingAmount', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.maxDiscountAmount')} hint={t('admin.settings.zeroUnlimited')}>
+                  <input type="number" min={0} className={settingsUi.input} value={form.maxDiscountAmount}
+                    onChange={(e) => set('maxDiscountAmount', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.globalUsageLimit')} hint={t('admin.settings.zeroUnlimited')}>
+                  <input type="number" min={0} className={settingsUi.input} value={form.globalUsageLimit}
+                    onChange={(e) => set('globalUsageLimit', e.target.value)} />
+                </Field>
+                <Field label={t('admin.settings.perCustomerLimit')} hint={t('admin.settings.zeroUnlimited')}>
+                  <input type="number" min={0} className={settingsUi.input} value={form.perCustomerUsageLimit}
+                    onChange={(e) => set('perCustomerUsageLimit', e.target.value)} />
+                </Field>
+              </div>
+
+              <Field label={t('admin.settings.promoDescription')}>
+                <textarea rows={2} className={settingsUi.textarea} value={form.description}
+                  onChange={(e) => set('description', e.target.value)} />
+              </Field>
+
+              <Field label={t('admin.settings.vehicleCategories')} hint={t('admin.settings.vehicleCategoriesHint')}>
+                <div className="flex flex-wrap gap-2">
+                  {VEHICLE_CATEGORIES.map((cat) => {
+                    const checked = form.vehicleCategories.includes(cat)
+                    return (
+                      <label
+                        key={cat}
+                        className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-medium ${
+                          checked ? 'border-primary/40 bg-primary/5 text-primary' : 'border-borderColor bg-white text-ink/70'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-primary"
+                          checked={checked}
+                          onChange={() => {
+                            set(
+                              'vehicleCategories',
+                              checked
+                                ? form.vehicleCategories.filter((c) => c !== cat)
+                                : [...form.vehicleCategories, cat],
+                            )
+                          }}
+                        />
+                        {cat}
+                      </label>
+                    )
+                  })}
+                </div>
+              </Field>
+
+              <Field label={t('admin.settings.vehicleModels')} hint={t('admin.settings.vehicleModelsHint')}>
+                <input className={settingsUi.input} value={form.vehicleModels}
+                  onChange={(e) => set('vehicleModels', e.target.value)} />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {[
+                  ['isActive', t('admin.settings.promoActive')],
+                  ['requirePromoCode', t('admin.settings.requirePromoCode')],
+                  ['allowStacking', t('admin.settings.allowStacking')],
+                ].map(([key, label]) => (
+                  <label key={key} className="flex min-h-12 items-center gap-3 rounded-2xl border border-borderColor/70 bg-light/40 px-3.5 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={Boolean(form[key])}
+                      onChange={(e) => set(key, e.target.checked)}
+                    />
+                    <span className="font-medium leading-snug">{label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-borderColor/70 bg-sand/40 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={runPreview} className={settingsUi.btnGhost}>
+                    {t('admin.settings.pricingPreview')}
+                  </button>
+                  {preview && (
+                    <p className="text-sm font-medium text-ink">
+                      <span className="text-muted line-through">{currency}{preview.originalPrice}</span>
+                      <span className="mx-1.5">→</span>
+                      <span className="text-primary">−{preview.discountAmount}</span>
+                      <span className="mx-1.5">→</span>
+                      <span>{currency}{preview.finalPrice}</span>
+                    </p>
+                  )}
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted">{t('admin.settings.pricingPreviewHint')}</p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-borderColor/70 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-6 booking-safe-bottom">
+              <button type="button" disabled={saving} className={`${settingsUi.btnSecondary} w-full sm:w-auto`} onClick={() => setEditing(null)}>
+                {t('admin.settings.cancel')}
+              </button>
+              <button type="submit" disabled={saving} className={`${settingsUi.btnPrimary} w-full sm:w-auto`}>
+                {saving ? t('admin.settings.saving') : t('admin.settings.save')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDelete)}
+        title={t('admin.settings.delete')}
+        message={t('admin.settings.promoDeleteConfirm', { name: pendingDelete?.name || '' })}
+        confirmText={t('admin.settings.delete')}
+        cancelText={t('admin.settings.cancel')}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

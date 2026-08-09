@@ -8,22 +8,22 @@ const ConfirmDialog = ({ isOpen, title, message, confirmText = 'Confirm', cancel
     : 'bg-primary hover:bg-primary-dull'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 border border-borderColor max-h-[90svh] overflow-y-auto">
-        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        <p className="mt-2 text-sm text-gray-500 break-words">{message}</p>
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-ink/40">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 border border-borderColor max-h-[90svh] overflow-y-auto overscroll-contain">
+        <h3 className="text-lg font-semibold text-ink break-words">{title}</h3>
+        <p className="mt-2 text-sm text-muted break-words">{message}</p>
         <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2.5 text-sm border border-borderColor rounded-lg hover:bg-gray-50 cursor-pointer"
+            className="min-h-12 px-4 py-2.5 text-sm border border-borderColor rounded-xl hover:bg-light cursor-pointer"
           >
             {cancelText}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-4 py-2.5 text-sm text-white rounded-lg cursor-pointer ${confirmClass}`}
+            className={`min-h-12 px-4 py-2.5 text-sm text-white rounded-xl cursor-pointer ${confirmClass}`}
           >
             {confirmText}
           </button>

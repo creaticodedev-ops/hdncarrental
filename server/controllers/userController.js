@@ -12,6 +12,7 @@ import {
 import { syncOwnerPermissions, resolveOwnerPermissions } from '../utils/ownerPermissions.js';
 import { normalizeEmail, findUserByEmail } from '../utils/emailUtils.js';
 import { BRAND_NAME } from '../utils/brand.js';
+import { attachDisplayPromotions } from '../services/promotionDisplayService.js';
 
 const generateToken = (user) => {
     const payload = { _id: user._id.toString(), tv: user.tokenVersion || 0 };
@@ -134,9 +135,10 @@ export const getCars = async (req, res) => {
         })
             .sort({ createdAt: -1 })
             .lean();
+        const catalog = await withCatalogDisplayOrders(groupCarsForCatalog(cars));
         res.json({
             success: true,
-            cars: await withCatalogDisplayOrders(groupCarsForCatalog(cars)),
+            cars: await attachDisplayPromotions(catalog),
         });
     } catch (error) {
         console.error(error.message);
@@ -151,12 +153,12 @@ export const getCarById = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid car ID' });
         }
 
-        const car = await Car.findOne({ _id: id, isAvaliable: true, owner: { $ne: null } });
+        const car = await Car.findOne({ _id: id, isAvaliable: true, owner: { $ne: null } }).lean();
         if (!car) {
             return res.status(404).json({ success: false, message: 'Car not found' });
         }
 
-        res.json({ success: true, car });
+        res.json({ success: true, car: await attachDisplayPromotions(car) });
     } catch (error) {
         console.error(error.message);
         res.status(500).json({ success: false, message: 'Failed to fetch car' });

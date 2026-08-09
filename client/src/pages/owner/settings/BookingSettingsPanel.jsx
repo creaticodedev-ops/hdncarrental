@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../../utils/apiError'
+import { Field, SettingsCard, StatusPill, settingsUi } from './settingsUi'
 
 const DEFAULTS = {
   minRentalDays: 1,
@@ -21,14 +22,38 @@ const DEFAULTS = {
   pendingReservationExpiryHours: 48,
 }
 
-const BookingSettingsPanel = ({ axios, initial, t, inputClass }) => {
+const BookingSettingsPanel = ({ axios, initial, t }) => {
   const [form, setForm] = useState({ ...DEFAULTS, ...(initial || {}) })
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
 
-  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  useEffect(() => {
+    setForm({ ...DEFAULTS, ...(initial || {}) })
+    setDirty(false)
+  }, [initial])
+
+  const set = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }))
+    setDirty(true)
+  }
+
+  const summary = useMemo(() => ({
+    duration: `${form.minRentalDays}–${form.maxRentalDays} ${t('admin.settings.daysUnit')}`,
+    hours: `${form.pickupHoursStart}–${form.pickupHoursEnd}`,
+    mileage: form.mileageMode === 'limited'
+      ? `${form.mileageLimitKmPerDay} km/day`
+      : t('admin.settings.mileageUnlimited'),
+    expiry: Number(form.pendingReservationExpiryHours) > 0
+      ? `${form.pendingReservationExpiryHours}h`
+      : t('admin.settings.expiryOff'),
+  }), [form, t])
 
   const onSave = async (e) => {
     e.preventDefault()
+    if (Number(form.minRentalDays) > Number(form.maxRentalDays)) {
+      toast.error(t('admin.settings.minMaxError'))
+      return
+    }
     setSaving(true)
     try {
       const { data } = await axios.put('/api/owner/settings', { bookingSettings: form })
@@ -40,6 +65,7 @@ const BookingSettingsPanel = ({ axios, initial, t, inputClass }) => {
       if (data.settings?.bookingSettings) {
         setForm({ ...DEFAULTS, ...data.settings.bookingSettings })
       }
+      setDirty(false)
     } catch (error) {
       toast.error(getErrorMessage(error))
     } finally {
@@ -47,147 +73,170 @@ const BookingSettingsPanel = ({ axios, initial, t, inputClass }) => {
     }
   }
 
-  const Field = ({ label, children, hint }) => (
-    <div className="space-y-1">
-      <label className="text-xs text-gray-500">{label}</label>
-      {children}
-      {hint ? <p className="text-[11px] text-gray-400">{hint}</p> : null}
-    </div>
-  )
-
   return (
-    <form onSubmit={onSave} className="space-y-5 max-w-3xl">
-      <section className="rounded-xl border border-borderColor bg-white p-4 sm:p-6 space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-            {t('admin.settings.bookingSection')}
-          </h2>
-          <p className="text-xs text-gray-500 mt-1">{t('admin.settings.bookingHint')}</p>
+    <form onSubmit={onSave} className="space-y-5 pb-24 sm:pb-0">
+      <SettingsCard
+        soft
+        eyebrow={t('admin.settings.bookingSection')}
+        title={t('admin.settings.bookingTitle')}
+        description={t('admin.settings.bookingHint')}
+        action={
+          <div className="flex flex-wrap gap-2 max-w-full">
+            <StatusPill tone="info">{summary.duration}</StatusPill>
+            <StatusPill tone="neutral">{summary.hours}</StatusPill>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            [t('admin.settings.statDuration'), summary.duration],
+            [t('admin.settings.statHours'), summary.hours],
+            [t('admin.settings.statMileage'), summary.mileage],
+            [t('admin.settings.statExpiry'), summary.expiry],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-borderColor/60 bg-white/80 px-3 py-3">
+              <p className={settingsUi.sectionLabel}>{label}</p>
+              <p className="mt-1.5 text-sm font-semibold text-ink truncate">{value}</p>
+            </div>
+          ))}
         </div>
+      </SettingsCard>
 
+      <SettingsCard
+        title={t('admin.settings.durationSection')}
+        description={t('admin.settings.durationHint')}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label={t('admin.settings.minRentalDays')}>
-            <input type="number" min={1} className={inputClass} value={form.minRentalDays}
+          <Field label={t('admin.settings.minRentalDays')} hint={t('admin.settings.minRentalHint')}>
+            <input type="number" min={1} className={settingsUi.input} value={form.minRentalDays}
               onChange={(e) => set('minRentalDays', e.target.value)} />
           </Field>
-          <Field label={t('admin.settings.maxRentalDays')}>
-            <input type="number" min={1} className={inputClass} value={form.maxRentalDays}
+          <Field label={t('admin.settings.maxRentalDays')} hint={t('admin.settings.maxRentalHint')}>
+            <input type="number" min={1} className={settingsUi.input} value={form.maxRentalDays}
               onChange={(e) => set('maxRentalDays', e.target.value)} />
           </Field>
           <Field label={t('admin.settings.advanceBookingDays')} hint={t('admin.settings.advanceBookingHint')}>
-            <input type="number" min={1} className={inputClass} value={form.advanceBookingDays}
+            <input type="number" min={1} className={settingsUi.input} value={form.advanceBookingDays}
               onChange={(e) => set('advanceBookingDays', e.target.value)} />
           </Field>
           <Field label={t('admin.settings.pendingExpiryHours')} hint={t('admin.settings.pendingExpiryHint')}>
-            <input type="number" min={0} className={inputClass} value={form.pendingReservationExpiryHours}
+            <input type="number" min={0} className={settingsUi.input} value={form.pendingReservationExpiryHours}
               onChange={(e) => set('pendingReservationExpiryHours', e.target.value)} />
           </Field>
         </div>
-      </section>
+      </SettingsCard>
 
-      <section className="rounded-xl border border-borderColor bg-white p-4 sm:p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-          {t('admin.settings.cancellationSection')}
-        </h2>
-        <Field label={t('admin.settings.cancellationPolicy')}>
+      <SettingsCard
+        title={t('admin.settings.cancellationSection')}
+        description={t('admin.settings.cancellationHint')}
+      >
+        <Field label={t('admin.settings.cancellationPolicy')} hint={t('admin.settings.cancellationPolicyExample')}>
           <textarea
-            rows={4}
-            className={inputClass}
+            className={settingsUi.textarea}
             value={form.cancellationPolicyText}
             onChange={(e) => set('cancellationPolicyText', e.target.value)}
             placeholder={t('admin.settings.cancellationPolicyPlaceholder')}
           />
         </Field>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t('admin.settings.cancellationFeeType')}>
-            <select className={inputClass} value={form.cancellationFeeType}
+            <select className={settingsUi.select} value={form.cancellationFeeType}
               onChange={(e) => set('cancellationFeeType', e.target.value)}>
               <option value="none">{t('admin.settings.feeNone')}</option>
               <option value="fixed">{t('admin.settings.feeFixed')}</option>
               <option value="percent">{t('admin.settings.feePercent')}</option>
             </select>
           </Field>
-          <Field label={t('admin.settings.cancellationFeeValue')}>
-            <input type="number" min={0} step="0.01" className={inputClass}
+          <Field
+            label={t('admin.settings.cancellationFeeValue')}
+            hint={form.cancellationFeeType === 'percent' ? t('admin.settings.feePercentHint') : t('admin.settings.feeFixedHint')}
+          >
+            <input type="number" min={0} step="0.01" className={settingsUi.input}
               value={form.cancellationFeeValue}
               disabled={form.cancellationFeeType === 'none'}
               onChange={(e) => set('cancellationFeeValue', e.target.value)} />
           </Field>
         </div>
-      </section>
+      </SettingsCard>
 
-      <section className="rounded-xl border border-borderColor bg-white p-4 sm:p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-          {t('admin.settings.depositExtrasSection')}
-        </h2>
+      <SettingsCard
+        title={t('admin.settings.depositExtrasSection')}
+        description={t('admin.settings.depositExtrasHint')}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t('admin.settings.securityDepositDefault')} hint={t('admin.settings.securityDepositHint')}>
-            <input type="number" min={0} step="0.01" className={inputClass}
+            <input type="number" min={0} step="0.01" className={settingsUi.input}
               value={form.securityDepositDefault}
               onChange={(e) => set('securityDepositDefault', e.target.value)} />
           </Field>
-          <Field label={t('admin.settings.extraDriverFee')}>
-            <input type="number" min={0} step="0.01" className={inputClass}
+          <Field label={t('admin.settings.extraDriverFee')} hint={t('admin.settings.extraDriverFeeHint')}>
+            <input type="number" min={0} step="0.01" className={settingsUi.input}
               value={form.extraDriverFeePerDay}
+              disabled={!form.extraDriverAllowed}
               onChange={(e) => set('extraDriverFeePerDay', e.target.value)} />
           </Field>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="mt-4 flex min-h-12 items-center gap-3 rounded-2xl border border-borderColor/70 bg-light/40 px-4 text-sm text-ink">
           <input
             type="checkbox"
+            className="h-4 w-4 accent-primary"
             checked={Boolean(form.extraDriverAllowed)}
             onChange={(e) => set('extraDriverAllowed', e.target.checked)}
           />
-          {t('admin.settings.extraDriverAllowed')}
+          <span className="font-medium">{t('admin.settings.extraDriverAllowed')}</span>
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t('admin.settings.mileageMode')}>
-            <select className={inputClass} value={form.mileageMode}
+            <select className={settingsUi.select} value={form.mileageMode}
               onChange={(e) => set('mileageMode', e.target.value)}>
               <option value="unlimited">{t('admin.settings.mileageUnlimited')}</option>
               <option value="limited">{t('admin.settings.mileageLimited')}</option>
             </select>
           </Field>
-          <Field label={t('admin.settings.mileageLimit')}>
-            <input type="number" min={0} className={inputClass}
+          <Field label={t('admin.settings.mileageLimit')} hint={t('admin.settings.mileageLimitHint')}>
+            <input type="number" min={0} className={settingsUi.input}
               disabled={form.mileageMode !== 'limited'}
               value={form.mileageLimitKmPerDay}
               onChange={(e) => set('mileageLimitKmPerDay', e.target.value)} />
           </Field>
         </div>
-      </section>
+      </SettingsCard>
 
-      <section className="rounded-xl border border-borderColor bg-white p-4 sm:p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-          {t('admin.settings.hoursSection')}
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <SettingsCard
+        title={t('admin.settings.hoursSection')}
+        description={t('admin.settings.hoursHint')}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 min-w-0">
           <Field label={t('admin.settings.pickupHoursStart')}>
-            <input type="time" className={inputClass} value={form.pickupHoursStart}
+            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.pickupHoursStart}
               onChange={(e) => set('pickupHoursStart', e.target.value)} />
           </Field>
           <Field label={t('admin.settings.pickupHoursEnd')}>
-            <input type="time" className={inputClass} value={form.pickupHoursEnd}
+            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.pickupHoursEnd}
               onChange={(e) => set('pickupHoursEnd', e.target.value)} />
           </Field>
           <Field label={t('admin.settings.returnHoursStart')}>
-            <input type="time" className={inputClass} value={form.returnHoursStart}
+            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.returnHoursStart}
               onChange={(e) => set('returnHoursStart', e.target.value)} />
           </Field>
           <Field label={t('admin.settings.returnHoursEnd')}>
-            <input type="time" className={inputClass} value={form.returnHoursEnd}
+            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.returnHoursEnd}
               onChange={(e) => set('returnHoursEnd', e.target.value)} />
           </Field>
         </div>
-      </section>
+        <p className="mt-3 text-[12px] text-muted">{t('admin.settings.hoursTimezoneNote')}</p>
+      </SettingsCard>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-60"
-      >
-        {saving ? t('admin.settings.saving') : t('admin.settings.saveBooking')}
-      </button>
+      <div className={`${settingsUi.stickyBar} sm:pt-1`}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted text-center sm:text-left">
+            {dirty ? t('admin.settings.unsavedChanges') : t('admin.settings.allSaved')}
+          </p>
+          <button type="submit" disabled={saving || !dirty} className={`${settingsUi.btnPrimary} w-full sm:w-auto`}>
+            {saving ? t('admin.settings.saving') : t('admin.settings.saveBooking')}
+          </button>
+        </div>
+      </div>
     </form>
   )
 }
