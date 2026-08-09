@@ -8,6 +8,7 @@ import CitySelect from './CitySelect'
 import { BRAND_NAME } from '../constants/brand'
 import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
+import { trackSearch } from '../analytics/ga4'
 
 const Hero = () => {
   const [pickupLocation, setPickupLocation] = useState('')
@@ -35,6 +36,11 @@ const Hero = () => {
       toast.error(t('hero.invalidRange'))
       return
     }
+    trackSearch({
+      location: pickupLocation,
+      has_dates: true,
+      source: 'hero',
+    })
     navigate(`/cars?${new URLSearchParams({
       pickupLocation,
       pickupDate: startISO,

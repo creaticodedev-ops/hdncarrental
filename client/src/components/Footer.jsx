@@ -55,7 +55,12 @@ const Footer = () => {
             <a href="#" aria-label="Twitter" className="inline-flex">
               <img src={assets.twitter_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
             </a>
-            <a href="mailto:haddanecar@gmail.com" aria-label="Email" className="inline-flex">
+            <a
+              href="mailto:haddanecar@gmail.com"
+              aria-label="Email"
+              data-analytics-source="footer_social"
+              className="inline-flex"
+            >
               <img src={assets.gmail_logo} className="w-5 h-5 hover:opacity-70 transition" alt="" />
             </a>
           </Motion.div>
@@ -100,8 +105,24 @@ const Footer = () => {
             <ul className="mt-4 flex flex-col gap-2 break-words">
               <li>AB IBN BATTOUTA QUARTIER AZIB DERAI,SAFI</li>
               <li>Safi, Maroc</li>
-              <li>+212 6 61 86 51 84</li>
-              <li>haddanecar@gmail.com</li>
+              <li>
+                <a
+                  href="tel:+212661865184"
+                  data-analytics-source="footer"
+                  className="hover:text-gray-700 transition"
+                >
+                  +212 6 61 86 51 84
+                </a>
+              </li>
+              <li>
+                <a
+                  href="mailto:haddanecar@gmail.com"
+                  data-analytics-source="footer"
+                  className="hover:text-gray-700 transition"
+                >
+                  haddanecar@gmail.com
+                </a>
+              </li>
             </ul>
           </div>
         </Motion.div>

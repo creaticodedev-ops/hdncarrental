@@ -11,6 +11,7 @@ import { getErrorMessage } from '../utils/apiError'
 import { VEHICLE_CATEGORIES, groupCarsByCategory } from '../utils/vehicleCategories'
 import { getCarLocations } from '../utils/carLocations'
 import { booking } from '../components/ui/bookingUi'
+import { trackSearch } from '../analytics/ga4'
 
 const Cars = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -62,6 +63,13 @@ const Cars = () => {
       })
       if (data.success) {
         setFilteredCars(data.availableCars)
+        trackSearch({
+          location: pickupLocation,
+          has_dates: true,
+          result_count: (data.availableCars || []).length,
+          source: 'availability',
+          category: categoryParam || undefined,
+        })
         if (data.availableCars.length === 0) {
           toast.error(t('cars.noCars'))
         }

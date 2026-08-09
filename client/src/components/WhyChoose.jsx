@@ -99,6 +99,7 @@ const WhyChoose = () => {
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
+          data-analytics-source="why_choose"
           className="group inline-flex items-center gap-2 text-[15px] font-medium text-ink transition-colors hover:text-primary"
         >
           <span>{t('whyChoose.cta')}</span>

@@ -13,6 +13,12 @@ import { isPhoneValid } from '../components/PhoneInput'
 import { buildGuestReservationWaUrl, createExternalTabOpener } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
 import { booking } from '../components/ui/bookingUi'
+import {
+  trackCarView,
+  trackReservationCompleted,
+  trackReservationStarted,
+  trackWhatsAppClick,
+} from '../analytics/ga4'
 
 const toDateTimeLocal = (value) => {
   if (!value) return ''
@@ -85,6 +91,10 @@ const CarDetails = () => {
     }
   }, [pickupDate, returnDate, setPickupDate, setReturnDate])
 
+  useEffect(() => {
+    if (car?._id) trackCarView(car)
+  }, [car?._id])
+
   const pickupLoc = useMemo(
     () => pickupLocations.find((l) => l._id === form.pickupLocationId),
     [pickupLocations, form.pickupLocationId],
@@ -133,6 +143,15 @@ const CarDetails = () => {
       return
     }
 
+    trackReservationStarted({
+      channel,
+      car_id: car?._id,
+      category: car?.category,
+    })
+    if (channel === 'whatsapp') {
+      trackWhatsAppClick({ source: 'car_details_reserve' })
+    }
+
     // Mobile browsers block popups opened after await — prepare the tab in this gesture.
     const waTab = channel === 'whatsapp' ? createExternalTabOpener() : null
 
@@ -171,6 +190,14 @@ const CarDetails = () => {
         }
         sessionStorage.setItem('lastReservation', JSON.stringify(confirmation))
         setSubmitted(confirmation)
+        trackReservationCompleted({
+          channel: confirmation.channel || channel,
+          reservation_id: confirmation.reservationId,
+          car_name: confirmation.carName,
+          days: confirmation.priceBreakdown?.days,
+          value: Number(confirmation.price),
+          currency: String(currency).trim(),
+        })
 
         if (channel === 'whatsapp') {
           const url =
