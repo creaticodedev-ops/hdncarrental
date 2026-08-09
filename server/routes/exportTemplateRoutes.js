@@ -11,6 +11,8 @@ import {
   deleteExportTemplate,
   uploadTemplateLogo,
   uploadTemplateSignature,
+  clearTemplateLogo,
+  clearTemplateSignature,
   getTemplateVariables,
   previewTemplate,
 } from '../controllers/exportTemplateController.js';
@@ -25,7 +27,9 @@ router.post('/', ...gate('templates'), createExportTemplate);
 router.put('/:id', ...gate('templates'), updateExportTemplate);
 router.delete('/:id', ...gate('templates'), deleteExportTemplate);
 router.post('/:id/logo', ...gate('templates'), upload.single('logo'), handleMulterError, uploadTemplateLogo);
+router.delete('/:id/logo', ...gate('templates'), clearTemplateLogo);
 router.post('/:id/signature', ...gate('templates'), upload.single('signature'), handleMulterError, uploadTemplateSignature);
+router.delete('/:id/signature', ...gate('templates'), clearTemplateSignature);
 router.post('/preview', ...gate('templates'), previewTemplate);
 
 export default router;

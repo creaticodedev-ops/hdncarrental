@@ -9,6 +9,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
+import { openDocumentPdf } from '../../utils/openDocumentPdf'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -256,14 +257,22 @@ const Contracts = () => {
         },
         {
           mode: 'generate',
+          axios,
+          extractPdfApiPath: (data) => (data?.contract?._id ? `/api/contracts/${data.contract._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message)
             setShowGenerate(false)
             setPreviewHtml('')
             fetchContracts()
-            if (data.contract?.pdfUrl) {
-              window.open(data.contract.pdfUrl, '_blank', 'noopener,noreferrer')
+            if (data.contract?._id) {
+              try {
+                await openDocumentPdf(axios, `/api/contracts/${data.contract._id}/pdf`, {
+                  filename: `${data.contract.contractNumber || 'contract'}.pdf`,
+                })
+              } catch (error) {
+                toast.error(getErrorMessage(error))
+              }
             }
           },
         },
@@ -291,14 +300,11 @@ const Contracts = () => {
 
   const downloadPdf = async (contract) => {
     try {
-      const { data } = await axios.get(`/api/contracts/${contract._id}/pdf`)
-      if (data.success && data.pdfUrl) {
-        window.open(data.pdfUrl, '_blank', 'noopener,noreferrer')
-      } else {
-        toast.error(data.message || t('admin.contracts.noPdf'))
-      }
+      await openDocumentPdf(axios, `/api/contracts/${contract._id}/pdf`, {
+        filename: `${contract.contractNumber || 'contract'}.pdf`,
+      })
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      toast.error(getErrorMessage(error) || t('admin.contracts.noPdf'))
     }
   }
 
@@ -352,6 +358,8 @@ const Contracts = () => {
         },
         {
           mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.contract?._id ? `/api/contracts/${data.contract._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message || t('admin.documents.saved'))
@@ -395,6 +403,8 @@ const Contracts = () => {
         },
         {
           mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.contract?._id ? `/api/contracts/${data.contract._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message)
@@ -429,6 +439,8 @@ const Contracts = () => {
         },
         {
           mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.contract?._id ? `/api/contracts/${data.contract._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message)

@@ -23,6 +23,69 @@ export const buildWaMeUrl = (text, dial = getAgencyWhatsAppDial()) => {
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`
 }
 
+/**
+ * Open WhatsApp (or any external URL) in a new tab without navigating the current page.
+ *
+ * Important: do NOT pass `noopener` to window.open() when you need the WindowProxy —
+ * with noopener, browsers return null and callers often fall back to location.href,
+ * which destroys the reservation form.
+ *
+ * Call `prepare()` synchronously inside the user gesture, then `navigate(url)` after async work.
+ */
+export const createExternalTabOpener = () => {
+  // about:blank keeps a usable WindowProxy; omit noopener so the handle is returned.
+  let tab = null
+  try {
+    tab = window.open('about:blank', '_blank')
+  } catch {
+    tab = null
+  }
+
+  return {
+    prepared: Boolean(tab && !tab.closed),
+    navigate(url) {
+      if (!url) return false
+      if (tab && !tab.closed) {
+        try {
+          tab.location.href = url
+          try {
+            tab.opener = null
+          } catch {
+            /* ignore */
+          }
+          return true
+        } catch {
+          /* fall through */
+        }
+      }
+      // Last resort: temporary anchor — still targets a new tab, never the current page.
+      try {
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.target = '_blank'
+        anchor.rel = 'noopener noreferrer'
+        anchor.style.display = 'none'
+        document.body.appendChild(anchor)
+        anchor.click()
+        anchor.remove()
+        return true
+      } catch {
+        return false
+      }
+    },
+    close() {
+      if (tab && !tab.closed) {
+        try {
+          tab.close()
+        } catch {
+          /* ignore */
+        }
+      }
+      tab = null
+    },
+  }
+}
+
 /** Guest reservation after form submit */
 export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD' } = {}) => {
   const lines = [
@@ -81,4 +144,5 @@ export default {
   buildOwnerCompletionWaUrl,
   buildWaMeUrl,
   getAgencyWhatsAppDial,
+  createExternalTabOpener,
 }

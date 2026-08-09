@@ -4,6 +4,7 @@ import DocumentRevision from '../models/DocumentRevision.js';
 import Contract from '../models/Contract.js';
 import {
   buildDocumentHtml,
+  buildImageHtml,
   buildTemplateVariables,
 } from './templateEngine.js';
 import { generatePdfFromTemplate, generatePdfFromHtml } from './templatePdfExport.js';
@@ -29,8 +30,53 @@ export const cloneSectionsFromTemplate = (template = {}) => ({
   customCss: template.customCss || '',
   pageSize: template.pageSize === 'Letter' ? 'Letter' : 'A4',
   logoUrl: template.logoUrl || '',
+  companySignatureUrl: template.companySignatureUrl || template.signatureUrl || '',
   name: template.name || '',
 });
+
+/**
+ * Keep logo/signature HTML in sync with durable section asset URLs on every render.
+ * Prevents vanished stamps when frozen sourceData was blanked or pointed at dead local files.
+ */
+export const enrichSourceDataWithSectionAssets = (
+  sections = {},
+  sourceData = {},
+  { includeCompanyStamp = true } = {},
+) => {
+  const next = { ...(sourceData || {}) };
+  const logoUrl = sections?.logoUrl || '';
+  const companySignatureUrl = sections?.companySignatureUrl || '';
+
+  if (includeCompanyStamp && companySignatureUrl) {
+    const companyHtml = buildImageHtml(
+      companySignatureUrl,
+      'Company signature',
+      'max-height:80px;max-width:220px;margin-top:6px;',
+    );
+    if (companyHtml) {
+      next.company_signature_html = companyHtml;
+    }
+  } else if (!includeCompanyStamp) {
+    next.company_signature_html = '';
+  }
+
+  // If signatures_row_html is empty but we still have a company stamp, leave customer
+  // signatures from sourceData alone — row HTML is rebuilt only when booking refresh runs.
+  if (logoUrl) {
+    next._meta = {
+      ...(next._meta || {}),
+      logoUrl,
+    };
+  }
+  if (companySignatureUrl) {
+    next._meta = {
+      ...(next._meta || {}),
+      companySignatureUrl,
+    };
+  }
+
+  return next;
+};
 
 export const buildTemplateSnapshot = (template = {}) => ({
   templateId: template._id || null,
@@ -147,18 +193,22 @@ export const buildInvoiceSourceData = ({
   };
 };
 
-export const renderInstance = ({ sections, sourceData, documentTitle }) => {
-  const templateLike = {
-    name: documentTitle || sections?.name || 'Document',
-    headerHtml: sections?.headerHtml || '',
-    bodyHtml: sections?.bodyHtml || '',
-    termsHtml: sections?.termsHtml || '',
-    footerHtml: sections?.footerHtml || '',
-    customCss: sections?.customCss || '',
-    pageSize: sections?.pageSize || 'A4',
-    logoUrl: sections?.logoUrl || '',
-  };
-  return buildDocumentHtml(templateLike, sourceData || {});
+const toTemplateLike = (sections = {}, documentTitle = 'Document') => ({
+  name: documentTitle || sections?.name || 'Document',
+  headerHtml: sections?.headerHtml || '',
+  bodyHtml: sections?.bodyHtml || '',
+  termsHtml: sections?.termsHtml || '',
+  footerHtml: sections?.footerHtml || '',
+  customCss: sections?.customCss || '',
+  pageSize: sections?.pageSize || 'A4',
+  logoUrl: sections?.logoUrl || '',
+  companySignatureUrl: sections?.companySignatureUrl || '',
+});
+
+export const renderInstance = ({ sections, sourceData, documentTitle, includeCompanyStamp = true }) => {
+  const templateLike = toTemplateLike(sections, documentTitle);
+  const variables = enrichSourceDataWithSectionAssets(sections, sourceData, { includeCompanyStamp });
+  return buildDocumentHtml(templateLike, variables);
 };
 
 export const persistPdfFromInstance = async ({
@@ -167,6 +217,7 @@ export const persistPdfFromInstance = async ({
   owner,
   documentTitle,
   filePrefix = 'doc',
+  includeCompanyStamp = true,
 }) => {
   const ownerId = String(owner._id || owner);
   const dir = path.join(CONTRACTS_ROOT, ownerId, 'instances');
@@ -174,21 +225,12 @@ export const persistPdfFromInstance = async ({
   const safePrefix = String(filePrefix || 'doc').replace(/[^a-zA-Z0-9-_]/g, '');
   const filePath = path.join(dir, `${safePrefix}-${token}.pdf`);
 
-  const templateLike = {
-    name: documentTitle || sections?.name || 'Document',
-    headerHtml: sections?.headerHtml || '',
-    bodyHtml: sections?.bodyHtml || '',
-    termsHtml: sections?.termsHtml || '',
-    footerHtml: sections?.footerHtml || '',
-    customCss: sections?.customCss || '',
-    pageSize: sections?.pageSize || 'A4',
-    logoUrl: sections?.logoUrl || '',
-  };
-
-  const renderedHtml = buildDocumentHtml(templateLike, sourceData || {});
+  const templateLike = toTemplateLike(sections, documentTitle);
+  const variables = enrichSourceDataWithSectionAssets(sections, sourceData, { includeCompanyStamp });
+  const renderedHtml = buildDocumentHtml(templateLike, variables);
   await generatePdfFromTemplate({
     template: templateLike,
-    variables: sourceData || {},
+    variables,
     filePath,
     title: documentTitle || templateLike.name,
     html: renderedHtml,
@@ -316,7 +358,16 @@ export const getRevision = async ({ owner, documentType, documentId, version }) 
 
 export const mergeSections = (current = {}, patch = {}) => {
   const next = { ...cloneSectionsFromTemplate(current) };
-  for (const key of ['headerHtml', 'bodyHtml', 'termsHtml', 'footerHtml', 'customCss', 'logoUrl', 'name']) {
+  for (const key of [
+    'headerHtml',
+    'bodyHtml',
+    'termsHtml',
+    'footerHtml',
+    'customCss',
+    'logoUrl',
+    'companySignatureUrl',
+    'name',
+  ]) {
     if (Object.prototype.hasOwnProperty.call(patch, key)) {
       next[key] = patch[key] == null ? '' : String(patch[key]);
     }
@@ -329,8 +380,19 @@ export const mergeSections = (current = {}, patch = {}) => {
   if (patch.removeHeader) next.headerHtml = '';
   if (patch.removeBody) next.bodyHtml = '';
   if (patch.removeFooter) next.footerHtml = '';
+  if (patch.removeLogo) next.logoUrl = '';
+  if (patch.removeCompanySignature) next.companySignatureUrl = '';
   return next;
 };
+
+/** HTML asset fields that must not be wiped by empty edit-form placeholders */
+export const PROTECTED_SOURCE_KEYS = [
+  'company_signature_html',
+  'customer_signature_html',
+  'second_driver_signature_html',
+  'second_driver_signature_section',
+  'signatures_row_html',
+];
 
 export const mergeSourceData = (current = {}, patch = {}) => {
   if (!patch || typeof patch !== 'object') return { ...(current || {}) };
@@ -340,6 +402,13 @@ export const mergeSourceData = (current = {}, patch = {}) => {
       next._meta = { ...(next._meta || {}), ...value };
     } else if (key === 'invoice' && value && typeof value === 'object') {
       next.invoice = { ...(next.invoice || {}), ...value };
+    } else if (
+      PROTECTED_SOURCE_KEYS.includes(key)
+      && (value === undefined || value === null || String(value).trim() === '')
+      && String(next[key] || '').trim() !== ''
+    ) {
+      // Keep existing rendered signature/logo HTML unless explicitly replaced with content
+      continue;
     } else {
       next[key] = value;
     }

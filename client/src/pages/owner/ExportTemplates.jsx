@@ -14,6 +14,8 @@ const emptyForm = {
   customCss: '',
   pageSize: 'A4',
   isDefault: false,
+  logoUrl: '',
+  companySignatureUrl: '',
 }
 
 const ExportTemplates = () => {
@@ -83,6 +85,8 @@ const ExportTemplates = () => {
       customCss: template.customCss || '',
       pageSize: template.pageSize || 'A4',
       isDefault: Boolean(template.isDefault),
+      logoUrl: template.logoUrl || '',
+      companySignatureUrl: template.companySignatureUrl || '',
     })
     setPreviewHtml('')
     setShowPreview(false)
@@ -109,7 +113,8 @@ const ExportTemplates = () => {
     }
     setSaving(true)
     try {
-      const payload = { ...form, name: form.name.trim() }
+      const { logoUrl: _logoUrl, companySignatureUrl: _sigUrl, ...rest } = form
+      const payload = { ...rest, name: form.name.trim() }
       const { data } = editing === 'new'
         ? await axios.post('/api/export-templates', payload)
         : await axios.put(`/api/export-templates/${editing}`, payload)
@@ -154,6 +159,7 @@ const ExportTemplates = () => {
       })
       if (data.success) {
         toast.success(data.message)
+        setForm((f) => ({ ...f, logoUrl: data.logoUrl || data.template?.logoUrl || '' }))
         fetchTemplates()
       } else {
         toast.error(data.message)
@@ -173,10 +179,40 @@ const ExportTemplates = () => {
       })
       if (data.success) {
         toast.success(data.message)
+        setForm((f) => ({
+          ...f,
+          companySignatureUrl: data.companySignatureUrl || data.template?.companySignatureUrl || '',
+        }))
         fetchTemplates()
       } else {
         toast.error(data.message)
       }
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const clearLogo = async (templateId) => {
+    try {
+      const { data } = await axios.delete(`/api/export-templates/${templateId}/logo`)
+      if (data.success) {
+        toast.success(data.message)
+        setForm((f) => ({ ...f, logoUrl: '' }))
+        fetchTemplates()
+      } else toast.error(data.message)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const clearSignature = async (templateId) => {
+    try {
+      const { data } = await axios.delete(`/api/export-templates/${templateId}/signature`)
+      if (data.success) {
+        toast.success(data.message)
+        setForm((f) => ({ ...f, companySignatureUrl: '' }))
+        fetchTemplates()
+      } else toast.error(data.message)
     } catch (error) {
       toast.error(getErrorMessage(error))
     }
@@ -272,22 +308,64 @@ const ExportTemplates = () => {
 
           {editing !== 'new' && (
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className={labelClass}>{t('admin.templates.logo')}</label>
+                {form.logoUrl ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-borderColor bg-light/40 p-3">
+                    <img
+                      src={form.logoUrl}
+                      alt=""
+                      className="h-12 max-w-[140px] object-contain bg-white rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => clearLogo(editing)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      {t('admin.templates.removeLogo')}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">{t('admin.templates.noLogo')}</p>
+                )}
                 <input
                   type="file"
                   accept="image/*"
                   className="text-sm"
-                  onChange={(e) => uploadLogo(editing, e.target.files?.[0])}
+                  onChange={(e) => {
+                    uploadLogo(editing, e.target.files?.[0])
+                    e.target.value = ''
+                  }}
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className={labelClass}>{t('admin.templates.companySignature')}</label>
+                {form.companySignatureUrl ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-borderColor bg-light/40 p-3">
+                    <img
+                      src={form.companySignatureUrl}
+                      alt=""
+                      className="h-12 max-w-[180px] object-contain bg-white rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => clearSignature(editing)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      {t('admin.templates.removeSignature')}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">{t('admin.templates.noSignature')}</p>
+                )}
                 <input
                   type="file"
                   accept="image/*"
                   className="text-sm"
-                  onChange={(e) => uploadSignature(editing, e.target.files?.[0])}
+                  onChange={(e) => {
+                    uploadSignature(editing, e.target.files?.[0])
+                    e.target.value = ''
+                  }}
                 />
               </div>
             </div>

@@ -7,6 +7,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
+import { openDocumentPdf } from '../../utils/openDocumentPdf'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -112,14 +113,11 @@ const Invoices = () => {
 
   const handleDownload = async (invoice) => {
     try {
-      const { data } = await axios.get(`/api/invoices/${invoice._id}/pdf`)
-      if (data.success && data.pdfUrl) {
-        window.open(data.pdfUrl, '_blank', 'noopener,noreferrer')
-      } else {
-        toast.error(data.message || 'PDF not available')
-      }
+      await openDocumentPdf(axios, `/api/invoices/${invoice._id}/pdf`, {
+        filename: `${invoice.invoiceNumber || 'invoice'}.pdf`,
+      })
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      toast.error(getErrorMessage(error) || 'PDF not available')
     }
   }
 
@@ -372,6 +370,8 @@ const Invoices = () => {
         },
         {
           mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.invoice?._id ? `/api/invoices/${data.invoice._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.invoice?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message || t('admin.documents.saved'))
@@ -411,6 +411,8 @@ const Invoices = () => {
         },
         {
           mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.invoice?._id ? `/api/invoices/${data.invoice._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.invoice?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message)
@@ -444,6 +446,8 @@ const Invoices = () => {
         },
         {
           mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.invoice?._id ? `/api/invoices/${data.invoice._id}/pdf` : ''),
           extractPdfUrl: (data) => data?.invoice?.pdfUrl || '',
           onSuccess: async (data) => {
             toast.success(data.message)
@@ -504,8 +508,14 @@ const Invoices = () => {
         setShowCreateModal(false)
         setForm(createEmptyForm())
         await fetchInvoices({ page: 1 })
-        if (data.invoice?.pdfUrl) {
-          window.open(data.invoice.pdfUrl, '_blank', 'noopener,noreferrer')
+        if (data.invoice?._id) {
+          try {
+            await openDocumentPdf(axios, `/api/invoices/${data.invoice._id}/pdf`, {
+              filename: `${data.invoice.invoiceNumber || 'invoice'}.pdf`,
+            })
+          } catch (error) {
+            toast.error(getErrorMessage(error))
+          }
         }
       } else {
         toast.error(data.message)

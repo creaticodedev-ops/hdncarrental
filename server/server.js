@@ -205,6 +205,18 @@ app.use((err, _req, res, _next) => {
   if (err.message === "Not allowed by CORS") {
     return res.status(403).json({ success: false, message: "CORS policy violation" });
   }
+  // express.static(fallthrough:false) forwards missing files as err.status=404 —
+  // respect that instead of masking every failure as a 500.
+  const status = Number(err.status || err.statusCode) || 500;
+  if (status === 404) {
+    return res.status(404).json({ success: false, message: "File not found" });
+  }
+  if (status >= 400 && status < 500) {
+    return res.status(status).json({
+      success: false,
+      message: err.message || "Request failed",
+    });
+  }
   res.status(500).json({ success: false, message: "Internal server error" });
 });
 

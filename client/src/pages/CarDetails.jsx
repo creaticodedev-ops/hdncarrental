@@ -10,7 +10,7 @@ import { getErrorMessage } from '../utils/apiError'
 import { formatLocationsDisplay, getCarLocations } from '../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../utils/pricing'
 import { isPhoneValid } from '../components/PhoneInput'
-import { buildGuestReservationWaUrl } from '../utils/whatsapp'
+import { buildGuestReservationWaUrl, createExternalTabOpener } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
 import { booking } from '../components/ui/bookingUi'
 
@@ -129,10 +129,8 @@ const CarDetails = () => {
       return
     }
 
-    // Mobile browsers often block popups opened after async work.
-    // Open a placeholder tab immediately from the user gesture, then navigate it later.
-    const waWindow =
-      channel === 'whatsapp' ? window.open('', '_blank', 'noopener,noreferrer') : null
+    // Mobile browsers block popups opened after await — prepare the tab in this gesture.
+    const waTab = channel === 'whatsapp' ? createExternalTabOpener() : null
 
     setSubmitting(true)
     try {
@@ -165,25 +163,33 @@ const CarDetails = () => {
           channel: data.channel || channel,
           notes: form.notes,
         }
+        sessionStorage.setItem('lastReservation', JSON.stringify(confirmation))
+
         if (channel === 'whatsapp') {
           const url = data.whatsappUrl || buildGuestReservationWaUrl(confirmation, { currency: currency.trim() })
-          if (waWindow && !waWindow.closed) {
-            waWindow.location.href = url
+          const opened = waTab?.navigate(url)
+          if (!opened) {
+            toast.success(
+              t('carDetails.whatsappPopupBlocked', { id: confirmation.reservationId }),
+              { duration: 8000 },
+            )
           } else {
-            // Fallback when popup was blocked/closed: redirect current page.
-            window.location.href = url
+            toast.success(t('carDetails.whatsappOpened', { id: confirmation.reservationId }), {
+              duration: 5000,
+            })
           }
-        } else {
-          toast.success(data.message)
+          // Stay on this page so all form/trip state remains when the client returns from WhatsApp.
+          return
         }
-        sessionStorage.setItem('lastReservation', JSON.stringify(confirmation))
+
+        toast.success(data.message)
         navigate('/booking-confirmation', { state: confirmation })
       } else {
-        if (waWindow && !waWindow.closed) waWindow.close()
+        waTab?.close()
         toast.error(data.message)
       }
     } catch (error) {
-      if (waWindow && !waWindow.closed) waWindow.close()
+      waTab?.close()
       toast.error(getErrorMessage(error))
     } finally {
       setSubmitting(false)

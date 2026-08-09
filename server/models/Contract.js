@@ -8,6 +8,8 @@ const documentSectionsSchema = new mongoose.Schema({
   customCss: { type: String, default: '' },
   pageSize: { type: String, enum: ['A4', 'Letter'], default: 'A4' },
   logoUrl: { type: String, default: '' },
+  /** Agency stamp/signature URL or data URI cloned from ExportTemplate */
+  companySignatureUrl: { type: String, default: '' },
   name: { type: String, default: '' },
 }, { _id: false });
 

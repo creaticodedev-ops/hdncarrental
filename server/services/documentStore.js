@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import imagekit from "../configs/imageKit.js";
+import { getImageKit } from "../configs/imageKit.js";
 import { cleanupUploadedFile } from "../middleware/multer.js";
 import { moveUploadedFile } from "../utils/fileMove.js";
 
@@ -14,13 +14,10 @@ export const storeDocumentImage = async (file, folder = "/booking-docs") => {
   console.log('[STORE_DOC_IMAGE] Storing image, folder:', folder, 'file:', file?.originalname);
   if (!file?.path) throw new Error("No file provided");
 
-  const hasImageKit =
-    process.env.IMAGEKIT_PUBLIC_KEY &&
-    process.env.IMAGEKIT_PRIVATE_KEY &&
-    process.env.IMAGEKIT_URL_ENDPOINT;
-  console.log('[STORE_DOC_IMAGE] ImageKit available:', !!hasImageKit);
+  const imagekit = getImageKit();
+  console.log('[STORE_DOC_IMAGE] ImageKit available:', !!imagekit);
 
-  if (hasImageKit) {
+  if (imagekit) {
     try {
       const fileBuffer = fs.readFileSync(file.path);
       const response = await imagekit.upload({

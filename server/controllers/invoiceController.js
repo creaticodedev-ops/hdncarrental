@@ -931,17 +931,40 @@ export const downloadInvoicePdf = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
-    if (invoice.pdfUrl) {
+    const { ensureInstancePdfFile } = await import('../utils/ensureDocumentPdf.js');
+    const { filePath } = await ensureInstancePdfFile({
+      document: invoice,
+      owner: req.user,
+      documentTitle: `Invoice ${invoice.invoiceNumber}`,
+      filePrefix: `invoice-${invoice.invoiceNumber}`,
+      Model: Invoice,
+    });
+
+    if (String(req.query.format || '').toLowerCase() === 'json') {
+      const fresh = await Invoice.findById(invoice._id).lean();
       return res.json({
         success: true,
-        pdfUrl: versionedAssetUrl(invoice.pdfUrl, invoice.version, invoice.updatedAt),
+        pdfUrl: versionedAssetUrl(
+          fresh?.pdfUrl || invoice.pdfUrl,
+          fresh?.version || invoice.version,
+          fresh?.updatedAt || invoice.updatedAt,
+        ),
       });
     }
 
-    res.status(404).json({ success: false, message: 'PDF not available' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${String(invoice.invoiceNumber || 'invoice').replace(/"/g, '')}.pdf"`,
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.sendFile(filePath);
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: 'Failed to download invoice PDF' });
+    console.error('[downloadInvoicePdf]', error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to download invoice PDF',
+    });
   }
 };
 

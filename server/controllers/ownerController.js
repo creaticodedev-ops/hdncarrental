@@ -1,6 +1,6 @@
 import fs from 'fs';
 import mongoose from 'mongoose';
-import imagekit from "../configs/imageKit.js";
+import { getImageKit } from "../configs/imageKit.js";
 import Booking from "../models/Booking.js";
 import Car from "../models/Car.js";
 import MaintenanceRecord from "../models/MaintenanceRecord.js";
@@ -20,6 +20,10 @@ import {
 } from "../utils/carLocations.js";
 
 const uploadToImageKit = async (imageFile, folder, width = '1280') => {
+  const imagekit = getImageKit();
+  if (!imagekit) {
+    throw new Error('ImageKit is not configured');
+  }
   const fileBuffer = fs.readFileSync(imageFile.path);
   const response = await imagekit.upload({
     file: fileBuffer,

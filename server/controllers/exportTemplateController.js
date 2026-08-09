@@ -9,32 +9,12 @@ import {
   DEFAULT_CONTRACT_TERMS_HTML,
   DEFAULT_INVOICE_BODY,
 } from '../services/defaultTemplates.js';
-import { publicUploadUrl } from '../services/pdfDocuments.js';
 import { resolveOwnerId } from '../utils/resolveExportTemplate.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { cleanupUploadedFile } from '../middleware/multer.js';
-import { moveUploadedFile } from '../utils/fileMove.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_ASSET_DIR = path.join(__dirname, '..', 'uploads', 'templates');
-
-const ensureTemplateAssetDir = () => {
-  if (!fs.existsSync(TEMPLATE_ASSET_DIR)) fs.mkdirSync(TEMPLATE_ASSET_DIR, { recursive: true });
-};
-
-const persistTemplateAsset = (templateId, uploadedFile, kind) => {
-  ensureTemplateAssetDir();
-  const ext = path.extname(uploadedFile.originalname || '') || '.png';
-  const safeExt = ext.includes('.') ? ext : '.png';
-  const fileName = `${kind}-${templateId}${safeExt}`;
-  const destPath = path.join(TEMPLATE_ASSET_DIR, fileName);
-  if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
-  // copy+unlink when rename fails (Windows EXDEV across drives/temp)
-  moveUploadedFile(uploadedFile.path, destPath);
-  return destPath;
-};
+import {
+  clearLocalTemplateAsset,
+  persistDurableTemplateAsset,
+} from '../utils/templateAssets.js';
 
 const BUILTIN_CONTRACT_VERSION = 5;
 const BUILTIN_INVOICE_VERSION = 2;
@@ -275,11 +255,17 @@ export const uploadTemplateLogo = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Template not found' });
     }
 
-    const destPath = persistTemplateAsset(template._id, req.file, 'logo');
-    template.logoUrl = publicUploadUrl(destPath);
+    const stored = await persistDurableTemplateAsset(template._id, req.file, 'logo');
+    template.logoUrl = stored.url;
     await template.save();
 
-    res.json({ success: true, message: 'Logo uploaded', logoUrl: template.logoUrl, template });
+    res.json({
+      success: true,
+      message: 'Logo uploaded',
+      logoUrl: template.logoUrl,
+      storage: stored.storage,
+      template,
+    });
   } catch (error) {
     cleanupUploadedFile(req.file);
     console.error('[uploadTemplateLogo]', error?.code || '', error.message);
@@ -303,15 +289,59 @@ export const uploadTemplateSignature = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Template not found' });
     }
 
-    const destPath = persistTemplateAsset(template._id, req.file, 'signature');
-    template.companySignatureUrl = publicUploadUrl(destPath);
+    const stored = await persistDurableTemplateAsset(template._id, req.file, 'signature');
+    template.companySignatureUrl = stored.url;
     await template.save();
 
-    res.json({ success: true, message: 'Signature uploaded', companySignatureUrl: template.companySignatureUrl, template });
+    res.json({
+      success: true,
+      message: 'Signature uploaded',
+      companySignatureUrl: template.companySignatureUrl,
+      storage: stored.storage,
+      template,
+    });
   } catch (error) {
     cleanupUploadedFile(req.file);
     console.error('[uploadTemplateSignature]', error?.code || '', error.message);
     res.status(500).json({ success: false, message: 'Failed to upload signature' });
+  }
+};
+
+export const clearTemplateLogo = async (req, res) => {
+  try {
+    const template = await ExportTemplate.findOne({
+      _id: req.params.id,
+      owner: req.user._id,
+    });
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Template not found' });
+    }
+    clearLocalTemplateAsset(template._id, 'logo');
+    template.logoUrl = '';
+    await template.save();
+    res.json({ success: true, message: 'Logo removed', template });
+  } catch (error) {
+    console.error('[clearTemplateLogo]', error.message);
+    res.status(500).json({ success: false, message: 'Failed to remove logo' });
+  }
+};
+
+export const clearTemplateSignature = async (req, res) => {
+  try {
+    const template = await ExportTemplate.findOne({
+      _id: req.params.id,
+      owner: req.user._id,
+    });
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Template not found' });
+    }
+    clearLocalTemplateAsset(template._id, 'signature');
+    template.companySignatureUrl = '';
+    await template.save();
+    res.json({ success: true, message: 'Signature removed', template });
+  } catch (error) {
+    console.error('[clearTemplateSignature]', error.message);
+    res.status(500).json({ success: false, message: 'Failed to remove signature' });
   }
 };
 
@@ -360,6 +390,8 @@ export default {
   deleteExportTemplate,
   uploadTemplateLogo,
   uploadTemplateSignature,
+  clearTemplateLogo,
+  clearTemplateSignature,
   getTemplateVariables,
   previewTemplate,
   ensureDefaultTemplates,

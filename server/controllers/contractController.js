@@ -767,7 +767,7 @@ export const previewContractFromBooking = async (req, res) => {
 
 export const downloadContractPdf = async (req, res) => {
   try {
-    const contract = await Contract.findOne({
+    let contract = await Contract.findOne({
       _id: req.params.id,
       owner: req.user._id,
     }).lean();
@@ -776,17 +776,43 @@ export const downloadContractPdf = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Contract not found' });
     }
 
-    if (contract.pdfUrl) {
+    contract = await hydrateContractIfNeeded(contract, req.user);
+
+    const { ensureInstancePdfFile } = await import('../utils/ensureDocumentPdf.js');
+    const { filePath } = await ensureInstancePdfFile({
+      document: contract,
+      owner: req.user,
+      documentTitle: `Contract ${contract.contractNumber}`,
+      filePrefix: `contract-${contract.contractNumber}`,
+      Model: Contract,
+    });
+
+    // Default: stream the PDF bytes (authenticated). JSON only when explicitly requested.
+    if (String(req.query.format || '').toLowerCase() === 'json') {
+      const fresh = await Contract.findById(contract._id).lean();
       return res.json({
         success: true,
-        pdfUrl: versionedAssetUrl(contract.pdfUrl, contract.version, contract.updatedAt),
+        pdfUrl: versionedAssetUrl(
+          fresh?.pdfUrl || contract.pdfUrl,
+          fresh?.version || contract.version,
+          fresh?.updatedAt || contract.updatedAt,
+        ),
       });
     }
 
-    res.status(404).json({ success: false, message: 'PDF not available' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${String(contract.contractNumber || 'contract').replace(/"/g, '')}.pdf"`,
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.sendFile(filePath);
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: 'Failed to download contract PDF' });
+    console.error('[downloadContractPdf]', error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to download contract PDF',
+    });
   }
 };
 

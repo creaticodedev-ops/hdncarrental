@@ -135,6 +135,15 @@ export const displayFieldValue = (value) => {
   return String(value)
 }
 
+/** Signature/HTML assets — never invent empty strings that wipe persisted values on save */
+const PROTECTED_EDIT_KEYS = new Set([
+  'company_signature_html',
+  'customer_signature_html',
+  'second_driver_signature_html',
+  'second_driver_signature_section',
+  'signatures_row_html',
+])
+
 /**
  * Ensure every catalog key is present (prefilled from sourceData) so the form
  * shows the full document surface, not only keys that happen to exist.
@@ -146,6 +155,9 @@ export const normalizeSourceDataForEdit = (sourceData = {}, catalog = DOCUMENT_F
       const alias = FIELD_ALIASES[key]
       if (alias && next[alias] !== undefined && next[alias] !== null) {
         next[key] = next[alias]
+      } else if (PROTECTED_EDIT_KEYS.has(key)) {
+        // Leave absent so PATCH merge keeps existing rendered HTML assets
+        continue
       } else {
         next[key] = ''
       }

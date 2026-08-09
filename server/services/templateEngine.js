@@ -103,7 +103,7 @@ const firstNonEmpty = (source, keys) => {
  * Prefer local data-URI embeds (Puppeteer-safe). For protected /uploads/documents
  * URLs that are not local, use appendSignedQuery (never double-prefix the host).
  */
-const buildImageHtml = (imageUrl, alt, style = 'max-height:48px;max-width:140px;margin-top:6px;') => {
+export const buildImageHtml = (imageUrl, alt, style = 'max-height:48px;max-width:140px;margin-top:6px;') => {
   if (!imageUrl) {
     return '';
   }
@@ -114,6 +114,7 @@ const buildImageHtml = (imageUrl, alt, style = 'max-height:48px;max-width:140px;
     }
 
     let src = String(imageUrl);
+    // data: already handled above; remote CDN (ImageKit) left as https for PDF embedder
     if (src.includes('/uploads/documents') || src.includes('/uploads/templates')) {
       src = appendSignedQuery(src);
     }
@@ -389,12 +390,13 @@ export const buildDocumentHtml = (template, variables) => {
   const footerPage2 = twoPages
     ? `${footer}<p class="page-indicator muted">Page 2 / 2</p>`
     : '';
-  const logoDataUri = logoToDataUri(safeTemplate.logoUrl);
+  const logoUrl = safeTemplate.logoUrl || '';
+  const logoDataUri = logoToDataUri(logoUrl);
   const logoSrc = logoDataUri
-    || (safeTemplate.logoUrl
-      ? (String(safeTemplate.logoUrl).includes('/uploads/')
-        ? appendSignedQuery(safeTemplate.logoUrl)
-        : safeTemplate.logoUrl)
+    || (logoUrl
+      ? (String(logoUrl).includes('/uploads/')
+        ? appendSignedQuery(logoUrl)
+        : logoUrl)
       : '');
   const logo = logoSrc
     ? `<img src="${logoSrc}" alt="Logo" style="max-height:48px;margin-bottom:8px;" />`
@@ -467,6 +469,7 @@ export const buildDocumentHtml = (template, variables) => {
 export default {
   TEMPLATE_VARIABLES,
   buildTemplateVariables,
+  buildImageHtml,
   buildSecondDriverSection,
   buildSignaturesRowHtml,
   buildSecondDriverSignatureSection,

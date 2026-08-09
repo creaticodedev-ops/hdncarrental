@@ -29,6 +29,11 @@ export const resolveLocalUploadPath = (publicUrl) => {
 const dataUriCache = new Map();
 
 export const logoToDataUri = (logoUrl) => {
+  if (!logoUrl) return null;
+  // Durable Mongo-stored assets and already-inlined images
+  if (String(logoUrl).startsWith('data:image')) {
+    return String(logoUrl);
+  }
   const filePath = resolveLocalUploadPath(logoUrl);
   if (!filePath) return null;
   let mtimeMs = 0;
