@@ -280,6 +280,8 @@ export function injectSeoIntoHtml(template, page) {
   // Idempotent: strip prior prerender injections if template was already processed
   html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/gi, '')
   html = html.replace(/<main id="seo-prerender">[\s\S]*?<\/main>\s*/i, '')
+  html = html.replace(/<style id="seo-prerender-hide">[\s\S]*?<\/style>\s*/i, '')
+  html = html.replace(/<script>document\.documentElement\.classList\.add\('js'\)<\/script>\s*/i, '')
 
   html = html.replace(/<title>[^<]*<\/title>/i, `<title>${title}</title>`)
   html = html.replace(
@@ -309,7 +311,13 @@ export function injectSeoIntoHtml(template, page) {
     html = html.replace('</head>', `<meta name="robots" content="index,follow" />\n</head>`)
   }
 
-  html = html.replace('</head>', `    ${jsonLd}\n  </head>`)
+  // Hide prerender body before first paint when JS runs — prevents CLS on hydrate.
+  // Non-JS crawlers still receive full text in HTML source.
+  const antiCls = `
+    <style id="seo-prerender-hide">html.js #seo-prerender{display:none!important}</style>
+    <script>document.documentElement.classList.add('js')</script>`
+
+  html = html.replace('</head>', `    ${jsonLd}\n    ${antiCls}\n  </head>`)
 
   if (body) {
     // Place crawlable content before the SPA root; React mounts into #root only.
