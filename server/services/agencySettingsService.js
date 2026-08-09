@@ -1,5 +1,9 @@
 import AgencySettings from '../models/AgencySettings.js';
 import { DEFAULT_AGENCY_WHATSAPP, normalizeWhatsAppDial } from './whatsappNotify.js';
+import {
+  normalizeBookingSettings,
+  DEFAULT_BOOKING_SETTINGS,
+} from './bookingSettingsService.js';
 
 const envFallbackDial = () =>
   normalizeWhatsAppDial(
@@ -9,23 +13,18 @@ const envFallbackDial = () =>
       DEFAULT_AGENCY_WHATSAPP,
   ) || DEFAULT_AGENCY_WHATSAPP;
 
-/**
- * Load agency settings for an owner (creates empty doc on first access).
- */
 export const getOrCreateAgencySettings = async (ownerId) => {
   if (!ownerId) return null;
   let doc = await AgencySettings.findOne({ owner: ownerId });
   if (!doc) {
-    doc = await AgencySettings.create({ owner: ownerId });
+    doc = await AgencySettings.create({
+      owner: ownerId,
+      bookingSettings: DEFAULT_BOOKING_SETTINGS,
+    });
   }
   return doc;
 };
 
-/**
- * Resolve WhatsApp dial digits for reservation vs confirmation flows.
- * DB values win; empty fields fall back to env / default (and confirmation
- * also falls back to the reservation number when set).
- */
 export const resolveWhatsAppDials = async (ownerId) => {
   const fallback = envFallbackDial();
   let reservation = '';
@@ -66,8 +65,23 @@ export const updateWhatsAppSettings = async (ownerId, body = {}) => {
   return doc;
 };
 
+export const serializeAgencySettings = async (ownerId, doc) => {
+  const dials = await resolveWhatsAppDials(ownerId);
+  return {
+    whatsappReservationNumber: doc?.whatsappReservationNumber || '',
+    whatsappConfirmationNumber: doc?.whatsappConfirmationNumber || '',
+    bookingSettings: normalizeBookingSettings(doc?.bookingSettings || {}),
+    effective: {
+      reservationDial: dials.reservationDial,
+      confirmationDial: dials.confirmationDial,
+    },
+    updatedAt: doc?.updatedAt || null,
+  };
+};
+
 export default {
   getOrCreateAgencySettings,
   resolveWhatsAppDials,
   updateWhatsAppSettings,
+  serializeAgencySettings,
 };

@@ -20,6 +20,7 @@ const bookingSchema = new mongoose.Schema({
     rentalPrice: { type: Number, default: 0 },
     pickupDeliveryFee: { type: Number, default: 0 },
     dropoffDeliveryFee: { type: Number, default: 0 },
+    extraDriverFee: { type: Number, default: 0 },
     discountTotal: { type: Number, default: 0 },
     subtotal: { type: Number, default: 0 },
     total: { type: Number, default: 0 },
@@ -27,6 +28,9 @@ const bookingSchema = new mongoose.Schema({
       code: { type: String, default: "" },
       label: { type: String, default: "" },
       amount: { type: Number, default: 0 },
+      promotionId: { type: ObjectId, ref: "Promotion", default: null },
+      discountType: { type: String, default: "" },
+      discountValue: { type: Number, default: null },
     }],
     lineItems: [{
       type: { type: String },
@@ -35,6 +39,48 @@ const bookingSchema = new mongoose.Schema({
       meta: { type: Object, default: {} },
     }],
   },
+  /**
+   * Frozen commercial snapshot at booking time.
+   * Survives later promo disable/expiry — do not recalculate for historical bookings.
+   */
+  pricingSnapshot: {
+    originalPrice: { type: Number, default: 0 },
+    discountAmount: { type: Number, default: 0 },
+    finalPrice: { type: Number, default: 0 },
+    extraDriverFee: { type: Number, default: 0 },
+    extras: {
+      extraDriverEnabled: { type: Boolean, default: false },
+      extraDriverFee: { type: Number, default: 0 },
+      extraDriverFeePerDay: { type: Number, default: 0 },
+    },
+    cancellation: {
+      feeType: { type: String, default: "none" },
+      feeValue: { type: Number, default: 0 },
+      policyText: { type: String, default: "" },
+      estimatedFee: { type: Number, default: 0 },
+    },
+    mileage: {
+      mode: { type: String, default: "unlimited" },
+      limitKmPerDay: { type: Number, default: 0 },
+      includedKm: { type: Number, default: null },
+    },
+    timezone: { type: String, default: "Africa/Casablanca" },
+    promoCode: { type: String, default: "" },
+    promotionId: { type: ObjectId, ref: "Promotion", default: null },
+    promotionName: { type: String, default: "" },
+    promotions: [{
+      promotionId: { type: ObjectId, ref: "Promotion", default: null },
+      code: { type: String, default: "" },
+      name: { type: String, default: "" },
+      amount: { type: Number, default: 0 },
+      discountType: { type: String, default: "" },
+      discountValue: { type: Number, default: null },
+    }],
+  },
+  /** Frozen cancellation fee charged when status → cancelled (does not alter rental price). */
+  cancellationFeeCharged: { type: Number, default: null },
+  /** Auto-cancel pending reservations when set (from booking settings). */
+  pendingExpiresAt: { type: Date, default: null, index: true },
   customerName: { type: String, default: "" },
   customerEmail: { type: String, default: "" },
   customerPhone: { type: String, default: "" },
@@ -166,6 +212,7 @@ bookingSchema.index({ owner: 1, createdAt: -1 });
 bookingSchema.index({ owner: 1, customerEmail: 1 });
 bookingSchema.index({ owner: 1, channel: 1, createdAt: -1 });
 bookingSchema.index({ "completion.tokenHash": 1 });
+bookingSchema.index({ status: 1, pendingExpiresAt: 1 });
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

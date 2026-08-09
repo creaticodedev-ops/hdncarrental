@@ -47,6 +47,12 @@ const connectDB = async () => {
     await mongoose.connect(buildMongoUri(process.env.MONGODB_URI));
     console.log("Database connected");
     await seedPickupLocations();
+    try {
+      const { ensurePromotionIndexes } = await import("../services/ensurePromotionIndexes.js");
+      await ensurePromotionIndexes();
+    } catch (indexError) {
+      console.warn("[ensurePromotionIndexes]", indexError.message);
+    }
   } catch (error) {
     console.error("Database connection failed:", error.message);
     process.exit(1);

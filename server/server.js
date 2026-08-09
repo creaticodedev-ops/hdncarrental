@@ -226,6 +226,9 @@ const server = app.listen(PORT, () => {
   console.log(
     '[routes] Booking workflow: POST /api/booking-completion/owner/ensure-link, /api/bookings/owner/completion/ensure-link',
   );
+  import('./services/pendingBookingExpiry.js')
+    .then(({ startPendingBookingExpiryJob }) => startPendingBookingExpiryJob())
+    .catch((error) => console.warn('[pendingExpiry] failed to start:', error.message));
 });
 
 const shutdown = async (signal) => {

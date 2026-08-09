@@ -48,6 +48,15 @@ import {
   getAgencySettings,
   updateAgencySettings,
 } from "../controllers/agencySettingsController.js";
+import {
+  listPromotions,
+  getPromotion,
+  createPromotion,
+  updatePromotion,
+  setPromotionActive,
+  deletePromotion,
+  previewPromotion,
+} from "../controllers/promotionController.js";
 
 const ownerRouter = express.Router();
 const gate = (perm) => [protect, requireOwner, requirePermission(perm)];
@@ -93,5 +102,13 @@ ownerRouter.get('/settings', protect, requireOwner, getAgencySettings);
 ownerRouter.put('/settings', protect, requireOwner, updateAgencySettings);
 ownerRouter.get('/settings/whatsapp', protect, requireOwner, getAgencySettings);
 ownerRouter.put('/settings/whatsapp', protect, requireOwner, updateAgencySettings);
+
+ownerRouter.get('/promotions', protect, requireOwner, listPromotions);
+ownerRouter.post('/promotions/preview', protect, requireOwner, previewPromotion);
+ownerRouter.post('/promotions', protect, requireOwner, createPromotion);
+ownerRouter.get('/promotions/:id', protect, requireOwner, getPromotion);
+ownerRouter.put('/promotions/:id', protect, requireOwner, updatePromotion);
+ownerRouter.patch('/promotions/:id/active', protect, requireOwner, setPromotionActive);
+ownerRouter.delete('/promotions/:id', protect, requireOwner, deletePromotion);
 
 export default ownerRouter;

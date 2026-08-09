@@ -43,6 +43,7 @@ export const calculateBookingPricePreview = ({
   returnDate,
   pickupDeliveryFee = 0,
   dropoffDeliveryFee = 0,
+  extraDriverFee = 0,
   discounts = [],
 } = {}) => {
   const days = calcRentalDays(pickupDate, returnDate);
@@ -50,6 +51,7 @@ export const calculateBookingPricePreview = ({
   const rentalPrice = days > 0 ? toMoney(daily * days) : 0;
   const pickupFee = toMoney(pickupDeliveryFee);
   const dropoffFee = toMoney(dropoffDeliveryFee);
+  const driverFee = toMoney(extraDriverFee);
 
   const normalizedDiscounts = (Array.isArray(discounts) ? discounts : [])
     .map((d) => ({
@@ -63,7 +65,7 @@ export const calculateBookingPricePreview = ({
     normalizedDiscounts.reduce((sum, d) => sum + d.amount, 0)
   );
 
-  const subtotal = toMoney(rentalPrice + pickupFee + dropoffFee);
+  const subtotal = toMoney(rentalPrice + pickupFee + dropoffFee + driverFee);
   const total = toMoney(Math.max(0, subtotal - discountTotal));
 
   return {
@@ -72,6 +74,7 @@ export const calculateBookingPricePreview = ({
     rentalPrice,
     pickupDeliveryFee: pickupFee,
     dropoffDeliveryFee: dropoffFee,
+    extraDriverFee: driverFee,
     discounts: normalizedDiscounts,
     discountTotal,
     subtotal,

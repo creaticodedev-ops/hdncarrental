@@ -1,3 +1,5 @@
+import { parseAgencyDateTime } from './moroccoTime.js';
+
 export const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -5,8 +7,9 @@ export const isValidEmail = (email) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 
 export const parseDateRange = (pickupDate, returnDate) => {
-  const picked = new Date(pickupDate);
-  const returned = new Date(returnDate);
+  // Naive datetimes from the UI are Africa/Casablanca wall time.
+  const picked = parseAgencyDateTime(pickupDate);
+  const returned = parseAgencyDateTime(returnDate);
   if (isNaN(picked.getTime()) || isNaN(returned.getTime())) {
     return { valid: false, message: 'Invalid pickup or return date & time' };
   }

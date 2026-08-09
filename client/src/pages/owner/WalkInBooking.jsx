@@ -47,6 +47,7 @@ const emptyForm = {
   secondDriverLicenseNumber: '',
   secondDriverLicenseExpiry: '',
   secondDriverPassportNumber: '',
+  promoCode: '',
 }
 
 const WalkInBooking = () => {
@@ -131,28 +132,74 @@ const WalkInBooking = () => {
       setQuote(null)
       return
     }
-    const pickup = pickupLocations.find((l) => l._id === form.pickupLocationId)
-    const dropoff = pickupLocations.find((l) => l._id === form.returnLocationId)
-    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickup, dropoff)
-    const preview = calculateBookingPricePreview({
-      pricePerDay: selectedCar.pricePerDay,
-      pickupDate: form.pickupDate,
-      returnDate: form.returnDate,
-      pickupDeliveryFee,
-      dropoffDeliveryFee,
-    })
-    if (!preview.ready) {
-      setQuote(null)
-      return
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.post('/api/bookings/quote', {
+          car: selectedCar._id,
+          pickupDate: form.pickupDate,
+          returnDate: form.returnDate,
+          pickupLocationId: form.pickupLocationId,
+          returnLocationId: form.returnLocationId,
+          promoCode: form.promoCode,
+          email: form.email,
+        })
+        if (cancelled) return
+        if (data.success && data.priceBreakdown) {
+          setQuote({
+            days: data.priceBreakdown.days,
+            rental: data.priceBreakdown.rentalPrice,
+            pickupFee: data.priceBreakdown.pickupDeliveryFee,
+            dropoffFee: data.priceBreakdown.dropoffDeliveryFee,
+            discount: data.priceBreakdown.discountTotal || 0,
+            total: data.price,
+          })
+          return
+        }
+      } catch {
+        /* fall back to local preview */
+      }
+      if (cancelled) return
+      const pickup = pickupLocations.find((l) => l._id === form.pickupLocationId)
+      const dropoff = pickupLocations.find((l) => l._id === form.returnLocationId)
+      const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickup, dropoff)
+      const preview = calculateBookingPricePreview({
+        pricePerDay: selectedCar.pricePerDay,
+        pickupDate: form.pickupDate,
+        returnDate: form.returnDate,
+        pickupDeliveryFee,
+        dropoffDeliveryFee,
+      })
+      if (!preview.ready) {
+        setQuote(null)
+        return
+      }
+      setQuote({
+        days: preview.days,
+        rental: preview.rentalPrice,
+        pickupFee: preview.pickupDeliveryFee,
+        dropoffFee: preview.dropoffDeliveryFee,
+        discount: preview.discountTotal || 0,
+        total: preview.total,
+      })
+    }, 350)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
     }
-    setQuote({
-      days: preview.days,
-      rental: preview.rentalPrice,
-      pickupFee: preview.pickupDeliveryFee,
-      dropoffFee: preview.dropoffDeliveryFee,
-      total: preview.total,
-    })
-  }, [selectedCar, form.pickupDate, form.returnDate, form.pickupLocationId, form.returnLocationId, pickupLocations])
+  }, [
+    axios,
+    selectedCar,
+    form.pickupDate,
+    form.returnDate,
+    form.pickupLocationId,
+    form.returnLocationId,
+    form.promoCode,
+    form.email,
+    pickupLocations,
+  ])
 
   const uploadDocument = async (bookingId, file, docType, identityType) => {
     if (!file || !bookingId) return
@@ -227,6 +274,7 @@ const WalkInBooking = () => {
       driverLicenseExpiry: form.secondDriverLicenseExpiry,
       passportNumber: form.secondDriverPassportNumber,
     },
+    promoCode: form.promoCode,
   })
 
   const onSubmit = async (e) => {
@@ -535,6 +583,15 @@ const WalkInBooking = () => {
               <label className="text-xs text-gray-500">{t('admin.walkIn.receivedBy')}</label>
               <input className={input} value={form.receivedBy} onChange={(e) => setField('receivedBy', e.target.value)} />
             </div>
+            <div>
+              <label className="text-xs text-gray-500">{t('admin.settings.promoCode')}</label>
+              <input
+                className={`${input} uppercase`}
+                value={form.promoCode}
+                onChange={(e) => setField('promoCode', e.target.value.toUpperCase())}
+                placeholder={t('admin.settings.promoCodeHint')}
+              />
+            </div>
             <div className="sm:col-span-2">
               <label className="text-xs text-gray-500">{t('admin.walkIn.notes')}</label>
               <textarea rows={2} className={input} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
@@ -614,6 +671,12 @@ const WalkInBooking = () => {
                 <li className="flex justify-between"><span>{t('admin.walkIn.days', { count: quote.days })}</span><span>{currency}{quote.rental}</span></li>
                 {quote.pickupFee > 0 && <li className="flex justify-between"><span>Pickup fee</span><span>{currency}{quote.pickupFee}</span></li>}
                 {quote.dropoffFee > 0 && <li className="flex justify-between"><span>Return fee</span><span>{currency}{quote.dropoffFee}</span></li>}
+                {(quote.discount || 0) > 0 && (
+                  <li className="flex justify-between text-emerald-700">
+                    <span>{t('admin.bookings.discounts')}</span>
+                    <span>−{currency}{quote.discount}</span>
+                  </li>
+                )}
                 {form.franchiseAmount !== '' && (
                   <li className="flex justify-between"><span>{t('admin.walkIn.franchise')}</span><span>{currency}{form.franchiseAmount}</span></li>
                 )}

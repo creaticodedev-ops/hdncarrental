@@ -1,22 +1,10 @@
 import {
   getOrCreateAgencySettings,
-  resolveWhatsAppDials,
+  serializeAgencySettings,
   updateWhatsAppSettings,
 } from '../services/agencySettingsService.js';
+import { updateBookingSettings } from '../services/bookingSettingsService.js';
 import { logAudit } from '../utils/adminOps.js';
-
-const serialize = async (ownerId, doc) => {
-  const dials = await resolveWhatsAppDials(ownerId);
-  return {
-    whatsappReservationNumber: doc?.whatsappReservationNumber || '',
-    whatsappConfirmationNumber: doc?.whatsappConfirmationNumber || '',
-    effective: {
-      reservationDial: dials.reservationDial,
-      confirmationDial: dials.confirmationDial,
-    },
-    updatedAt: doc?.updatedAt || null,
-  };
-};
 
 export const getAgencySettings = async (req, res) => {
   try {
@@ -24,7 +12,7 @@ export const getAgencySettings = async (req, res) => {
     const doc = await getOrCreateAgencySettings(ownerId);
     res.json({
       success: true,
-      settings: await serialize(ownerId, doc),
+      settings: await serializeAgencySettings(ownerId, doc),
     });
   } catch (error) {
     console.error('[getAgencySettings]', error.message);
@@ -35,21 +23,32 @@ export const getAgencySettings = async (req, res) => {
 export const updateAgencySettings = async (req, res) => {
   try {
     const ownerId = req.user._id;
-    const { whatsappReservationNumber, whatsappConfirmationNumber } = req.body || {};
+    const body = req.body || {};
 
-    const doc = await updateWhatsAppSettings(ownerId, {
-      whatsappReservationNumber,
-      whatsappConfirmationNumber,
-    });
+    if (
+      body.whatsappReservationNumber !== undefined ||
+      body.whatsappConfirmationNumber !== undefined
+    ) {
+      await updateWhatsAppSettings(ownerId, {
+        whatsappReservationNumber: body.whatsappReservationNumber,
+        whatsappConfirmationNumber: body.whatsappConfirmationNumber,
+      });
+    }
+
+    if (body.bookingSettings && typeof body.bookingSettings === 'object') {
+      await updateBookingSettings(ownerId, body.bookingSettings);
+    }
+
+    const doc = await getOrCreateAgencySettings(ownerId);
 
     try {
       await logAudit({
         owner: ownerId,
         actor: ownerId,
-        action: 'settings.whatsapp.update',
+        action: 'settings.update',
         entityType: 'AgencySettings',
         entityId: doc._id,
-        details: 'Updated WhatsApp reservation/confirmation numbers',
+        details: 'Updated agency settings',
       });
     } catch (auditError) {
       console.error('[updateAgencySettings] audit', auditError.message);
@@ -57,12 +56,12 @@ export const updateAgencySettings = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'WhatsApp settings saved',
-      settings: await serialize(ownerId, doc),
+      message: 'Settings saved',
+      settings: await serializeAgencySettings(ownerId, doc),
     });
   } catch (error) {
     console.error('[updateAgencySettings]', error.message);
-    res.status(500).json({ success: false, message: 'Failed to save settings' });
+    res.status(500).json({ success: false, message: error.message || 'Failed to save settings' });
   }
 };
 

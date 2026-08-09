@@ -18,6 +18,22 @@ import {
   formatLocationLabel,
   resolveLocationDeliveryFees,
 } from "../services/pricingEngine.js";
+import {
+  buildAuthoritativeQuote,
+  attachRedemptions,
+  pendingExpiresAtFromSettings,
+  resolveFranchiseAmount,
+} from "../services/bookingPricingFlow.js";
+import {
+  reservePromotionUsage,
+  releasePromotionUsage,
+  buildPricingSnapshot,
+} from "../services/promotionService.js";
+import {
+  assertBookingRules,
+  getBookingSettings,
+  computeCancellationFee,
+} from "../services/bookingSettingsService.js";
 import { initiateBookingCompletion, generateCompletionLink } from "../services/bookingCompletionService.js";
 import {
   carServesCity,
@@ -227,6 +243,84 @@ export const checkAvailabilityOfCar = async (req, res) => {
   }
 };
 
+export const quoteBooking = async (req, res) => {
+  try {
+    const {
+      car: carId,
+      pickupDate,
+      returnDate,
+      pickupLocationId,
+      returnLocationId,
+      promoCode = '',
+      email = '',
+    } = req.body || {};
+
+    if (!carId || !pickupDate || !returnDate) {
+      return res.status(400).json({ success: false, message: 'Car and dates are required' });
+    }
+    if (!mongoose.isValidObjectId(carId)) {
+      return res.status(400).json({ success: false, message: 'Invalid car selected' });
+    }
+
+    const dates = parseDateRange(pickupDate, returnDate);
+    if (!dates.valid) {
+      return res.status(400).json({ success: false, message: dates.message });
+    }
+
+    const carData = await Car.findById(carId);
+    if (!carData || !carData.owner) {
+      return res.status(404).json({ success: false, message: 'Car not found' });
+    }
+
+    let pickupLoc = null;
+    let returnLoc = null;
+    if (mongoose.isValidObjectId(pickupLocationId) && mongoose.isValidObjectId(returnLocationId)) {
+      [pickupLoc, returnLoc] = await Promise.all([
+        PickupLocation.findOne({ _id: pickupLocationId, isActive: true }),
+        PickupLocation.findOne({ _id: returnLocationId, isActive: true }),
+      ]);
+    }
+
+    const quote = await buildAuthoritativeQuote({
+      ownerId: carData.owner,
+      car: carData,
+      pickupDate: dates.picked,
+      returnDate: dates.returned,
+      pickupLoc,
+      returnLoc,
+      promoCode,
+      customerEmail: String(email || '').trim().toLowerCase(),
+      secondDriverEnabled: Boolean(req.body?.secondDriverEnabled || req.body?.secondDriver?.enabled),
+      requireValidPromoCode: Boolean(String(promoCode || '').trim()),
+    });
+
+    if (!quote.ok) {
+      return res.status(400).json({ success: false, message: quote.message });
+    }
+
+    res.json({
+      success: true,
+      price: quote.price,
+      priceBreakdown: quote.priceBreakdown,
+      pricingSnapshot: quote.pricingSnapshot,
+      bookingSettings: {
+        minRentalDays: quote.settings.minRentalDays,
+        maxRentalDays: quote.settings.maxRentalDays,
+        cancellationPolicyText: quote.settings.cancellationPolicyText,
+        mileageMode: quote.settings.mileageMode,
+        mileageLimitKmPerDay: quote.settings.mileageLimitKmPerDay,
+        securityDepositDefault: quote.settings.securityDepositDefault,
+        extraDriverAllowed: quote.settings.extraDriverAllowed,
+        extraDriverFeePerDay: quote.settings.extraDriverFeePerDay,
+      },
+      promoMessage: quote.promoMessage,
+    });
+  } catch (error) {
+    console.error('[quoteBooking]', error.message);
+    res.status(500).json({ success: false, message: 'Failed to quote booking' });
+  }
+};
+
 export const createBooking = async (req, res) => {
   try {
     const {
@@ -242,6 +336,7 @@ export const createBooking = async (req, res) => {
       returnLocationId,
       notes,
       channel: requestChannel,
+      promoCode = '',
     } = req.body;
 
     const isWhatsApp = requestChannel === 'whatsapp' || req.body.viaWhatsApp === true;
@@ -328,16 +423,33 @@ export const createBooking = async (req, res) => {
       }
     }
 
-    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickupLoc, returnLoc);
-    const priceBreakdown = calculateBookingPrice({
-      pricePerDay: carForBooking.pricePerDay,
+    const quote = await buildAuthoritativeQuote({
+      ownerId: carForBooking.owner,
+      car: carForBooking,
       pickupDate: dates.picked,
       returnDate: dates.returned,
-      pickupDeliveryFee,
-      dropoffDeliveryFee,
-      discounts: [],
+      pickupLoc,
+      returnLoc,
+      promoCode,
+      customerEmail: email.trim().toLowerCase(),
+      requireValidPromoCode: true,
     });
-    const price = priceBreakdown.total;
+    if (!quote.ok) {
+      return res.status(400).json({ success: false, message: quote.message });
+    }
+
+    const customerEmail = email.trim().toLowerCase();
+    const reserved = await reservePromotionUsage(quote.applied, {
+      customerEmail,
+      ownerId: carForBooking.owner,
+    });
+    if (!reserved.ok) {
+      return res.status(409).json({ success: false, message: reserved.message });
+    }
+
+    const priceBreakdown = quote.priceBreakdown;
+    const price = quote.price;
+    const pricingSnapshot = quote.pricingSnapshot;
     const reservationId = await generateReservationId();
 
     const pickupLabel = pickupLoc ? formatLocationLabel(pickupLoc) : String(pickupLocation).trim();
@@ -345,32 +457,49 @@ export const createBooking = async (req, res) => {
 
     const stillAvailable = await checkAvailability(carForBooking._id, dates.picked, dates.returned);
     if (!stillAvailable) {
+      await releasePromotionUsage(reserved.reserved, { customerEmail });
       return res.status(409).json({ success: false, message: 'No vehicle of this model is available for the selected dates' });
     }
 
-    const booking = await Booking.create({
-      reservationId,
-      car: carForBooking._id,
-      owner: carForBooking.owner,
-      user: null,
-      pickupDate: dates.picked,
-      returnDate: dates.returned,
-      price,
-      priceBreakdown,
-      customerName: fullName.trim(),
-      customerEmail: email.trim().toLowerCase(),
-      customerPhone: phoneCheck.e164,
-      pickupLocation: pickupLabel,
-      returnLocation: returnLabel,
-      pickupLocationId: pickupLoc?._id || null,
-      returnLocationId: returnLoc?._id || null,
-      notes: notes || '',
-      paymentStatus: 'pending',
-      status: 'pending',
-      channel: isWhatsApp ? 'whatsapp' : 'online',
-      createdBy: null,
-      franchiseAmount: Number(carForBooking.securityDeposit) || 0,
-      kmDepart: carForBooking.mileage != null ? String(carForBooking.mileage) : '',
+    let booking;
+    try {
+      booking = await Booking.create({
+        reservationId,
+        car: carForBooking._id,
+        owner: carForBooking.owner,
+        user: null,
+        pickupDate: dates.picked,
+        returnDate: dates.returned,
+        price,
+        priceBreakdown,
+        pricingSnapshot,
+        pendingExpiresAt: pendingExpiresAtFromSettings(quote.settings),
+        customerName: fullName.trim(),
+        customerEmail,
+        customerPhone: phoneCheck.e164,
+        pickupLocation: pickupLabel,
+        returnLocation: returnLabel,
+        pickupLocationId: pickupLoc?._id || null,
+        returnLocationId: returnLoc?._id || null,
+        notes: notes || '',
+        paymentStatus: 'pending',
+        status: 'pending',
+        channel: isWhatsApp ? 'whatsapp' : 'online',
+        createdBy: null,
+        franchiseAmount: resolveFranchiseAmount(carForBooking, quote.settings),
+        kmDepart: carForBooking.mileage != null ? String(carForBooking.mileage) : '',
+      });
+    } catch (createError) {
+      await releasePromotionUsage(reserved.reserved, { customerEmail });
+      throw createError;
+    }
+
+    await attachRedemptions({
+      ownerId: carForBooking.owner,
+      bookingId: booking._id,
+      customerEmail: booking.customerEmail,
+      customerPhone: booking.customerPhone,
+      applied: quote.applied,
     });
 
     try {
@@ -442,6 +571,7 @@ export const createBooking = async (req, res) => {
       channel: booking.channel,
       price,
       priceBreakdown,
+      pricingSnapshot,
       ...(whatsappUrl ? { whatsappUrl } : {}),
       ...(whatsappDial ? { whatsappDial } : {}),
     });
@@ -494,6 +624,7 @@ export const createWalkInBooking = async (req, res) => {
       kmDepart,
       kmRetour,
       franchiseAmount,
+      promoCode = '',
     } = req.body;
 
     const hasLocationIds =
@@ -580,22 +711,46 @@ export const createWalkInBooking = async (req, res) => {
       }
     }
 
-    const { pickupDeliveryFee, dropoffDeliveryFee } = resolveLocationDeliveryFees(pickupLoc, returnLoc);
-    const priceBreakdown = calculateBookingPrice({
-      pricePerDay: carData.pricePerDay,
+    // Synthetic email keeps CRM upsert working when desk omits email;
+    // templateEngine strips @local.americonfort from printed contracts.
+    const guestEmail =
+      normalizedEmail ||
+      `walkin+${phoneCheck.e164.replace(/\D/g, '').slice(-9) || Date.now()}@local.americonfort`;
+
+    const quote = await buildAuthoritativeQuote({
+      ownerId,
+      car: carData,
       pickupDate: dates.picked,
       returnDate: dates.returned,
-      pickupDeliveryFee,
-      dropoffDeliveryFee,
-      discounts: [],
+      pickupLoc,
+      returnLoc,
+      promoCode,
+      customerEmail: guestEmail,
+      secondDriverEnabled: Boolean(secondDriver?.enabled),
+      requireValidPromoCode: true,
     });
-    const price = priceBreakdown.total;
+    if (!quote.ok) {
+      return res.status(400).json({ success: false, message: quote.message });
+    }
+
+    const reserved = await reservePromotionUsage(quote.applied, {
+      customerEmail: guestEmail,
+      ownerId,
+    });
+    if (!reserved.ok) {
+      return res.status(409).json({ success: false, message: reserved.message });
+    }
+
+    const priceBreakdown = quote.priceBreakdown;
+    const price = quote.price;
+    const pricingSnapshot = quote.pricingSnapshot;
     const reservationId = await generateReservationId();
     const pickupLabel = pickupLoc ? formatLocationLabel(pickupLoc) : String(pickupLocation).trim();
     const returnLabel = returnLoc ? formatLocationLabel(returnLoc) : String(returnLocation).trim();
 
     const stillAvailable = await checkAvailability(carId, dates.picked, dates.returned);
     if (!stillAvailable) {
+      await releasePromotionUsage(reserved.reserved, { customerEmail: guestEmail });
       return res.status(409).json({ success: false, message: 'Car is not available for the selected dates' });
     }
 
@@ -609,23 +764,15 @@ export const createWalkInBooking = async (req, res) => {
           ? requestedPayment
           : 'pending';
 
-    // Synthetic email keeps CRM upsert working when desk omits email;
-    // templateEngine strips @local.americonfort from printed contracts.
-    const guestEmail =
-      normalizedEmail ||
-      `walkin+${phoneCheck.e164.replace(/\D/g, '').slice(-9) || Date.now()}@local.americonfort`;
-
-    const franchiseFromCar = Number(carData.securityDeposit) || 0;
-    const franchiseResolved =
-      franchiseAmount !== undefined && franchiseAmount !== null && franchiseAmount !== ''
-        ? Number(franchiseAmount)
-        : franchiseFromCar;
+    const franchiseResolved = resolveFranchiseAmount(carData, quote.settings, franchiseAmount);
     const kmDepartResolved =
       kmDepart !== undefined && kmDepart !== null && String(kmDepart).trim() !== ''
         ? String(kmDepart).trim()
         : (carData.mileage != null ? String(carData.mileage) : '');
 
-    const booking = await Booking.create({
+    let booking;
+    try {
+      booking = await Booking.create({
       reservationId,
       car: carId,
       owner: ownerId,
@@ -636,6 +783,8 @@ export const createWalkInBooking = async (req, res) => {
       returnDate: dates.returned,
       price,
       priceBreakdown,
+      pricingSnapshot,
+      pendingExpiresAt: status === 'pending' ? pendingExpiresAtFromSettings(quote.settings) : null,
       customerName: fullName.trim(),
       customerEmail: guestEmail,
       customerPhone: phoneCheck.e164,
@@ -659,7 +808,7 @@ export const createWalkInBooking = async (req, res) => {
       fuelLevelStart: fuelLevelStart || '',
       kmDepart: kmDepartResolved,
       kmRetour: kmRetour || '',
-      franchiseAmount: Number.isFinite(franchiseResolved) ? franchiseResolved : franchiseFromCar,
+      franchiseAmount: franchiseResolved,
       secondDriver: {
         enabled: Boolean(secondDriver?.enabled),
         fullName: secondDriver?.fullName?.trim() || '',
@@ -678,6 +827,18 @@ export const createWalkInBooking = async (req, res) => {
         paymentType: paymentStatus === 'paid' ? 'full' : '',
         paymentCompletedAt: paymentStatus === 'paid' ? new Date() : null,
       },
+    });
+    } catch (createError) {
+      await releasePromotionUsage(reserved.reserved, { customerEmail: guestEmail });
+      throw createError;
+    }
+
+    await attachRedemptions({
+      ownerId,
+      bookingId: booking._id,
+      customerEmail: booking.customerEmail,
+      customerPhone: booking.customerPhone,
+      applied: quote.applied,
     });
 
     try {
@@ -824,6 +985,22 @@ export const changeBookingStatus = async (req, res) => {
           message:
             'Customer must complete documents, payment, and signature first. Confirm the booking to send them a secure link.',
         });
+      }
+    }
+
+    if (status === 'cancelled' && booking.status !== 'cancelled') {
+      const snap = booking.pricingSnapshot?.cancellation || {};
+      const estimated = Number(snap.estimatedFee);
+      if (Number.isFinite(estimated) && estimated >= 0) {
+        booking.cancellationFeeCharged = estimated;
+      } else {
+        booking.cancellationFeeCharged = computeCancellationFee(
+          {
+            cancellationFeeType: snap.feeType || 'none',
+            cancellationFeeValue: snap.feeValue || 0,
+          },
+          booking.pricingSnapshot?.finalPrice ?? booking.price,
+        );
       }
     }
 
@@ -1046,6 +1223,12 @@ export const updateBooking = async (req, res) => {
         return res.status(400).json({ success: false, message: dates.message });
       }
 
+      const settings = await getBookingSettings(booking.owner);
+      const rules = assertBookingRules(settings, dates.picked, dates.returned);
+      if (!rules.ok) {
+        return res.status(400).json({ success: false, message: rules.message });
+      }
+
       const available = await checkAvailability(
         booking.car._id,
         dates.picked,
@@ -1063,13 +1246,27 @@ export const updateBooking = async (req, res) => {
     if (pickupLocation) booking.pickupLocation = pickupLocation;
     if (returnLocation) booking.returnLocation = returnLocation;
 
-    // Recalculate transparent total when dates or stored location fees apply
+    if (secondDriver?.enabled) {
+      const settings = await getBookingSettings(booking.owner);
+      if (!settings.extraDriverAllowed) {
+        return res.status(400).json({
+          success: false,
+          message: 'Extra drivers are not allowed by current booking settings',
+        });
+      }
+    }
+
+    // Pricing:
+    // - pending: re-resolve promotions against current dates/vehicle (server-side)
+    // - confirmed+: keep frozen discount amounts so expired/disabled promos don't alter history
     {
+      let pickupLoc = null;
+      let returnLoc = null;
       let pickupFee = booking.priceBreakdown?.pickupDeliveryFee ?? 0;
       let dropoffFee = booking.priceBreakdown?.dropoffDeliveryFee ?? 0;
 
       if (booking.pickupLocationId || booking.returnLocationId) {
-        const [pickupLoc, returnLoc] = await Promise.all([
+        [pickupLoc, returnLoc] = await Promise.all([
           booking.pickupLocationId
             ? PickupLocation.findById(booking.pickupLocationId)
             : null,
@@ -1087,16 +1284,76 @@ export const updateBooking = async (req, res) => {
         }
       }
 
-      const priceBreakdown = calculateBookingPrice({
-        pricePerDay: booking.car.pricePerDay,
-        pickupDate: booking.pickupDate,
-        returnDate: booking.returnDate,
-        pickupDeliveryFee: pickupFee,
-        dropoffDeliveryFee: dropoffFee,
-        discounts: booking.priceBreakdown?.discounts || [],
-      });
-      booking.priceBreakdown = priceBreakdown;
-      booking.price = priceBreakdown.total;
+      const carDoc = booking.car?.pricePerDay != null
+        ? booking.car
+        : await Car.findById(booking.car);
+
+      if (booking.status === 'pending') {
+        const quote = await buildAuthoritativeQuote({
+          ownerId: booking.owner,
+          car: carDoc,
+          pickupDate: booking.pickupDate,
+          returnDate: booking.returnDate,
+          pickupLoc,
+          returnLoc,
+          promoCode: booking.pricingSnapshot?.promoCode || booking.priceBreakdown?.discounts?.[0]?.code || '',
+          customerEmail: booking.customerEmail,
+          secondDriverEnabled: Boolean(
+            secondDriver?.enabled ?? booking.secondDriver?.enabled,
+          ),
+          requireValidPromoCode: false,
+        });
+        if (!quote.ok) {
+          return res.status(400).json({ success: false, message: quote.message });
+        }
+        booking.priceBreakdown = quote.priceBreakdown;
+        booking.price = quote.price;
+        booking.pricingSnapshot = quote.pricingSnapshot;
+        booking.pendingExpiresAt = pendingExpiresAtFromSettings(quote.settings, booking.createdAt || new Date());
+      } else {
+        const frozenDiscounts = (booking.priceBreakdown?.discounts || []).map((d) => ({
+          code: d.code || '',
+          label: d.label || '',
+          amount: Number(d.amount) || 0,
+          promotionId: d.promotionId || null,
+          discountType: d.discountType || '',
+          discountValue: d.discountValue ?? null,
+        }));
+        const frozenExtraDriverFee = Number(
+          booking.priceBreakdown?.extraDriverFee
+            ?? booking.pricingSnapshot?.extraDriverFee
+            ?? 0,
+        ) || 0;
+
+        const priceBreakdown = calculateBookingPrice({
+          pricePerDay: carDoc.pricePerDay,
+          pickupDate: booking.pickupDate,
+          returnDate: booking.returnDate,
+          pickupDeliveryFee: pickupFee,
+          dropoffDeliveryFee: dropoffFee,
+          extraDriverFee: frozenExtraDriverFee,
+          discounts: frozenDiscounts,
+        });
+        priceBreakdown.discounts = frozenDiscounts.map((d, i) => ({
+          ...priceBreakdown.discounts[i],
+          promotionId: d.promotionId,
+          discountType: d.discountType,
+          discountValue: d.discountValue,
+        }));
+        booking.priceBreakdown = priceBreakdown;
+        booking.price = priceBreakdown.total;
+        booking.pricingSnapshot = buildPricingSnapshot({
+          priceBreakdown,
+          discounts: frozenDiscounts,
+          extras: booking.pricingSnapshot?.extras || {
+            extraDriverEnabled: frozenExtraDriverFee > 0,
+            extraDriverFee: frozenExtraDriverFee,
+          },
+          cancellation: booking.pricingSnapshot?.cancellation || {},
+          mileage: booking.pricingSnapshot?.mileage || {},
+          timezone: booking.pricingSnapshot?.timezone || 'Africa/Casablanca',
+        });
+      }
     }
 
     if (customerName) booking.customerName = customerName.trim();

@@ -10,6 +10,7 @@ import {
   exportOwnerBookings,
   getCalendarBookings,
   getOwnerBookings,
+  quoteBooking,
   updateBooking
 } from "../controllers/bookingController.js";
 import { ensureCompletionLink } from "../controllers/bookingCompletionController.js";
@@ -29,6 +30,7 @@ const bookingsGate = [protect, requireOwner, requirePermission('bookings')];
 const calendarGate = [protect, requireOwner, requirePermission('calendar')];
 
 bookingRouter.post('/check-availability', rateLimit({ windowMs: 60_000, max: 30 }), checkAvailabilityOfCar);
+bookingRouter.post('/quote', rateLimit({ windowMs: 60_000, max: 60, message: 'Too many quote requests' }), quoteBooking);
 bookingRouter.post('/create', rateLimit({ windowMs: 60_000, max: 10, message: 'Too many booking attempts' }), createBooking);
 bookingRouter.post('/owner/walk-in', ...bookingsGate, createWalkInBooking);
 bookingRouter.get('/owner', ...bookingsGate, getOwnerBookings);

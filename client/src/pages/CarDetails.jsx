@@ -56,7 +56,11 @@ const CarDetails = () => {
     pickupLocationId: '',
     returnLocationId: '',
     notes: '',
+    promoCode: '',
   })
+  const [serverQuote, setServerQuote] = useState(null)
+  const [promoError, setPromoError] = useState('')
+  const [quoting, setQuoting] = useState(false)
 
   const currency = import.meta.env.VITE_CURRENCY || 'MAD '
   const fallbackImage = assets.car_image1
@@ -116,7 +120,7 @@ const CarDetails = () => {
     return pickupLocations.filter((l) => citySet.has(String(l.city || '').toLowerCase()))
   }, [car, pickupLocations])
 
-  const priceBreakdown = useMemo(() => {
+  const localPreview = useMemo(() => {
     if (!car) return null
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
@@ -129,6 +133,75 @@ const CarDetails = () => {
       dropoffDeliveryFee,
     })
   }, [car, pickupDate, returnDate, pickupLoc, returnLoc])
+
+  useEffect(() => {
+    if (!car || !pickupDate || !returnDate || !form.pickupLocationId || !form.returnLocationId) {
+      setServerQuote(null)
+      setPromoError('')
+      return
+    }
+    const pickup = toDateTimeLocal(pickupDate)
+    const ret = toDateTimeLocal(returnDate)
+    if (new Date(ret) <= new Date(pickup)) {
+      setServerQuote(null)
+      return
+    }
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      setQuoting(true)
+      try {
+        const { data } = await axios.post('/api/bookings/quote', {
+          car: car._id,
+          pickupDate: pickup,
+          returnDate: ret,
+          pickupLocationId: form.pickupLocationId,
+          returnLocationId: form.returnLocationId,
+          promoCode: form.promoCode,
+          email: form.email,
+        })
+        if (cancelled) return
+        if (data.success) {
+          setServerQuote(data)
+          setPromoError('')
+        } else {
+          setServerQuote(null)
+          setPromoError(data.message || '')
+        }
+      } catch (error) {
+        if (cancelled) return
+        setServerQuote(null)
+        setPromoError(getErrorMessage(error))
+      } finally {
+        if (!cancelled) setQuoting(false)
+      }
+    }, 400)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [
+    axios,
+    car,
+    pickupDate,
+    returnDate,
+    form.pickupLocationId,
+    form.returnLocationId,
+    form.promoCode,
+    form.email,
+  ])
+
+  const priceBreakdown = useMemo(() => {
+    if (serverQuote?.priceBreakdown) {
+      return {
+        ...serverQuote.priceBreakdown,
+        ready: true,
+        pricePerDay: car?.pricePerDay,
+      }
+    }
+    return localPreview
+  }, [serverQuote, localPreview, car])
 
   const submitReservation = async ({ channel = 'whatsapp' } = {}) => {
     if (submitting || submitted) return
@@ -171,6 +244,7 @@ const CarDetails = () => {
         pickupLocationId: form.pickupLocationId,
         returnLocationId: form.returnLocationId,
         notes: form.notes,
+        promoCode: form.promoCode,
         channel,
       })
 
@@ -179,6 +253,7 @@ const CarDetails = () => {
           reservationId: data.reservationId,
           price: data.price,
           priceBreakdown: data.priceBreakdown,
+          pricingSnapshot: data.pricingSnapshot,
           carName: `${car.brand} ${car.model}`,
           customerName: form.fullName,
           email: form.email,
@@ -378,6 +453,8 @@ const CarDetails = () => {
             t={t}
             formatFeeLabel={(loc) => formatFeeLabel(loc, currency, t('carDetails.free'))}
             minDate={minDate}
+            promoError={promoError}
+            quoting={quoting}
           />
         </div>
       </div>

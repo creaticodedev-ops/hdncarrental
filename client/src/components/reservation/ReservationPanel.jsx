@@ -104,6 +104,12 @@ function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel,
               {breakdown.dropoffDeliveryFee <= 0 ? t('carDetails.free') : `${currency}${breakdown.dropoffDeliveryFee}`}
             </span>
           </li>
+          {(breakdown.extraDriverFee || 0) > 0 && (
+            <li className="flex justify-between gap-3 text-muted">
+              <span>{t('carDetails.extraDriverFee')}</span>
+              <span className="font-medium tabular-nums text-ink">{currency}{breakdown.extraDriverFee}</span>
+            </li>
+          )}
           {breakdown.discountTotal > 0 && (
             <li className="flex justify-between gap-3 text-emerald-700">
               <span>{t('carDetails.discounts')}</span>
@@ -157,6 +163,8 @@ export default function ReservationPanel({
   t,
   formatFeeLabel,
   minDate,
+  promoError = '',
+  quoting = false,
 }) {
   const ready = priceBreakdown?.ready
   const disabled = submitting || !ready
@@ -310,6 +318,34 @@ export default function ReservationPanel({
                     placeholder={t('carDetails.emailPlaceholder')}
                   />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="promoCode">{t('carDetails.promoCode')}</Label>
+                <div className={booking.fieldShell}>
+                  <IconWrap>{Icons.note}</IconWrap>
+                  <input
+                    id="promoCode"
+                    type="text"
+                    className={`${fieldInput} uppercase`}
+                    value={form.promoCode || ''}
+                    onChange={(e) => setForm({ ...form, promoCode: e.target.value.toUpperCase() })}
+                    autoComplete="off"
+                    placeholder={t('carDetails.promoCodePlaceholder')}
+                  />
+                </div>
+                {quoting && (
+                  <p className="mt-1.5 text-[11px] text-muted">{t('carDetails.promoChecking')}</p>
+                )}
+                {promoError && form.promoCode ? (
+                  <p className="mt-1.5 text-[11px] text-red-600">{promoError}</p>
+                ) : null}
+                {!promoError && (priceBreakdown?.discountTotal || 0) > 0 && (
+                  <p className="mt-1.5 text-[11px] text-emerald-700">
+                    {t('carDetails.promoApplied', {
+                      amount: `${currency}${priceBreakdown.discountTotal}`,
+                    })}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="notes">{t('carDetails.notes')}</Label>

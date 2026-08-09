@@ -12,6 +12,7 @@ export const LINE_TYPES = {
   RENTAL: 'rental',
   PICKUP_DELIVERY: 'pickup_delivery',
   DROPOFF_DELIVERY: 'dropoff_delivery',
+  EXTRA_DRIVER: 'extra_driver',
   DISCOUNT: 'discount',
 };
 
@@ -28,6 +29,7 @@ const toMoney = (value) => {
  * @param {Date|string} input.returnDate
  * @param {number} [input.pickupDeliveryFee=0]
  * @param {number} [input.dropoffDeliveryFee=0]
+ * @param {number} [input.extraDriverFee=0] total fee for rental period (not per day)
  * @param {Array<{code?:string,label:string,amount:number}>} [input.discounts=[]]
  * @returns {object} price breakdown
  */
@@ -37,6 +39,7 @@ export const calculateBookingPrice = ({
   returnDate,
   pickupDeliveryFee = 0,
   dropoffDeliveryFee = 0,
+  extraDriverFee = 0,
   discounts = [],
 } = {}) => {
   const picked = pickupDate instanceof Date ? pickupDate : new Date(pickupDate);
@@ -47,6 +50,7 @@ export const calculateBookingPrice = ({
   const rentalPrice = toMoney(daily * days);
   const pickupFee = toMoney(pickupDeliveryFee);
   const dropoffFee = toMoney(dropoffDeliveryFee);
+  const driverFee = toMoney(extraDriverFee);
 
   const normalizedDiscounts = (Array.isArray(discounts) ? discounts : [])
     .map((d) => ({
@@ -87,6 +91,15 @@ export const calculateBookingPrice = ({
     });
   }
 
+  if (driverFee > 0) {
+    lineItems.push({
+      type: LINE_TYPES.EXTRA_DRIVER,
+      label: 'Extra Driver Fee',
+      amount: driverFee,
+      meta: { days },
+    });
+  }
+
   for (const d of normalizedDiscounts) {
     lineItems.push({
       type: LINE_TYPES.DISCOUNT,
@@ -96,7 +109,7 @@ export const calculateBookingPrice = ({
     });
   }
 
-  const subtotal = toMoney(rentalPrice + pickupFee + dropoffFee);
+  const subtotal = toMoney(rentalPrice + pickupFee + dropoffFee + driverFee);
   const total = toMoney(Math.max(0, subtotal - discountTotal));
 
   return {
@@ -105,6 +118,7 @@ export const calculateBookingPrice = ({
     rentalPrice,
     pickupDeliveryFee: pickupFee,
     dropoffDeliveryFee: dropoffFee,
+    extraDriverFee: driverFee,
     discounts: normalizedDiscounts,
     discountTotal,
     subtotal,
