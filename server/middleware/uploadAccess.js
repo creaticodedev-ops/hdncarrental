@@ -8,6 +8,9 @@ import User from '../models/User.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.join(__dirname, '..', 'uploads');
 
+/** Prefixes that require signed URL or owner/superadmin JWT */
+const PROTECTED_PREFIXES = ['documents', 'contracts', 'templates', 'tmp'];
+
 const hmacSecret = () => process.env.JWT_SECRET || 'dev';
 
 /**
@@ -62,24 +65,51 @@ export const appendSignedQuery = (absoluteOrPublicUrl) => {
   }
 };
 
+const normalizeUploadRelPath = (rawPath) => {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(String(rawPath || ''));
+  } catch {
+    return null;
+  }
+  return decoded.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+};
+
+const isProtectedUploadPath = (rel) => {
+  if (!rel) return false;
+  return PROTECTED_PREFIXES.some(
+    (prefix) => rel === prefix || rel.startsWith(`${prefix}/`),
+  );
+};
+
 /**
- * Protect /uploads/documents — requires signed query OR owner/superadmin JWT.
- * Other /uploads paths (if any) remain public.
+ * Protect sensitive /uploads trees — requires signed query OR owner/superadmin JWT.
+ * Decodes percent-encoding before the prefix check (blocks /uploads/%64ocuments bypass).
  */
 export const protectDocumentUploads = async (req, res, next) => {
-  // Only gate the documents tree
-  const rel = req.path.replace(/^\/+/, '');
-  if (!rel.startsWith('documents')) {
+  const relNormalized = normalizeUploadRelPath(req.path);
+  if (relNormalized === null) {
+    return res.status(400).json({ success: false, message: 'Bad path' });
+  }
+  if (!isProtectedUploadPath(relNormalized)) {
     return next();
   }
 
+  // Verify signatures against the decoded relative path (same form used by express.static).
+  let relForSig;
+  try {
+    relForSig = decodeURIComponent(String(req.path || '')).replace(/\\/g, '/').replace(/^\/+/, '');
+  } catch {
+    return res.status(400).json({ success: false, message: 'Bad path' });
+  }
+
   const { sig, exp } = req.query;
-  if (verifyUploadAccess(rel, exp, sig)) {
+  if (verifyUploadAccess(relForSig, exp, sig)) {
     return next();
   }
 
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);

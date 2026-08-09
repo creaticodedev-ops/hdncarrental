@@ -25,8 +25,21 @@ import {
 
 const signIfLocalUpload = (url) => {
   if (!url || typeof url !== "string") return url || "";
-  if (url.includes("/uploads/documents")) return appendSignedQuery(url);
+  if (
+    url.includes("/uploads/documents")
+    || url.includes("/uploads/contracts")
+    || url.includes("/uploads/templates")
+  ) {
+    return appendSignedQuery(url);
+  }
   return url;
+};
+
+const safePublicError = (error, fallback) => {
+  if (error?.code === "TOKEN_EXPIRED" || error?.code === "VALIDATION") {
+    return error.message || fallback;
+  }
+  return fallback;
 };
 
 const publicBookingView = (booking) => {
@@ -167,7 +180,10 @@ export const uploadCompletionDocument = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     const status = error.code === "TOKEN_EXPIRED" ? 410 : 500;
-    res.status(status).json({ success: false, message: error.message || "Upload failed" });
+    res.status(status).json({
+      success: false,
+      message: safePublicError(error, "Upload failed"),
+    });
   } finally {
     cleanupUploadedFile(file);
   }
@@ -183,11 +199,9 @@ export const saveCompletionDetails = async (req, res) => {
       return res.status(400).json({ success: false, message: "This reservation is already complete" });
     }
 
-    console.log('[SAVE_DETAILS] Incoming body', req.body);
-    applyCompletionDetailsToBooking(booking, req.body);
-
-    await booking.save();
+    applyCompletionDetailsToBooking(booking, req.body, { scope: 'customer' });
     refreshCompletionFlags(booking);
+    await booking.save();
     const fresh = await Booking.findById(booking._id).populate('car');
 
     res.json({
@@ -198,7 +212,10 @@ export const saveCompletionDetails = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     const status = error.code === 'TOKEN_EXPIRED' ? 410 : error.code === 'VALIDATION' ? 400 : 500;
-    res.status(status).json({ success: false, message: error.message || 'Failed to save contract details' });
+    res.status(status).json({
+      success: false,
+      message: safePublicError(error, 'Failed to save contract details'),
+    });
   }
 };
 
@@ -207,6 +224,12 @@ export const createCompletionPayment = async (req, res) => {
     const booking = await findBookingByCompletionToken(req.params.token);
     if (!booking) {
       return res.status(404).json({ success: false, message: "Invalid or expired completion link" });
+    }
+    if (booking.status === "ready_for_pickup" || booking.completion?.completedAt) {
+      return res.status(400).json({
+        success: false,
+        message: "This reservation is already complete",
+      });
     }
     if (booking.completion?.paymentComplete) {
       return res.json({ success: true, alreadyPaid: true, booking: publicBookingView(booking) });
@@ -355,6 +378,12 @@ export const submitCompletionSignature = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: "Invalid or expired completion link" });
     }
+    if (booking.status === "ready_for_pickup" || booking.completion?.completedAt) {
+      return res.status(400).json({
+        success: false,
+        message: "This reservation is already complete and can no longer be changed",
+      });
+    }
 
     const { signatureDataUrl, secondDriverSignatureDataUrl, agreed, ...detailsPayload } = req.body;
     if (!agreed) {
@@ -383,7 +412,7 @@ export const submitCompletionSignature = async (req, res) => {
     ].some((k) => detailsPayload[k] !== undefined);
 
     if (hasDetailFields) {
-      applyCompletionDetailsToBooking(booking, detailsPayload);
+      applyCompletionDetailsToBooking(booking, detailsPayload, { scope: 'customer' });
     }
     validateCompletionDetails(booking);
     await booking.save();
@@ -408,14 +437,20 @@ export const submitCompletionSignature = async (req, res) => {
       success: true,
       message: result.finalized
         ? "Signed — your reservation is ready for pickup"
-        : "Signature saved",
+        : result.awaitingPayment
+          ? "Signature saved — complete payment to finish"
+          : "Signature saved",
       finalized: result.finalized,
+      awaitingPayment: Boolean(result.awaitingPayment),
       booking: publicBookingView(result.booking),
     });
   } catch (error) {
     console.error(error.message);
     const status = error.code === 'VALIDATION' ? 400 : 500;
-    res.status(status).json({ success: false, message: error.message || "Signature failed" });
+    res.status(status).json({
+      success: false,
+      message: safePublicError(error, "Signature failed. Please try again or contact the agency."),
+    });
   }
 };
 

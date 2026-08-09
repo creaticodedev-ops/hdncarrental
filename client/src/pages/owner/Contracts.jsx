@@ -780,7 +780,12 @@ const Contracts = () => {
             <p className="font-medium text-sm">{previewTitle}</p>
             <button type="button" onClick={() => setPreviewHtml('')} className="text-xs text-gray-500">Close</button>
           </div>
-          <iframe title="Contract preview" srcDoc={previewHtml} className="w-full min-h-[520px] bg-white" />
+          <iframe
+            title="Contract preview"
+            srcDoc={previewHtml}
+            sandbox=""
+            className="w-full min-h-[520px] bg-white"
+          />
         </div>
       )}
 

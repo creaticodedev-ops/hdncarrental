@@ -208,6 +208,13 @@ export const tryFinalizeBookingCompletion = async (bookingId) => {
     return { finalized: false, booking, flags };
   }
 
+  // Align with admin ready_for_pickup gate: require payment when online payment is enabled.
+  const { getPaymentMode } = await import('./paymentService.js');
+  const paymentMode = getPaymentMode();
+  if (paymentMode !== 'disabled' && !flags.paymentComplete) {
+    return { finalized: false, booking, flags, awaitingPayment: true };
+  }
+
   if (booking.status === "ready_for_pickup" && booking.completion.completedAt) {
     return { finalized: true, booking, flags, alreadyDone: true };
   }
@@ -266,7 +273,7 @@ export const tryFinalizeBookingCompletion = async (bookingId) => {
   }
 
   booking.completion.contractPdfUrl = contractPdfUrl || publicUploadUrl(contractPath);
-  delete booking.completion.invoicePdfUrl;
+  booking.completion.invoicePdfUrl = '';
   booking.completion.completedAt = new Date();
   booking.status = "ready_for_pickup";
 

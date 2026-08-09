@@ -556,7 +556,7 @@ const CompleteBooking = () => {
                 <button
                   type="button"
                   disabled={savingDetails}
-                  onClick={saveCompletionDetails}
+                  onClick={() => saveCompletionDetails({ force: true })}
                   className="w-full py-3.5 rounded-2xl border border-borderColor bg-sand text-sm font-semibold text-ink"
                 >
                   {savingDetails ? t('completion.savingDetails') : t('completion.saveDetails')}

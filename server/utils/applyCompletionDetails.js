@@ -2,8 +2,13 @@
  * Persist customer / desk contract fields onto a Booking document.
  * Shared by online completion, walk-in create, and admin booking updates
  * so template sourceData stays consistent across channels.
+ *
+ * @param {'customer'|'desk'} [options.scope='desk']
+ *   customer — public completion token (no operational/financial desk fields)
+ *   desk     — walk-in / admin updates (full field set)
  */
-export const applyCompletionDetailsToBooking = (booking, body = {}) => {
+export const applyCompletionDetailsToBooking = (booking, body = {}, options = {}) => {
+  const scope = options.scope === 'customer' ? 'customer' : 'desk';
   const {
     customerName,
     customerEmail,
@@ -40,14 +45,17 @@ export const applyCompletionDetailsToBooking = (booking, body = {}) => {
   if (driverLicenseExpiry !== undefined) booking.driverLicenseExpiry = String(driverLicenseExpiry).trim();
   if (driverLicenseIssuedOn !== undefined) booking.driverLicenseIssuedOn = String(driverLicenseIssuedOn).trim();
   if (passportNumber !== undefined) booking.passportNumber = String(passportNumber).trim();
-  if (deliveredBy !== undefined) booking.deliveredBy = String(deliveredBy).trim();
-  if (receivedBy !== undefined) booking.receivedBy = String(receivedBy).trim();
-  if (fuelLevelStart !== undefined) booking.fuelLevelStart = String(fuelLevelStart).trim();
-  if (kmDepart !== undefined) booking.kmDepart = String(kmDepart).trim();
-  if (kmRetour !== undefined) booking.kmRetour = String(kmRetour).trim();
-  if (franchiseAmount !== undefined && franchiseAmount !== null && franchiseAmount !== '') {
-    const n = Number(franchiseAmount);
-    booking.franchiseAmount = Number.isFinite(n) ? n : booking.franchiseAmount;
+
+  if (scope === 'desk') {
+    if (deliveredBy !== undefined) booking.deliveredBy = String(deliveredBy).trim();
+    if (receivedBy !== undefined) booking.receivedBy = String(receivedBy).trim();
+    if (fuelLevelStart !== undefined) booking.fuelLevelStart = String(fuelLevelStart).trim();
+    if (kmDepart !== undefined) booking.kmDepart = String(kmDepart).trim();
+    if (kmRetour !== undefined) booking.kmRetour = String(kmRetour).trim();
+    if (franchiseAmount !== undefined && franchiseAmount !== null && franchiseAmount !== '') {
+      const n = Number(franchiseAmount);
+      booking.franchiseAmount = Number.isFinite(n) ? n : booking.franchiseAmount;
+    }
   }
 
   if (secondDriver !== undefined && typeof secondDriver === 'object') {

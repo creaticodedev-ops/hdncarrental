@@ -35,7 +35,10 @@ const CarDetails = () => {
   const navigate = useNavigate()
   const [car, setCar] = useState(null)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(null)
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -56,6 +59,7 @@ const CarDetails = () => {
     }
 
     const fetchCar = async () => {
+      setLoadError(false)
       try {
         const { data } = await axios.get(`/api/user/cars/${id}`)
         if (data.success) setCar(data.car)
@@ -64,14 +68,13 @@ const CarDetails = () => {
         if (error.response?.status === 404) setNotFound(true)
         else {
           toast.error(getErrorMessage(error))
-          // Avoid infinite "Loading" shell when the fleet list is empty and the detail fetch fails
-          setNotFound(true)
+          setLoadError(true)
         }
       }
     }
 
     if (!carsLoading) fetchCar()
-  }, [cars, id, carsLoading, axios])
+  }, [cars, id, carsLoading, axios, reloadToken])
 
   useEffect(() => {
     if (pickupDate && /^\d{4}-\d{2}-\d{2}$/.test(pickupDate)) {
@@ -114,6 +117,7 @@ const CarDetails = () => {
   }, [car, pickupDate, returnDate, pickupLoc, returnLoc])
 
   const submitReservation = async ({ channel = 'whatsapp' } = {}) => {
+    if (submitting || submitted) return
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
     if (new Date(ret) <= new Date(pickup)) {
@@ -162,11 +166,20 @@ const CarDetails = () => {
           returnLocation: returnLoc ? `${returnLoc.name} - ${returnLoc.address}` : '',
           channel: data.channel || channel,
           notes: form.notes,
+          whatsappUrl: data.whatsappUrl || null,
+          whatsappDial: data.whatsappDial || null,
         }
         sessionStorage.setItem('lastReservation', JSON.stringify(confirmation))
+        setSubmitted(confirmation)
 
         if (channel === 'whatsapp') {
-          const url = data.whatsappUrl || buildGuestReservationWaUrl(confirmation, { currency: currency.trim() })
+          const url =
+            data.whatsappUrl
+            || buildGuestReservationWaUrl(confirmation, {
+              currency: currency.trim(),
+              dial: data.whatsappDial,
+            })
+          confirmation.whatsappUrl = url
           const opened = waTab?.navigate(url)
           if (!opened) {
             toast.success(
@@ -178,7 +191,9 @@ const CarDetails = () => {
               duration: 5000,
             })
           }
-          // Stay on this page so all form/trip state remains when the client returns from WhatsApp.
+          // WhatsApp tab is already open — move this tab to the confirmation page
+          // so the reservation ID is not stuck in a disappearing toast.
+          navigate('/booking-confirmation', { state: confirmation })
           return
         }
 
@@ -196,13 +211,32 @@ const CarDetails = () => {
     }
   }
 
-  const minDate = new Date()
+  const minDate = useMemo(() => new Date(), [])
 
   if (notFound) {
     return (
       <div className="page-pad page-shell mt-10 sm:mt-16 text-center pb-16">
-        <h1 className="text-2xl font-semibold text-gray-800">Vehicle not found</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">{t('carDetails.notFound')}</h1>
         <button type="button" onClick={() => navigate('/cars')} className="mt-4 text-primary cursor-pointer">{t('carDetails.back')}</button>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="page-pad page-shell mt-10 sm:mt-16 text-center pb-16">
+        <h1 className="text-2xl font-semibold text-gray-800">{t('carDetails.loadError')}</h1>
+        <button
+          type="button"
+          onClick={() => {
+            setLoadError(false)
+            setCar(null)
+            setReloadToken((n) => n + 1)
+          }}
+          className="mt-4 text-primary cursor-pointer"
+        >
+          {t('carDetails.retry')}
+        </button>
       </div>
     )
   }
@@ -297,7 +331,7 @@ const CarDetails = () => {
             returnLoc={returnLoc}
             priceBreakdown={priceBreakdown}
             currency={currency}
-            submitting={submitting}
+            submitting={submitting || Boolean(submitted)}
             onWhatsAppSubmit={() => submitReservation({ channel: 'whatsapp' })}
             t={t}
             formatFeeLabel={(loc) => formatFeeLabel(loc, currency, t('carDetails.free'))}

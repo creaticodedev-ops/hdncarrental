@@ -21,17 +21,15 @@ export const computePayableAmount = (total, paymentType) => {
 export const getPaymentMode = () => {
   if (process.env.STRIPE_SECRET_KEY) return "stripe";
 
-  const mode = (process.env.PAYMENT_MODE || "demo").toLowerCase();
-  const allowDemo =
-    String(process.env.ALLOW_DEMO_PAYMENT || "").toLowerCase() === "true" ||
-    process.env.NODE_ENV !== "production";
+  const mode = (process.env.PAYMENT_MODE || "").toLowerCase();
+  const allowDemo = String(process.env.ALLOW_DEMO_PAYMENT || "").toLowerCase() === "true";
 
-  // Production fail-closed: never silently accept free "demo" payments
-  if (mode === "demo" && !allowDemo) {
-    return "disabled";
+  // Fail-closed: demo payments require an explicit opt-in, never NODE_ENV alone.
+  if (mode === "demo") {
+    return allowDemo ? "demo" : "disabled";
   }
 
-  return mode;
+  return mode || "disabled";
 };
 
 export const createStripeCheckoutSession = async ({

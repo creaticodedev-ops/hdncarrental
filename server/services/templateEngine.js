@@ -87,7 +87,34 @@ const money = (amount, currency = 'MAD') => {
   return `${currency} ${n.toFixed(2)}`;
 };
 
-const val = (v) => (v !== undefined && v !== null && String(v).trim() !== '' ? String(v) : '—');
+const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const val = (v) => {
+  if (v === undefined || v === null || String(v).trim() === '') return '—';
+  return escapeHtml(String(v));
+};
+
+/** Template keys that intentionally contain trusted server-built HTML. */
+const RAW_HTML_VARIABLE_KEYS = new Set([
+  'company_signature_html',
+  'customer_signature_html',
+  'second_driver_signature_html',
+  'second_driver_signature_section',
+  'second_driver_section',
+  'signatures_row_html',
+  'companySignatureHtml',
+  'customerSignatureHtml',
+  'secondDriverSignatureHtml',
+  'secondDriverSignatureSection',
+  'secondDriverSection',
+  'signaturesRowHtml',
+]);
 
 const firstNonEmpty = (source, keys) => {
   for (const key of keys) {
@@ -357,6 +384,7 @@ const normalizeTemplateKey = (key) => String(key)
 
 /**
  * Replace {{variable}} placeholders in template HTML.
+ * Guest-controlled values are HTML-escaped; only allowlisted *_html / *_section keys stay raw.
  */
 export const renderTemplate = (html, variables) => {
   if (!html) return '';
@@ -368,11 +396,12 @@ export const renderTemplate = (html, variables) => {
       normalizeTemplateKey(rawKey),
       rawKey.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase(),
     ];
-    const value = candidates.reduce((found, candidate) => {
-      if (found !== undefined) return found;
-      return variables?.[candidate];
-    }, undefined);
-    return value !== undefined && value !== null ? String(value) : '—';
+    const matchedKey = candidates.find((candidate) => variables?.[candidate] !== undefined);
+    const value = matchedKey !== undefined ? variables[matchedKey] : undefined;
+    if (value === undefined || value === null) return '—';
+    const asString = String(value);
+    const allowRaw = candidates.some((candidate) => RAW_HTML_VARIABLE_KEYS.has(candidate));
+    return allowRaw ? asString : escapeHtml(asString);
   });
 };
 
