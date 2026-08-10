@@ -62,7 +62,7 @@ const fade = {
   }),
 }
 
-function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel, daysLabel, durationError = '', minRentalDays = 0, rulesLoading = false }) {
+function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel, daysLabel, dateError = '', minRentalDays = 0, rulesLoading = false }) {
   const ready = breakdown?.ready
 
   return (
@@ -90,8 +90,8 @@ function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel,
         </div>
       </div>
 
-      {durationError ? (
-        <p className="px-4 py-5 text-sm leading-relaxed text-red-700 sm:px-5" role="alert">{durationError}</p>
+      {dateError ? (
+        <p className="px-4 py-5 text-sm leading-relaxed text-red-700 sm:px-5" role="alert">{dateError}</p>
       ) : !ready ? (
         <p className="px-4 py-5 text-sm leading-relaxed text-muted sm:px-5">{t('carDetails.priceHint')}</p>
       ) : (
@@ -172,12 +172,19 @@ export default function ReservationPanel({
   formatFeeLabel,
   minDate,
   minRentalDays = null,
-  durationError = '',
+  maxRentalDays = null,
+  advanceBookingDays = 365,
+  pickupHoursStart = '08:00',
+  pickupHoursEnd = '20:00',
+  returnHoursStart = '08:00',
+  returnHoursEnd = '20:00',
+  unavailablePeriods = [],
+  dateError = '',
   rulesLoading = false,
   promoError = '',
   quoting = false,
 }) {
-  const ready = priceBreakdown?.ready && !durationError && !rulesLoading && minRentalDays != null
+  const ready = priceBreakdown?.ready && !dateError && !rulesLoading && minRentalDays != null
   const disabled = submitting || !ready
 
   const locationOptions = useMemo(
@@ -252,8 +259,15 @@ export default function ReservationPanel({
                 setReturnDate={setReturnDate}
                 minDate={minDate}
                 minRentalDays={minRentalDays}
+                maxRentalDays={maxRentalDays}
+                advanceBookingDays={advanceBookingDays}
+                pickupHoursStart={pickupHoursStart}
+                pickupHoursEnd={pickupHoursEnd}
+                returnHoursStart={returnHoursStart}
+                returnHoursEnd={returnHoursEnd}
+                unavailablePeriods={unavailablePeriods}
                 rulesLoading={rulesLoading}
-                durationError={durationError}
+                dateError={dateError}
               />
               <div>
                 <Label>{t('carDetails.pickupLocation')}</Label>
@@ -389,7 +403,7 @@ export default function ReservationPanel({
               pickupLabel={pickupShort}
               returnLabel={returnShort}
               daysLabel={daysLabel}
-              durationError={durationError}
+              dateError={dateError}
               minRentalDays={minRentalDays || 0}
               rulesLoading={rulesLoading}
             />

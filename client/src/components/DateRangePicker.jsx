@@ -60,6 +60,7 @@ const addDays = (date, count) => {
 const MonthGrid = ({
   monthDate,
   minDate,
+  maxDate,
   start,
   end,
   hover,
@@ -67,6 +68,7 @@ const MonthGrid = ({
   onHover,
   weekdays,
   monthNames,
+  isDateBlocked,
 }) => {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth()
@@ -101,7 +103,10 @@ const MonthGrid = ({
         {cells.map((date, idx) => {
           if (!date) return <div key={`empty-${idx}`} className="h-9 sm:h-10" />
 
-          const disabled = isBeforeDay(date, minDate)
+          const beforeMin = isBeforeDay(date, minDate)
+          const afterMax = maxDate ? isAfterDay(date, maxDate) : false
+          const blocked = Boolean(isDateBlocked?.(date))
+          const disabled = beforeMin || afterMax || blocked
           const isStart = sameDay(date, start)
           const isEnd = sameDay(date, end) || (!end && hover && sameDay(date, hover) && start && !sameDay(start, hover))
           const inRange =
@@ -122,20 +127,23 @@ const MonthGrid = ({
           return (
             <div
               key={toISODate(date)}
-              className={`relative h-9 sm:h-10 flex items-center justify-center ${inRange ? 'bg-primary/10' : ''} ${
+              className={`relative h-9 sm:h-10 flex items-center justify-center ${inRange && !blocked ? 'bg-primary/10' : ''} ${
                 isStart && rangeEnd && !sameDay(start, rangeEnd) ? 'bg-primary/10 rounded-l-full' : ''
               } ${isEnd && start && !sameDay(start, rangeEnd) ? 'bg-primary/10 rounded-r-full' : ''}`}
             >
               <button
                 type="button"
                 disabled={disabled}
+                title={blocked ? 'Unavailable' : undefined}
                 onClick={() => onSelect(date)}
                 onMouseEnter={() => !disabled && onHover(date)}
                 className={[
                   'h-9 w-9 sm:h-10 sm:w-10 text-sm flex items-center justify-center transition-all duration-150 select-none',
                   shape,
                   disabled
-                    ? 'text-[#C8C0BA] line-through decoration-[#D5CDC8] cursor-not-allowed'
+                    ? blocked
+                      ? 'text-[#C8C0BA] bg-[#F3EEE9]/70 line-through decoration-[#D5CDC8] cursor-not-allowed'
+                      : 'text-[#C8C0BA] line-through decoration-[#D5CDC8] cursor-not-allowed'
                     : 'cursor-pointer hover:bg-sand text-ink',
                   (isStart || (isEnd && end) || (isEnd && !end && hover))
                     ? 'bg-primary text-white hover:bg-primary-dull font-semibold shadow-sm'
@@ -163,8 +171,14 @@ const DateRangePicker = ({
   endDate,
   onChange,
   minDate,
+  /** Latest selectable pickup/return calendar day (advance booking limit). */
+  maxDate = null,
   /** Minimum rental duration in days (from Booking Settings). */
   minSpanDays = 1,
+  /** Maximum rental duration in days (from Booking Settings). */
+  maxSpanDays = 0,
+  /** Inclusive unavailable periods: [{ startDate, endDate }] ISO dates. */
+  unavailablePeriods = [],
   pickupLabel,
   returnLabel,
   className = '',
@@ -182,16 +196,44 @@ const DateRangePicker = ({
   const panelRef = useRef(null)
 
   const min = useMemo(() => startOfDay(minDate || new Date()), [minDate])
+  const max = useMemo(() => (maxDate ? startOfDay(maxDate) : null), [maxDate])
   const start = useMemo(() => parseISODate(startDate), [startDate])
   const end = useMemo(() => parseISODate(endDate), [endDate])
   const span = Math.max(1, Math.round(Number(minSpanDays) || 1))
+  const maxSpan = Math.max(0, Math.round(Number(maxSpanDays) || 0))
+  const periods = useMemo(
+    () =>
+      (unavailablePeriods || [])
+        .map((p) => ({
+          startDate: String(p.startDate || p.start || '').slice(0, 10),
+          endDate: String(p.endDate || p.end || '').slice(0, 10),
+        }))
+        .filter((p) => p.startDate && p.endDate),
+    [unavailablePeriods],
+  )
+
+  const isDateBlocked = (date) => {
+    const iso = toISODate(date)
+    return periods.some((p) => iso >= p.startDate && iso <= p.endDate)
+  }
+
   const endMin = useMemo(() => {
     if (!start) return min
     const offset = span > 1 ? span : 0
     const candidate = addDays(start, offset)
     return candidate.getTime() > min.getTime() ? candidate : min
   }, [start, span, min])
+
+  const endMax = useMemo(() => {
+    if (!start || maxSpan <= 0) return max
+    // Calendar span of N rental days with equal times ≈ N days ahead for ceil-day calc when times equal.
+    const candidate = addDays(start, Math.max(0, maxSpan))
+    if (!max) return candidate
+    return candidate.getTime() < max.getTime() ? candidate : max
+  }, [start, maxSpan, max])
+
   const gridMin = activeField === 'end' && start ? endMin : min
+  const gridMax = activeField === 'end' && start ? endMax : max
   const weekdays = WEEKDAYS[language] || WEEKDAYS.en
   const monthNames = MONTHS[language] || MONTHS.en
 
@@ -275,8 +317,20 @@ const DateRangePicker = ({
     setOpen(true)
   }
 
+  const rangeCrossesUnavailable = (from, to) => {
+    if (!from || !to) return false
+    let cursor = new Date(from)
+    while (cursor.getTime() <= to.getTime()) {
+      if (isDateBlocked(cursor)) return true
+      cursor = addDays(cursor, 1)
+    }
+    return false
+  }
+
   const handleSelect = (date) => {
     if (isBeforeDay(date, min)) return
+    if (max && isAfterDay(date, max)) return
+    if (isDateBlocked(date)) return
 
     if (activeField === 'start' || !start || (start && end)) {
       onChange({ startDate: toISODate(date), endDate: '' })
@@ -293,6 +347,8 @@ const DateRangePicker = ({
 
     // Enforce minimum rental span when choosing the return date.
     if (isBeforeDay(date, endMin)) return
+    if (endMax && isAfterDay(date, endMax)) return
+    if (rangeCrossesUnavailable(start, date)) return
 
     onChange({ startDate: toISODate(start), endDate: toISODate(date) })
     setHover(null)
@@ -348,6 +404,9 @@ const DateRangePicker = ({
                 {hint || t('carDetails.minRentalGuide', { days: span })}
               </p>
             ) : null}
+            {periods.length > 0 ? (
+              <p className="mt-1 text-xs leading-snug text-muted">{t('carDetails.unavailableLegend')}</p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -377,6 +436,7 @@ const DateRangePicker = ({
           <MonthGrid
             monthDate={viewMonth}
             minDate={gridMin}
+            maxDate={gridMax}
             start={start}
             end={end}
             hover={activeField === 'end' ? hover : null}
@@ -384,11 +444,13 @@ const DateRangePicker = ({
             onHover={setHover}
             weekdays={weekdays}
             monthNames={monthNames}
+            isDateBlocked={isDateBlocked}
           />
           <div className="hidden md:block">
             <MonthGrid
               monthDate={addMonths(viewMonth, 1)}
               minDate={gridMin}
+              maxDate={gridMax}
               start={start}
               end={end}
               hover={activeField === 'end' ? hover : null}
@@ -396,6 +458,7 @@ const DateRangePicker = ({
               onHover={setHover}
               weekdays={weekdays}
               monthNames={monthNames}
+              isDateBlocked={isDateBlocked}
             />
           </div>
         </div>

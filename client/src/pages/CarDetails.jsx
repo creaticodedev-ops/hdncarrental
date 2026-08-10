@@ -10,10 +10,14 @@ import { getErrorMessage } from '../utils/apiError'
 import { formatLocationsDisplay, getCarLocations } from '../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../utils/pricing'
 import {
-  durationMessageFromCode,
   earliestReturnIsoDate,
   validateRentalDuration,
 } from '../utils/bookingDuration'
+import {
+  bookingDateMessageFromCode,
+  mergeUnavailablePeriods,
+  validateBookingDates,
+} from '../utils/vehicleAvailability'
 import { isPhoneValid } from '../components/PhoneInput'
 import { buildGuestReservationWaUrl, createExternalTabOpener } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
@@ -45,7 +49,7 @@ const formatFeeLabel = (location, currency, freeLabel) => {
 
 const CarDetails = () => {
   const { id } = useParams()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const { cars, axios, pickupDate, setPickupDate, returnDate, setReturnDate, pickupLocations, carsLoading } = useAppContext()
 
   const navigate = useNavigate()
@@ -69,6 +73,7 @@ const CarDetails = () => {
   const [quoting, setQuoting] = useState(false)
   // null until loaded from the owner's live bookingSettings — never assume a hardcoded minimum.
   const [bookingRules, setBookingRules] = useState(null)
+  const [unavailablePeriods, setUnavailablePeriods] = useState([])
   const [rulesLoading, setRulesLoading] = useState(true)
 
   const currency = import.meta.env.VITE_CURRENCY || 'MAD '
@@ -79,13 +84,32 @@ const CarDetails = () => {
   const maxRentalDays = bookingRules
     ? Math.max(minRentalDays, Number(bookingRules.maxRentalDays) || 365)
     : null
+  const advanceBookingDays = bookingRules
+    ? Math.max(1, Number(bookingRules.advanceBookingDays) || 365)
+    : 365
+  const pickupHoursStart = bookingRules?.pickupHoursStart || '08:00'
+  const pickupHoursEnd = bookingRules?.pickupHoursEnd || '20:00'
+  const returnHoursStart = bookingRules?.returnHoursStart || '08:00'
+  const returnHoursEnd = bookingRules?.returnHoursEnd || '20:00'
 
   const applyBookingRules = (rules) => {
     if (!rules || rules.minRentalDays == null) return
-    setBookingRules({
+    setBookingRules((prev) => ({
       minRentalDays: Math.max(1, Number(rules.minRentalDays) || 1),
       maxRentalDays: Math.max(1, Number(rules.maxRentalDays) || 365),
-    })
+      advanceBookingDays: Math.max(
+        1,
+        Number(rules.advanceBookingDays ?? prev?.advanceBookingDays) || 365,
+      ),
+      pickupHoursStart: rules.pickupHoursStart || prev?.pickupHoursStart || '08:00',
+      pickupHoursEnd: rules.pickupHoursEnd || prev?.pickupHoursEnd || '20:00',
+      returnHoursStart: rules.returnHoursStart || prev?.returnHoursStart || '08:00',
+      returnHoursEnd: rules.returnHoursEnd || prev?.returnHoursEnd || '20:00',
+    }))
+  }
+
+  const applyUnavailablePeriods = (periods) => {
+    setUnavailablePeriods(mergeUnavailablePeriods(periods || []))
   }
 
   // Always load the car + live booking rules from the API (catalog cache is only a paint hint).
@@ -121,6 +145,9 @@ const CarDetails = () => {
 
         if (!rulesRes.error && rulesRes.data?.success && rulesRes.data.bookingRules) {
           applyBookingRules(rulesRes.data.bookingRules)
+          if (Array.isArray(rulesRes.data.unavailablePeriods)) {
+            applyUnavailablePeriods(rulesRes.data.unavailablePeriods)
+          }
         }
       } finally {
         if (!cancelled) setRulesLoading(false)
@@ -131,13 +158,16 @@ const CarDetails = () => {
     return () => { cancelled = true }
   }, [cars, id, carsLoading, axios, reloadToken])
 
-  // Refresh live rules when the tab regains focus (Admin may have just changed Settings).
+  // Refresh live rules + availability when the tab regains focus / periodically.
   useEffect(() => {
     if (!id) return undefined
     const refreshRules = async () => {
       try {
         const { data } = await axios.get(`/api/user/cars/${id}/booking-rules`)
         if (data.success && data.bookingRules) applyBookingRules(data.bookingRules)
+        if (data.success && Array.isArray(data.unavailablePeriods)) {
+          applyUnavailablePeriods(data.unavailablePeriods)
+        }
       } catch {
         /* keep last known rules */
       }
@@ -146,9 +176,11 @@ const CarDetails = () => {
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshRules()
     }
+    const interval = window.setInterval(refreshRules, 60_000)
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
+      window.clearInterval(interval)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
@@ -214,23 +246,62 @@ const CarDetails = () => {
     })
   }, [car, pickupDate, returnDate, pickupLoc, returnLoc])
 
-  const durationCheck = useMemo(() => {
+  const dateCheck = useMemo(() => {
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
-    if (!pickup || !ret) return { ok: true, days: 0 }
-    // Until live rules load, do not client-approve a short stay.
+    if (!pickup || !ret) return { ok: true, code: null, days: 0 }
     if (minRentalDays == null || maxRentalDays == null) {
       return { ok: false, code: 'RULES_LOADING', days: 0 }
     }
-    return validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
-  }, [pickupDate, returnDate, minRentalDays, maxRentalDays])
+    return validateBookingDates(pickup, ret, {
+      minRentalDays,
+      maxRentalDays,
+      advanceBookingDays,
+      pickupHoursStart,
+      pickupHoursEnd,
+      returnHoursStart,
+      returnHoursEnd,
+      unavailablePeriods,
+    })
+  }, [
+    pickupDate,
+    returnDate,
+    minRentalDays,
+    maxRentalDays,
+    advanceBookingDays,
+    pickupHoursStart,
+    pickupHoursEnd,
+    returnHoursStart,
+    returnHoursEnd,
+    unavailablePeriods,
+  ])
 
-  const durationError = useMemo(() => {
+  const dateError = useMemo(() => {
     if (!pickupDate || !returnDate) return ''
-    if (durationCheck.code === 'RULES_LOADING' || rulesLoading) return ''
-    if (durationCheck.ok) return ''
-    return durationMessageFromCode(t, durationCheck)
-  }, [pickupDate, returnDate, durationCheck, rulesLoading, t])
+    if (dateCheck.code === 'RULES_LOADING' || rulesLoading) return ''
+    if (dateCheck.ok) return ''
+    return bookingDateMessageFromCode(t, language, {
+      ...dateCheck,
+      hoursStart:
+        dateCheck.code === 'RETURN_HOURS' ? returnHoursStart : pickupHoursStart,
+      hoursEnd: dateCheck.code === 'RETURN_HOURS' ? returnHoursEnd : pickupHoursEnd,
+    })
+  }, [
+    pickupDate,
+    returnDate,
+    dateCheck,
+    rulesLoading,
+    t,
+    language,
+    pickupHoursStart,
+    pickupHoursEnd,
+    returnHoursStart,
+    returnHoursEnd,
+  ])
+
+  // Keep legacy alias used by quote gating / price preview.
+  const durationCheck = dateCheck
+  const durationError = dateError
 
   useEffect(() => {
     if (!car || !pickupDate || !returnDate || !form.pickupLocationId || !form.returnLocationId) {
@@ -244,9 +315,22 @@ const CarDetails = () => {
       setServerQuote(null)
       return
     }
-    // Still quote when local rules say too short — server is authority and returns live min.
     if (durationCheck.code === 'RULES_LOADING') {
       setServerQuote(null)
+      return
+    }
+    // Do not quote while dates are clearly invalid / unavailable (local guidance).
+    if (
+      durationCheck.code === 'DATES_UNAVAILABLE'
+      || durationCheck.code === 'PAST_PICKUP'
+      || durationCheck.code === 'INVALID_DATES'
+      || durationCheck.code === 'PICKUP_HOURS'
+      || durationCheck.code === 'RETURN_HOURS'
+      || durationCheck.code === 'ADVANCE_BOOKING'
+      || durationCheck.code === 'MAX_RENTAL_DAYS'
+    ) {
+      setServerQuote(null)
+      setPromoError('')
       return
     }
 
@@ -267,21 +351,24 @@ const CarDetails = () => {
         if (data.success) {
           setServerQuote(data)
           setPromoError('')
-          if (data.bookingSettings) {
-            setBookingRules((prev) => ({
-              minRentalDays: data.bookingSettings.minRentalDays ?? prev.minRentalDays,
-              maxRentalDays: data.bookingSettings.maxRentalDays ?? prev.maxRentalDays,
-            }))
-          }
+          if (data.bookingSettings) applyBookingRules(data.bookingSettings)
         } else {
           setServerQuote(null)
-          if (data.code === 'MIN_RENTAL_DAYS' || data.code === 'MAX_RENTAL_DAYS') {
+          if (data.code === 'DATES_UNAVAILABLE') {
             setPromoError('')
-            if (data.minRentalDays || data.maxRentalDays) {
-              setBookingRules((prev) => ({
-                minRentalDays: data.minRentalDays ?? prev.minRentalDays,
-                maxRentalDays: data.maxRentalDays ?? prev.maxRentalDays,
-              }))
+            if (Array.isArray(data.unavailablePeriods)) {
+              setUnavailablePeriods((prev) =>
+                mergeUnavailablePeriods([...prev, ...data.unavailablePeriods]),
+              )
+            }
+          } else if (data.code === 'MIN_RENTAL_DAYS' || data.code === 'MAX_RENTAL_DAYS' || data.bookingSettings) {
+            setPromoError('')
+            if (data.minRentalDays || data.maxRentalDays || data.bookingSettings) {
+              applyBookingRules({
+                ...(data.bookingSettings || {}),
+                minRentalDays: data.minRentalDays ?? data.bookingSettings?.minRentalDays,
+                maxRentalDays: data.maxRentalDays ?? data.bookingSettings?.maxRentalDays,
+              })
             }
           } else {
             setPromoError(data.message || '')
@@ -291,19 +378,31 @@ const CarDetails = () => {
         if (cancelled) return
         setServerQuote(null)
         const payload = error.response?.data || {}
-        if (payload.code === 'MIN_RENTAL_DAYS' || payload.code === 'MAX_RENTAL_DAYS') {
+        if (payload.code === 'DATES_UNAVAILABLE') {
           setPromoError('')
-          if (payload.minRentalDays || payload.maxRentalDays || payload.bookingSettings) {
-            setBookingRules((prev) => ({
-              minRentalDays:
-                payload.minRentalDays
-                ?? payload.bookingSettings?.minRentalDays
-                ?? prev.minRentalDays,
-              maxRentalDays:
-                payload.maxRentalDays
-                ?? payload.bookingSettings?.maxRentalDays
-                ?? prev.maxRentalDays,
-            }))
+          if (Array.isArray(payload.unavailablePeriods)) {
+            setUnavailablePeriods((prev) =>
+              mergeUnavailablePeriods([...prev, ...payload.unavailablePeriods]),
+            )
+          }
+        } else if (
+          payload.code === 'MIN_RENTAL_DAYS'
+          || payload.code === 'MAX_RENTAL_DAYS'
+          || payload.code === 'ADVANCE_BOOKING'
+          || payload.code === 'PAST_PICKUP'
+          || payload.code === 'PICKUP_HOURS'
+          || payload.code === 'RETURN_HOURS'
+          || payload.bookingSettings
+        ) {
+          setPromoError('')
+          if (payload.bookingSettings || payload.minRentalDays || payload.maxRentalDays) {
+            applyBookingRules({
+              ...(payload.bookingSettings || {}),
+              minRentalDays: payload.minRentalDays ?? payload.bookingSettings?.minRentalDays,
+              maxRentalDays: payload.maxRentalDays ?? payload.bookingSettings?.maxRentalDays,
+              advanceBookingDays:
+                payload.advanceBookingDays ?? payload.bookingSettings?.advanceBookingDays,
+            })
           }
         } else {
           setPromoError(getErrorMessage(error))
@@ -326,6 +425,7 @@ const CarDetails = () => {
     form.returnLocationId,
     form.promoCode,
     form.email,
+    durationCheck.code,
   ])
 
   const priceBreakdown = useMemo(() => {
@@ -352,17 +452,28 @@ const CarDetails = () => {
     if (submitting || submitted) return
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
-    if (new Date(ret) <= new Date(pickup)) {
-      toast.error(t('carDetails.invalidDates'))
-      return
-    }
     if (minRentalDays == null || maxRentalDays == null) {
       toast.error(t('carDetails.rulesLoading'))
       return
     }
-    const duration = validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
-    if (!duration.ok) {
-      toast.error(durationMessageFromCode(t, duration))
+    const check = validateBookingDates(pickup, ret, {
+      minRentalDays,
+      maxRentalDays,
+      advanceBookingDays,
+      pickupHoursStart,
+      pickupHoursEnd,
+      returnHoursStart,
+      returnHoursEnd,
+      unavailablePeriods,
+    })
+    if (!check.ok) {
+      toast.error(
+        bookingDateMessageFromCode(t, language, {
+          ...check,
+          hoursStart: check.code === 'RETURN_HOURS' ? returnHoursStart : pickupHoursStart,
+          hoursEnd: check.code === 'RETURN_HOURS' ? returnHoursEnd : pickupHoursEnd,
+        }),
+      )
       return
     }
     if (!form.pickupLocationId || !form.returnLocationId) {
@@ -385,6 +496,46 @@ const CarDetails = () => {
 
     // Mobile browsers block popups opened after await — prepare the tab in this gesture.
     const waTab = channel === 'whatsapp' ? createExternalTabOpener() : null
+
+    // Re-check availability immediately before submit (race guidance).
+    try {
+      const { data: live } = await axios.get(`/api/user/cars/${id}/booking-rules`)
+      if (live?.success) {
+        if (live.bookingRules) applyBookingRules(live.bookingRules)
+        if (Array.isArray(live.unavailablePeriods)) {
+          applyUnavailablePeriods(live.unavailablePeriods)
+          const recheck = validateBookingDates(pickup, ret, {
+            minRentalDays: live.bookingRules?.minRentalDays ?? minRentalDays,
+            maxRentalDays: live.bookingRules?.maxRentalDays ?? maxRentalDays,
+            advanceBookingDays: live.bookingRules?.advanceBookingDays ?? advanceBookingDays,
+            pickupHoursStart: live.bookingRules?.pickupHoursStart || pickupHoursStart,
+            pickupHoursEnd: live.bookingRules?.pickupHoursEnd || pickupHoursEnd,
+            returnHoursStart: live.bookingRules?.returnHoursStart || returnHoursStart,
+            returnHoursEnd: live.bookingRules?.returnHoursEnd || returnHoursEnd,
+            unavailablePeriods: live.unavailablePeriods,
+          })
+          if (!recheck.ok) {
+            waTab?.close()
+            toast.error(
+              bookingDateMessageFromCode(t, language, {
+                ...recheck,
+                hoursStart:
+                  recheck.code === 'RETURN_HOURS'
+                    ? (live.bookingRules?.returnHoursStart || returnHoursStart)
+                    : (live.bookingRules?.pickupHoursStart || pickupHoursStart),
+                hoursEnd:
+                  recheck.code === 'RETURN_HOURS'
+                    ? (live.bookingRules?.returnHoursEnd || returnHoursEnd)
+                    : (live.bookingRules?.pickupHoursEnd || pickupHoursEnd),
+              }),
+            )
+            return
+          }
+        }
+      }
+    } catch {
+      /* proceed — server remains final authority */
+    }
 
     setSubmitting(true)
     try {
@@ -451,8 +602,6 @@ const CarDetails = () => {
               duration: 5000,
             })
           }
-          // WhatsApp tab is already open — move this tab to the confirmation page
-          // so the reservation ID is not stuck in a disappearing toast.
           navigate('/booking-confirmation', { state: confirmation })
           return
         }
@@ -461,10 +610,19 @@ const CarDetails = () => {
         navigate('/booking-confirmation', { state: confirmation })
       } else {
         waTab?.close()
-        const msg = durationMessageFromCode(t, {
+        if (data.code === 'DATES_UNAVAILABLE' && Array.isArray(data.unavailablePeriods)) {
+          setUnavailablePeriods((prev) =>
+            mergeUnavailablePeriods([...prev, ...data.unavailablePeriods]),
+          )
+        }
+        const msg = bookingDateMessageFromCode(t, language, {
           code: data.code,
           minRentalDays: data.minRentalDays ?? data.bookingSettings?.minRentalDays,
           maxRentalDays: data.maxRentalDays ?? data.bookingSettings?.maxRentalDays,
+          advanceBookingDays: data.advanceBookingDays ?? data.bookingSettings?.advanceBookingDays,
+          unavailablePeriods: data.unavailablePeriods,
+          hoursStart: data.bookingSettings?.pickupHoursStart,
+          hoursEnd: data.bookingSettings?.pickupHoursEnd,
           fallback: data.message,
         })
         toast.error(msg)
@@ -472,10 +630,19 @@ const CarDetails = () => {
     } catch (error) {
       waTab?.close()
       const payload = error.response?.data || {}
-      const msg = durationMessageFromCode(t, {
+      if (payload.code === 'DATES_UNAVAILABLE' && Array.isArray(payload.unavailablePeriods)) {
+        setUnavailablePeriods((prev) =>
+          mergeUnavailablePeriods([...prev, ...payload.unavailablePeriods]),
+        )
+      }
+      const msg = bookingDateMessageFromCode(t, language, {
         code: payload.code,
         minRentalDays: payload.minRentalDays ?? payload.bookingSettings?.minRentalDays,
         maxRentalDays: payload.maxRentalDays ?? payload.bookingSettings?.maxRentalDays,
+        advanceBookingDays: payload.advanceBookingDays ?? payload.bookingSettings?.advanceBookingDays,
+        unavailablePeriods: payload.unavailablePeriods,
+        hoursStart: payload.bookingSettings?.pickupHoursStart || pickupHoursStart,
+        hoursEnd: payload.bookingSettings?.pickupHoursEnd || pickupHoursEnd,
         fallback: getErrorMessage(error),
       })
       toast.error(msg)
@@ -634,7 +801,14 @@ const CarDetails = () => {
             formatFeeLabel={(loc) => formatFeeLabel(loc, currency, t('carDetails.free'))}
             minDate={minDate}
             minRentalDays={minRentalDays}
-            durationError={durationError}
+            maxRentalDays={maxRentalDays}
+            advanceBookingDays={advanceBookingDays}
+            pickupHoursStart={pickupHoursStart}
+            pickupHoursEnd={pickupHoursEnd}
+            returnHoursStart={returnHoursStart}
+            returnHoursEnd={returnHoursEnd}
+            unavailablePeriods={unavailablePeriods}
+            dateError={dateError}
             rulesLoading={rulesLoading || minRentalDays == null}
             promoError={promoError}
             quoting={quoting}

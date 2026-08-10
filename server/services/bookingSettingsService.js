@@ -170,6 +170,16 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
     };
   }
 
+  const now = new Date();
+  if (picked < now) {
+    return {
+      ok: false,
+      code: 'PAST_PICKUP',
+      message: 'Pickup date & time cannot be in the past',
+      settings,
+    };
+  }
+
   const days = calcRentalDays(picked, returned);
   if (days < settings.minRentalDays) {
     return {
@@ -194,13 +204,13 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
     };
   }
 
-  const now = new Date();
   const maxAdvance = new Date(now.getTime() + settings.advanceBookingDays * 24 * 60 * 60 * 1000);
   if (picked > maxAdvance) {
     return {
       ok: false,
       code: 'ADVANCE_BOOKING',
       message: `Bookings cannot be made more than ${settings.advanceBookingDays} day(s) in advance`,
+      advanceBookingDays: settings.advanceBookingDays,
       settings,
     };
   }

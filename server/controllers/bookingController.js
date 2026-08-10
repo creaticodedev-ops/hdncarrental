@@ -43,6 +43,10 @@ import { normalizeToE164 } from "../utils/phoneValidation.js";
 import { groupCarsForCatalog, resolveAvailableCarUnit, withCatalogDisplayOrders } from "../utils/carCatalog.js";
 import { channelQuery } from "../utils/bookingChannel.js";
 import { applyCompletionDetailsToBooking } from "../utils/applyCompletionDetails.js";
+import {
+  isModelAvailableForDates,
+  publicUnavailablePayload,
+} from "../services/availabilityService.js";
 
 const BOOKING_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'active', 'completed', 'cancelled'];
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
@@ -301,13 +305,37 @@ export const quoteBooking = async (req, res) => {
         code: quote.code || undefined,
         minRentalDays: quote.minRentalDays,
         maxRentalDays: quote.maxRentalDays,
+        advanceBookingDays: quote.settings?.advanceBookingDays,
         days: quote.days,
         bookingSettings: quote.settings
           ? {
               minRentalDays: quote.settings.minRentalDays,
               maxRentalDays: quote.settings.maxRentalDays,
+              advanceBookingDays: quote.settings.advanceBookingDays,
+              pickupHoursStart: quote.settings.pickupHoursStart,
+              pickupHoursEnd: quote.settings.pickupHoursEnd,
+              returnHoursStart: quote.settings.returnHoursStart,
+              returnHoursEnd: quote.settings.returnHoursEnd,
             }
           : undefined,
+      });
+    }
+
+    const availability = await isModelAvailableForDates({
+      ownerId: carData.owner,
+      brand: carData.brand,
+      model: carData.model,
+      pickupDate: dates.picked,
+      returnDate: dates.returned,
+      preferredCarId: carId,
+    });
+    if (!availability.available) {
+      const periods = publicUnavailablePayload(availability.unavailablePeriods);
+      return res.status(409).json({
+        success: false,
+        code: 'DATES_UNAVAILABLE',
+        message: 'This vehicle is not available for the selected dates',
+        unavailablePeriods: periods,
       });
     }
 
@@ -319,6 +347,11 @@ export const quoteBooking = async (req, res) => {
       bookingSettings: {
         minRentalDays: quote.settings.minRentalDays,
         maxRentalDays: quote.settings.maxRentalDays,
+        advanceBookingDays: quote.settings.advanceBookingDays,
+        pickupHoursStart: quote.settings.pickupHoursStart,
+        pickupHoursEnd: quote.settings.pickupHoursEnd,
+        returnHoursStart: quote.settings.returnHoursStart,
+        returnHoursEnd: quote.settings.returnHoursEnd,
         cancellationPolicyText: quote.settings.cancellationPolicyText,
         mileageMode: quote.settings.mileageMode,
         mileageLimitKmPerDay: quote.settings.mileageLimitKmPerDay,
@@ -395,7 +428,20 @@ export const createBooking = async (req, res) => {
     });
 
     if (!assignedCar) {
-      return res.status(409).json({ success: false, message: 'No vehicle of this model is available for the selected dates' });
+      const availability = await isModelAvailableForDates({
+        ownerId: carData.owner,
+        brand: carData.brand,
+        model: carData.model,
+        pickupDate: dates.picked,
+        returnDate: dates.returned,
+        preferredCarId: carId,
+      });
+      return res.status(409).json({
+        success: false,
+        code: 'DATES_UNAVAILABLE',
+        message: 'This vehicle is not available for the selected dates',
+        unavailablePeriods: publicUnavailablePayload(availability.unavailablePeriods),
+      });
     }
 
     const carForBooking = assignedCar;
@@ -454,11 +500,17 @@ export const createBooking = async (req, res) => {
         code: quote.code || undefined,
         minRentalDays: quote.minRentalDays,
         maxRentalDays: quote.maxRentalDays,
+        advanceBookingDays: quote.settings?.advanceBookingDays,
         days: quote.days,
         bookingSettings: quote.settings
           ? {
               minRentalDays: quote.settings.minRentalDays,
               maxRentalDays: quote.settings.maxRentalDays,
+              advanceBookingDays: quote.settings.advanceBookingDays,
+              pickupHoursStart: quote.settings.pickupHoursStart,
+              pickupHoursEnd: quote.settings.pickupHoursEnd,
+              returnHoursStart: quote.settings.returnHoursStart,
+              returnHoursEnd: quote.settings.returnHoursEnd,
             }
           : undefined,
       });
@@ -484,7 +536,20 @@ export const createBooking = async (req, res) => {
     const stillAvailable = await checkAvailability(carForBooking._id, dates.picked, dates.returned);
     if (!stillAvailable) {
       await releasePromotionUsage(reserved.reserved, { customerEmail });
-      return res.status(409).json({ success: false, message: 'No vehicle of this model is available for the selected dates' });
+      const availability = await isModelAvailableForDates({
+        ownerId: carForBooking.owner,
+        brand: carForBooking.brand,
+        model: carForBooking.model,
+        pickupDate: dates.picked,
+        returnDate: dates.returned,
+        preferredCarId: carForBooking._id,
+      });
+      return res.status(409).json({
+        success: false,
+        code: 'DATES_UNAVAILABLE',
+        message: 'This vehicle was just booked for these dates. Please select different dates.',
+        unavailablePeriods: publicUnavailablePayload(availability.unavailablePeriods),
+      });
     }
 
     let booking;

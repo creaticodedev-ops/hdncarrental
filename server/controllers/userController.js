@@ -14,6 +14,8 @@ import { normalizeEmail, findUserByEmail } from '../utils/emailUtils.js';
 import { BRAND_NAME } from '../utils/brand.js';
 import { attachDisplayPromotions } from '../services/promotionDisplayService.js';
 import { getBookingSettings } from '../services/bookingSettingsService.js';
+import { getModelUnavailablePeriods } from '../services/availabilityService.js';
+import { parseAgencyDateTime } from '../utils/moroccoTime.js';
 
 /** Normalize owner id whether it is ObjectId, string, or populated `{ _id }`. */
 const ownerKey = (owner) => {
@@ -43,6 +45,11 @@ const attachBookingRules = async (carsInput) => {
             bookingRules: {
                 minRentalDays: Number(settings.minRentalDays) || 1,
                 maxRentalDays: Number(settings.maxRentalDays) || 90,
+                advanceBookingDays: Number(settings.advanceBookingDays) || 365,
+                pickupHoursStart: settings.pickupHoursStart || '08:00',
+                pickupHoursEnd: settings.pickupHoursEnd || '20:00',
+                returnHoursStart: settings.returnHoursStart || '08:00',
+                returnHoursEnd: settings.returnHoursEnd || '20:00',
             },
         };
     });
@@ -202,10 +209,19 @@ export const getCarById = async (req, res) => {
     }
 };
 
+const publicBookingRules = (settings) => ({
+    minRentalDays: Number(settings.minRentalDays) || 1,
+    maxRentalDays: Number(settings.maxRentalDays) || 90,
+    advanceBookingDays: Number(settings.advanceBookingDays) || 365,
+    pickupHoursStart: settings.pickupHoursStart || '08:00',
+    pickupHoursEnd: settings.pickupHoursEnd || '20:00',
+    returnHoursStart: settings.returnHoursStart || '08:00',
+    returnHoursEnd: settings.returnHoursEnd || '20:00',
+});
+
 /**
- * Lightweight public endpoint: live booking duration rules for a vehicle's owner.
- * Used by the customer booking UI so Admin Settings changes apply immediately
- * without relying on a stale catalog cache.
+ * Lightweight public endpoint: live booking rules + unavailable date periods
+ * for a vehicle model. No customer / booking PII is exposed.
  */
 export const getCarBookingRules = async (req, res) => {
     try {
@@ -215,19 +231,36 @@ export const getCarBookingRules = async (req, res) => {
         }
 
         const car = await Car.findOne({ _id: id, isAvaliable: true, owner: { $ne: null } })
-            .select('owner')
+            .select('owner brand model')
             .lean();
         if (!car?.owner) {
             return res.status(404).json({ success: false, message: 'Car not found' });
         }
 
         const settings = await getBookingSettings(car.owner);
+        const rules = publicBookingRules(settings);
+
+        const now = new Date();
+        const fromParam = req.query?.from ? parseAgencyDateTime(String(req.query.from)) : now;
+        const defaultTo = new Date(now.getTime() + (rules.advanceBookingDays || 365) * 86400000);
+        const toParam = req.query?.to ? parseAgencyDateTime(String(req.query.to)) : defaultTo;
+        const fromDate = Number.isNaN(fromParam.getTime()) ? now : fromParam;
+        const toDate = Number.isNaN(toParam.getTime()) ? defaultTo : toParam;
+
+        const { unavailablePeriods, unitCount } = await getModelUnavailablePeriods({
+            ownerId: car.owner,
+            brand: car.brand,
+            model: car.model,
+            fromDate,
+            toDate,
+            preferredCarId: car._id,
+        });
+
         res.json({
             success: true,
-            bookingRules: {
-                minRentalDays: Number(settings.minRentalDays) || 1,
-                maxRentalDays: Number(settings.maxRentalDays) || 90,
-            },
+            bookingRules: rules,
+            unavailablePeriods,
+            unitCount,
             ownerId: String(car.owner),
         });
     } catch (error) {
