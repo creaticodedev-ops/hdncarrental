@@ -140,7 +140,12 @@ const Settings = () => {
           ) : (
             <>
               {tab === 'booking' && (
-                <BookingSettingsPanel axios={axios} initial={bookingSettings} t={t} />
+                <BookingSettingsPanel
+                  axios={axios}
+                  initial={bookingSettings}
+                  t={t}
+                  onSaved={(saved) => setBookingSettings(saved)}
+                />
               )}
               {tab === 'promotions' && (
                 <PromotionsPanel axios={axios} t={t} currency={currency || 'MAD '} />

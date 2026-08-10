@@ -62,7 +62,7 @@ const fade = {
   }),
 }
 
-function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel, daysLabel, durationError = '', minRentalDays = 1 }) {
+function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel, daysLabel, durationError = '', minRentalDays = 0, rulesLoading = false }) {
   const ready = breakdown?.ready
 
   return (
@@ -74,8 +74,11 @@ function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel,
             {car.brand} {car.model}
           </p>
           {ready && daysLabel ? <p className="mt-1.5 text-xs text-muted">{daysLabel}</p> : null}
-          {!ready && minRentalDays > 1 ? (
+          {!ready && !rulesLoading && minRentalDays > 1 ? (
             <p className="mt-1.5 text-xs text-muted">{t('carDetails.minRentalGuide', { days: minRentalDays })}</p>
+          ) : null}
+          {rulesLoading ? (
+            <p className="mt-1.5 text-xs text-muted">{t('carDetails.rulesLoading')}</p>
           ) : null}
         </div>
         <div className="shrink-0 text-right">
@@ -168,12 +171,13 @@ export default function ReservationPanel({
   t,
   formatFeeLabel,
   minDate,
-  minRentalDays = 1,
+  minRentalDays = null,
   durationError = '',
+  rulesLoading = false,
   promoError = '',
   quoting = false,
 }) {
-  const ready = priceBreakdown?.ready && !durationError
+  const ready = priceBreakdown?.ready && !durationError && !rulesLoading && minRentalDays != null
   const disabled = submitting || !ready
 
   const locationOptions = useMemo(
@@ -248,6 +252,7 @@ export default function ReservationPanel({
                 setReturnDate={setReturnDate}
                 minDate={minDate}
                 minRentalDays={minRentalDays}
+                rulesLoading={rulesLoading}
                 durationError={durationError}
               />
               <div>
@@ -385,7 +390,8 @@ export default function ReservationPanel({
               returnLabel={returnShort}
               daysLabel={daysLabel}
               durationError={durationError}
-              minRentalDays={minRentalDays}
+              minRentalDays={minRentalDays || 0}
+              rulesLoading={rulesLoading}
             />
           </Motion.div>
 

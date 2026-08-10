@@ -231,13 +231,24 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
 export const updateBookingSettings = async (ownerId, body = {}) => {
   const doc = await getOrCreateAgencySettings(ownerId);
   if (!doc) throw new Error('Owner required');
-  const next = normalizeBookingSettings({
-    ...(doc.bookingSettings?.toObject?.() || doc.bookingSettings || {}),
-    ...body,
-  });
-  doc.bookingSettings = next;
-  await doc.save();
-  return next;
+  const current = doc.bookingSettings?.toObject?.() || doc.bookingSettings || {};
+  const next = normalizeBookingSettings({ ...current, ...body });
+
+  // Use atomic $set so nested bookingSettings always persist (avoids silent
+  // Mongoose subdoc replace misses).
+  const AgencySettings = (await import('../models/AgencySettings.js')).default;
+  const updated = await AgencySettings.findOneAndUpdate(
+    { owner: ownerId },
+    { $set: { bookingSettings: next } },
+    { new: true, upsert: false, runValidators: true },
+  );
+  if (!updated) {
+    doc.bookingSettings = next;
+    doc.markModified('bookingSettings');
+    await doc.save();
+    return next;
+  }
+  return normalizeBookingSettings(updated.bookingSettings || next);
 };
 
 export default {

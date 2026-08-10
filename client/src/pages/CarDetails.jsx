@@ -67,50 +67,92 @@ const CarDetails = () => {
   const [serverQuote, setServerQuote] = useState(null)
   const [promoError, setPromoError] = useState('')
   const [quoting, setQuoting] = useState(false)
-  const [bookingRules, setBookingRules] = useState({ minRentalDays: 1, maxRentalDays: 365 })
+  // null until loaded from the owner's live bookingSettings — never assume a hardcoded minimum.
+  const [bookingRules, setBookingRules] = useState(null)
+  const [rulesLoading, setRulesLoading] = useState(true)
 
   const currency = import.meta.env.VITE_CURRENCY || 'MAD '
   const fallbackImage = assets.car_image1
-  const minRentalDays = Math.max(1, Number(bookingRules.minRentalDays) || 1)
-  const maxRentalDays = Math.max(minRentalDays, Number(bookingRules.maxRentalDays) || 365)
+  const minRentalDays = bookingRules
+    ? Math.max(1, Number(bookingRules.minRentalDays) || 1)
+    : null
+  const maxRentalDays = bookingRules
+    ? Math.max(minRentalDays, Number(bookingRules.maxRentalDays) || 365)
+    : null
 
+  const applyBookingRules = (rules) => {
+    if (!rules || rules.minRentalDays == null) return
+    setBookingRules({
+      minRentalDays: Math.max(1, Number(rules.minRentalDays) || 1),
+      maxRentalDays: Math.max(1, Number(rules.maxRentalDays) || 365),
+    })
+  }
+
+  // Always load the car + live booking rules from the API (catalog cache is only a paint hint).
   useEffect(() => {
+    let cancelled = false
     const fromList = cars.find((c) => c._id === id)
-    if (fromList) {
-      setCar(fromList)
-      if (fromList.bookingRules) {
-        setBookingRules({
-          minRentalDays: fromList.bookingRules.minRentalDays ?? 1,
-          maxRentalDays: fromList.bookingRules.maxRentalDays ?? 365,
-        })
-      }
-      return
-    }
+    if (fromList) setCar(fromList)
 
-    const fetchCar = async () => {
+    const load = async () => {
       setLoadError(false)
+      setRulesLoading(true)
       try {
-        const { data } = await axios.get(`/api/user/cars/${id}`)
-        if (data.success) {
-          setCar(data.car)
-          if (data.car?.bookingRules) {
-            setBookingRules({
-              minRentalDays: data.car.bookingRules.minRentalDays ?? 1,
-              maxRentalDays: data.car.bookingRules.maxRentalDays ?? 365,
-            })
+        // Prefer dedicated live rules endpoint; always also fetch the car.
+        // Requests are independent so a missing rules route cannot block the page.
+        const carReq = axios.get(`/api/user/cars/${id}`).catch((error) => ({ error }))
+        const rulesReq = axios.get(`/api/user/cars/${id}/booking-rules`).catch((error) => ({ error }))
+        const [carRes, rulesRes] = await Promise.all([carReq, rulesReq])
+        if (cancelled) return
+
+        if (carRes.error) {
+          if (carRes.error.response?.status === 404 && !fromList) setNotFound(true)
+          else if (!fromList) {
+            toast.error(getErrorMessage(carRes.error))
+            setLoadError(true)
           }
-        } else setNotFound(true)
-      } catch (error) {
-        if (error.response?.status === 404) setNotFound(true)
-        else {
-          toast.error(getErrorMessage(error))
-          setLoadError(true)
+          if (fromList?.bookingRules) applyBookingRules(fromList.bookingRules)
+        } else if (carRes.data?.success && carRes.data.car) {
+          setCar(carRes.data.car)
+          if (carRes.data.car.bookingRules) applyBookingRules(carRes.data.car.bookingRules)
+        } else if (!fromList) {
+          setNotFound(true)
         }
+
+        if (!rulesRes.error && rulesRes.data?.success && rulesRes.data.bookingRules) {
+          applyBookingRules(rulesRes.data.bookingRules)
+        }
+      } finally {
+        if (!cancelled) setRulesLoading(false)
       }
     }
 
-    if (!carsLoading) fetchCar()
+    if (!carsLoading) load()
+    return () => { cancelled = true }
   }, [cars, id, carsLoading, axios, reloadToken])
+
+  // Refresh live rules when the tab regains focus (Admin may have just changed Settings).
+  useEffect(() => {
+    if (!id) return undefined
+    const refreshRules = async () => {
+      try {
+        const { data } = await axios.get(`/api/user/cars/${id}/booking-rules`)
+        if (data.success && data.bookingRules) applyBookingRules(data.bookingRules)
+      } catch {
+        /* keep last known rules */
+      }
+    }
+    const onFocus = () => { refreshRules() }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshRules()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [axios, id])
 
   useEffect(() => {
     if (pickupDate && /^\d{4}-\d{2}-\d{2}$/.test(pickupDate)) {
@@ -121,8 +163,9 @@ const CarDetails = () => {
     }
   }, [pickupDate, returnDate, setPickupDate, setReturnDate])
 
-  // Guide / auto-correct return date when pickup changes and span is below minimum.
+  // Guide / auto-correct return date once live min rental days are known.
   useEffect(() => {
+    if (minRentalDays == null) return
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
     if (!pickup || !ret || minRentalDays <= 1) return
@@ -175,13 +218,19 @@ const CarDetails = () => {
     const pickup = toDateTimeLocal(pickupDate)
     const ret = toDateTimeLocal(returnDate)
     if (!pickup || !ret) return { ok: true, days: 0 }
+    // Until live rules load, do not client-approve a short stay.
+    if (minRentalDays == null || maxRentalDays == null) {
+      return { ok: false, code: 'RULES_LOADING', days: 0 }
+    }
     return validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
   }, [pickupDate, returnDate, minRentalDays, maxRentalDays])
 
   const durationError = useMemo(() => {
-    if (!pickupDate || !returnDate || durationCheck.ok) return ''
+    if (!pickupDate || !returnDate) return ''
+    if (durationCheck.code === 'RULES_LOADING' || rulesLoading) return ''
+    if (durationCheck.ok) return ''
     return durationMessageFromCode(t, durationCheck)
-  }, [pickupDate, returnDate, durationCheck, t])
+  }, [pickupDate, returnDate, durationCheck, rulesLoading, t])
 
   useEffect(() => {
     if (!car || !pickupDate || !returnDate || !form.pickupLocationId || !form.returnLocationId) {
@@ -195,9 +244,9 @@ const CarDetails = () => {
       setServerQuote(null)
       return
     }
-    if (!durationCheck.ok) {
+    // Still quote when local rules say too short — server is authority and returns live min.
+    if (durationCheck.code === 'RULES_LOADING') {
       setServerQuote(null)
-      setPromoError('')
       return
     }
 
@@ -277,11 +326,10 @@ const CarDetails = () => {
     form.returnLocationId,
     form.promoCode,
     form.email,
-    durationCheck.ok,
   ])
 
   const priceBreakdown = useMemo(() => {
-    if (durationError) {
+    if (durationError || minRentalDays == null) {
       return {
         ...(localPreview || {}),
         ready: false,
@@ -295,8 +343,10 @@ const CarDetails = () => {
         pricePerDay: car?.pricePerDay,
       }
     }
-    return localPreview
-  }, [serverQuote, localPreview, car, durationError])
+    // Local preview only after live rules confirm the duration is valid.
+    if (localPreview?.ready && durationCheck.ok) return localPreview
+    return { ...(localPreview || {}), ready: false, pricePerDay: car?.pricePerDay }
+  }, [serverQuote, localPreview, car, durationError, minRentalDays, durationCheck.ok])
 
   const submitReservation = async ({ channel = 'whatsapp' } = {}) => {
     if (submitting || submitted) return
@@ -304,6 +354,10 @@ const CarDetails = () => {
     const ret = toDateTimeLocal(returnDate)
     if (new Date(ret) <= new Date(pickup)) {
       toast.error(t('carDetails.invalidDates'))
+      return
+    }
+    if (minRentalDays == null || maxRentalDays == null) {
+      toast.error(t('carDetails.rulesLoading'))
       return
     }
     const duration = validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
@@ -581,6 +635,7 @@ const CarDetails = () => {
             minDate={minDate}
             minRentalDays={minRentalDays}
             durationError={durationError}
+            rulesLoading={rulesLoading || minRentalDays == null}
             promoError={promoError}
             quoting={quoting}
           />

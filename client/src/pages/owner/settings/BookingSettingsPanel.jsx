@@ -22,7 +22,20 @@ const DEFAULTS = {
   pendingReservationExpiryHours: 48,
 }
 
-const BookingSettingsPanel = ({ axios, initial, t }) => {
+const toPayload = (form) => ({
+  ...form,
+  minRentalDays: Number(form.minRentalDays),
+  maxRentalDays: Number(form.maxRentalDays),
+  advanceBookingDays: Number(form.advanceBookingDays),
+  cancellationFeeValue: Number(form.cancellationFeeValue),
+  securityDepositDefault: Number(form.securityDepositDefault),
+  extraDriverFeePerDay: Number(form.extraDriverFeePerDay),
+  mileageLimitKmPerDay: Number(form.mileageLimitKmPerDay),
+  pendingReservationExpiryHours: Number(form.pendingReservationExpiryHours),
+  extraDriverAllowed: Boolean(form.extraDriverAllowed),
+})
+
+const BookingSettingsPanel = ({ axios, initial, t, onSaved }) => {
   const [form, setForm] = useState({ ...DEFAULTS, ...(initial || {}) })
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -56,14 +69,17 @@ const BookingSettingsPanel = ({ axios, initial, t }) => {
     }
     setSaving(true)
     try {
-      const { data } = await axios.put('/api/owner/settings', { bookingSettings: form })
+      const payload = toPayload(form)
+      const { data } = await axios.put('/api/owner/settings', { bookingSettings: payload })
       if (!data.success) {
         toast.error(data.message || t('admin.settings.saveError'))
         return
       }
       toast.success(t('admin.settings.saved'))
-      if (data.settings?.bookingSettings) {
-        setForm({ ...DEFAULTS, ...data.settings.bookingSettings })
+      const saved = data.settings?.bookingSettings
+      if (saved) {
+        setForm({ ...DEFAULTS, ...saved })
+        onSaved?.(saved)
       }
       setDirty(false)
     } catch (error) {

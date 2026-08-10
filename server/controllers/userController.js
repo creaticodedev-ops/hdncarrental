@@ -15,29 +15,34 @@ import { BRAND_NAME } from '../utils/brand.js';
 import { attachDisplayPromotions } from '../services/promotionDisplayService.js';
 import { getBookingSettings } from '../services/bookingSettingsService.js';
 
+/** Normalize owner id whether it is ObjectId, string, or populated `{ _id }`. */
+const ownerKey = (owner) => {
+    if (!owner) return '';
+    if (typeof owner === 'object' && owner._id) return String(owner._id);
+    return String(owner);
+};
+
 /** Attach public booking duration rules so the customer UI can guide date selection. */
 const attachBookingRules = async (carsInput) => {
     const single = !Array.isArray(carsInput);
     const cars = single ? [carsInput] : carsInput;
     if (!cars.length) return carsInput;
 
-    const ownerIds = [
-        ...new Set(cars.map((c) => c?.owner).filter(Boolean).map((id) => String(id))),
-    ];
+    const ownerIds = [...new Set(cars.map((c) => ownerKey(c?.owner)).filter(Boolean))];
     const settingsByOwner = {};
     await Promise.all(
-        ownerIds.map(async (ownerId) => {
-            settingsByOwner[ownerId] = await getBookingSettings(ownerId);
+        ownerIds.map(async (id) => {
+            settingsByOwner[id] = await getBookingSettings(id);
         }),
     );
 
     const mapped = cars.map((car) => {
-        const settings = settingsByOwner[String(car?.owner)] || {};
+        const settings = settingsByOwner[ownerKey(car?.owner)] || {};
         return {
             ...car,
             bookingRules: {
-                minRentalDays: settings.minRentalDays ?? 1,
-                maxRentalDays: settings.maxRentalDays ?? 90,
+                minRentalDays: Number(settings.minRentalDays) || 1,
+                maxRentalDays: Number(settings.maxRentalDays) || 90,
             },
         };
     });
@@ -194,5 +199,39 @@ export const getCarById = async (req, res) => {
     } catch (error) {
         console.error(error.message);
         res.status(500).json({ success: false, message: 'Failed to fetch car' });
+    }
+};
+
+/**
+ * Lightweight public endpoint: live booking duration rules for a vehicle's owner.
+ * Used by the customer booking UI so Admin Settings changes apply immediately
+ * without relying on a stale catalog cache.
+ */
+export const getCarBookingRules = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid car ID' });
+        }
+
+        const car = await Car.findOne({ _id: id, isAvaliable: true, owner: { $ne: null } })
+            .select('owner')
+            .lean();
+        if (!car?.owner) {
+            return res.status(404).json({ success: false, message: 'Car not found' });
+        }
+
+        const settings = await getBookingSettings(car.owner);
+        res.json({
+            success: true,
+            bookingRules: {
+                minRentalDays: Number(settings.minRentalDays) || 1,
+                maxRentalDays: Number(settings.maxRentalDays) || 90,
+            },
+            ownerId: String(car.owner),
+        });
+    } catch (error) {
+        console.error('[getCarBookingRules]', error.message);
+        res.status(500).json({ success: false, message: 'Failed to load booking rules' });
     }
 };

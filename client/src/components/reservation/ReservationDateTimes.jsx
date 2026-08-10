@@ -65,13 +65,16 @@ export default function ReservationDateTimes({
   setPickupDate,
   setReturnDate,
   minDate,
-  minRentalDays = 1,
+  minRentalDays = null,
+  rulesLoading = false,
   durationError = '',
 }) {
   const { t } = useI18n()
   const pickup = useMemo(() => splitDateTime(pickupDate), [pickupDate])
   const ret = useMemo(() => splitDateTime(returnDate), [returnDate])
-  const minDays = Math.max(1, Math.round(Number(minRentalDays) || 1))
+  // Only apply a span once live Admin bookingSettings are loaded.
+  const minDays = minRentalDays == null ? null : Math.max(1, Math.round(Number(minRentalDays) || 1))
+  const spanReady = !rulesLoading && minDays != null
 
   const startISO = pickup.date
   const endISO = ret.date
@@ -83,7 +86,7 @@ export default function ReservationDateTimes({
       setPickupDate('')
     }
     if (endDate) {
-      const earliest = earliestReturnIsoDate(startDate || startISO, minDays)
+      const earliest = spanReady ? earliestReturnIsoDate(startDate || startISO, minDays) : ''
       const safeEnd = earliest && endDate < earliest ? earliest : endDate
       setReturnDate(mergeDateTime(safeEnd, ret.time))
     } else if (startDate && !endDate) {
@@ -93,23 +96,34 @@ export default function ReservationDateTimes({
 
   return (
     <div className="space-y-4">
-      {minDays > 1 ? (
+      {rulesLoading ? (
+        <p className="rounded-2xl border border-borderColor/70 bg-light/70 px-3.5 py-2.5 text-xs leading-relaxed text-muted sm:text-[13px]">
+          {t('carDetails.rulesLoading')}
+        </p>
+      ) : null}
+      {spanReady && minDays > 1 ? (
         <p className="rounded-2xl border border-primary/15 bg-primary/[0.04] px-3.5 py-2.5 text-xs leading-relaxed text-ink/80 sm:text-[13px]">
           {t('carDetails.minRentalGuide', { days: minDays })}
         </p>
       ) : null}
       <div className="overflow-hidden rounded-2xl border border-borderColor/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
-        <DateRangePicker
-          startDate={startISO}
-          endDate={endISO}
-          onChange={handleRangeChange}
-          minDate={minDate}
-          minSpanDays={minDays}
-          pickupLabel={t('carDetails.pickupDate')}
-          returnLabel={t('carDetails.returnDate')}
-          className="w-full"
-          hint={t('carDetails.minRentalGuide', { days: minDays })}
-        />
+        {spanReady ? (
+          <DateRangePicker
+            startDate={startISO}
+            endDate={endISO}
+            onChange={handleRangeChange}
+            minDate={minDate}
+            minSpanDays={minDays}
+            pickupLabel={t('carDetails.pickupDate')}
+            returnLabel={t('carDetails.returnDate')}
+            className="w-full"
+            hint={minDays > 1 ? t('carDetails.minRentalGuide', { days: minDays }) : ''}
+          />
+        ) : (
+          <div className="flex h-[3.75rem] items-center px-4 text-sm text-muted" aria-busy="true">
+            {t('carDetails.rulesLoading')}
+          </div>
+        )}
       </div>
       {durationError ? (
         <p className="rounded-2xl border border-red-200 bg-red-50/90 px-3.5 py-2.5 text-xs leading-relaxed text-red-700 sm:text-[13px]" role="alert">
