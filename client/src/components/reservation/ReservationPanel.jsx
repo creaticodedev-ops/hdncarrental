@@ -62,7 +62,7 @@ const fade = {
   }),
 }
 
-function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel, daysLabel }) {
+function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel, daysLabel, durationError = '', minRentalDays = 1 }) {
   const ready = breakdown?.ready
 
   return (
@@ -74,6 +74,9 @@ function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel,
             {car.brand} {car.model}
           </p>
           {ready && daysLabel ? <p className="mt-1.5 text-xs text-muted">{daysLabel}</p> : null}
+          {!ready && minRentalDays > 1 ? (
+            <p className="mt-1.5 text-xs text-muted">{t('carDetails.minRentalGuide', { days: minRentalDays })}</p>
+          ) : null}
         </div>
         <div className="shrink-0 text-right">
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted">{t('carDetails.rateLabel')}</p>
@@ -84,7 +87,9 @@ function BookingSummary({ breakdown, currency, t, car, pickupLabel, returnLabel,
         </div>
       </div>
 
-      {!ready ? (
+      {durationError ? (
+        <p className="px-4 py-5 text-sm leading-relaxed text-red-700 sm:px-5" role="alert">{durationError}</p>
+      ) : !ready ? (
         <p className="px-4 py-5 text-sm leading-relaxed text-muted sm:px-5">{t('carDetails.priceHint')}</p>
       ) : (
         <ul className="space-y-3 px-4 py-4 text-sm sm:px-5">
@@ -163,10 +168,12 @@ export default function ReservationPanel({
   t,
   formatFeeLabel,
   minDate,
+  minRentalDays = 1,
+  durationError = '',
   promoError = '',
   quoting = false,
 }) {
-  const ready = priceBreakdown?.ready
+  const ready = priceBreakdown?.ready && !durationError
   const disabled = submitting || !ready
 
   const locationOptions = useMemo(
@@ -240,6 +247,8 @@ export default function ReservationPanel({
                 setPickupDate={setPickupDate}
                 setReturnDate={setReturnDate}
                 minDate={minDate}
+                minRentalDays={minRentalDays}
+                durationError={durationError}
               />
               <div>
                 <Label>{t('carDetails.pickupLocation')}</Label>
@@ -368,13 +377,15 @@ export default function ReservationPanel({
           <Motion.div variants={fade} custom={4}>
             <SectionHeading step="3" title={t('carDetails.summaryTitle')} />
             <BookingSummary
-              breakdown={priceBreakdown}
+              breakdown={ready ? priceBreakdown : { ...priceBreakdown, ready: false }}
               currency={currency}
               t={t}
               car={car}
               pickupLabel={pickupShort}
               returnLabel={returnShort}
               daysLabel={daysLabel}
+              durationError={durationError}
+              minRentalDays={minRentalDays}
             />
           </Motion.div>
 

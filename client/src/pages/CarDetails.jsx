@@ -9,6 +9,11 @@ import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { formatLocationsDisplay, getCarLocations } from '../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../utils/pricing'
+import {
+  durationMessageFromCode,
+  earliestReturnIsoDate,
+  validateRentalDuration,
+} from '../utils/bookingDuration'
 import { isPhoneValid } from '../components/PhoneInput'
 import { buildGuestReservationWaUrl, createExternalTabOpener } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
@@ -62,14 +67,23 @@ const CarDetails = () => {
   const [serverQuote, setServerQuote] = useState(null)
   const [promoError, setPromoError] = useState('')
   const [quoting, setQuoting] = useState(false)
+  const [bookingRules, setBookingRules] = useState({ minRentalDays: 1, maxRentalDays: 365 })
 
   const currency = import.meta.env.VITE_CURRENCY || 'MAD '
   const fallbackImage = assets.car_image1
+  const minRentalDays = Math.max(1, Number(bookingRules.minRentalDays) || 1)
+  const maxRentalDays = Math.max(minRentalDays, Number(bookingRules.maxRentalDays) || 365)
 
   useEffect(() => {
     const fromList = cars.find((c) => c._id === id)
     if (fromList) {
       setCar(fromList)
+      if (fromList.bookingRules) {
+        setBookingRules({
+          minRentalDays: fromList.bookingRules.minRentalDays ?? 1,
+          maxRentalDays: fromList.bookingRules.maxRentalDays ?? 365,
+        })
+      }
       return
     }
 
@@ -77,8 +91,15 @@ const CarDetails = () => {
       setLoadError(false)
       try {
         const { data } = await axios.get(`/api/user/cars/${id}`)
-        if (data.success) setCar(data.car)
-        else setNotFound(true)
+        if (data.success) {
+          setCar(data.car)
+          if (data.car?.bookingRules) {
+            setBookingRules({
+              minRentalDays: data.car.bookingRules.minRentalDays ?? 1,
+              maxRentalDays: data.car.bookingRules.maxRentalDays ?? 365,
+            })
+          }
+        } else setNotFound(true)
       } catch (error) {
         if (error.response?.status === 404) setNotFound(true)
         else {
@@ -99,6 +120,21 @@ const CarDetails = () => {
       setReturnDate(`${returnDate}T10:00`)
     }
   }, [pickupDate, returnDate, setPickupDate, setReturnDate])
+
+  // Guide / auto-correct return date when pickup changes and span is below minimum.
+  useEffect(() => {
+    const pickup = toDateTimeLocal(pickupDate)
+    const ret = toDateTimeLocal(returnDate)
+    if (!pickup || !ret || minRentalDays <= 1) return
+    const check = validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
+    if (check.ok || check.code !== 'MIN_RENTAL_DAYS') return
+    const pickupDay = pickup.slice(0, 10)
+    const earliest = earliestReturnIsoDate(pickupDay, minRentalDays)
+    if (!earliest) return
+    const retParts = ret.includes('T') ? ret.split('T') : [ret, '10:00']
+    const next = `${earliest}T${retParts[1] || '10:00'}`
+    if (next.slice(0, 16) !== ret.slice(0, 16)) setReturnDate(next)
+  }, [pickupDate, returnDate, minRentalDays, maxRentalDays, setReturnDate])
 
   useEffect(() => {
     if (car?._id) trackCarView(car)
@@ -135,6 +171,18 @@ const CarDetails = () => {
     })
   }, [car, pickupDate, returnDate, pickupLoc, returnLoc])
 
+  const durationCheck = useMemo(() => {
+    const pickup = toDateTimeLocal(pickupDate)
+    const ret = toDateTimeLocal(returnDate)
+    if (!pickup || !ret) return { ok: true, days: 0 }
+    return validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
+  }, [pickupDate, returnDate, minRentalDays, maxRentalDays])
+
+  const durationError = useMemo(() => {
+    if (!pickupDate || !returnDate || durationCheck.ok) return ''
+    return durationMessageFromCode(t, durationCheck)
+  }, [pickupDate, returnDate, durationCheck, t])
+
   useEffect(() => {
     if (!car || !pickupDate || !returnDate || !form.pickupLocationId || !form.returnLocationId) {
       setServerQuote(null)
@@ -145,6 +193,11 @@ const CarDetails = () => {
     const ret = toDateTimeLocal(returnDate)
     if (new Date(ret) <= new Date(pickup)) {
       setServerQuote(null)
+      return
+    }
+    if (!durationCheck.ok) {
+      setServerQuote(null)
+      setPromoError('')
       return
     }
 
@@ -165,14 +218,47 @@ const CarDetails = () => {
         if (data.success) {
           setServerQuote(data)
           setPromoError('')
+          if (data.bookingSettings) {
+            setBookingRules((prev) => ({
+              minRentalDays: data.bookingSettings.minRentalDays ?? prev.minRentalDays,
+              maxRentalDays: data.bookingSettings.maxRentalDays ?? prev.maxRentalDays,
+            }))
+          }
         } else {
           setServerQuote(null)
-          setPromoError(data.message || '')
+          if (data.code === 'MIN_RENTAL_DAYS' || data.code === 'MAX_RENTAL_DAYS') {
+            setPromoError('')
+            if (data.minRentalDays || data.maxRentalDays) {
+              setBookingRules((prev) => ({
+                minRentalDays: data.minRentalDays ?? prev.minRentalDays,
+                maxRentalDays: data.maxRentalDays ?? prev.maxRentalDays,
+              }))
+            }
+          } else {
+            setPromoError(data.message || '')
+          }
         }
       } catch (error) {
         if (cancelled) return
         setServerQuote(null)
-        setPromoError(getErrorMessage(error))
+        const payload = error.response?.data || {}
+        if (payload.code === 'MIN_RENTAL_DAYS' || payload.code === 'MAX_RENTAL_DAYS') {
+          setPromoError('')
+          if (payload.minRentalDays || payload.maxRentalDays || payload.bookingSettings) {
+            setBookingRules((prev) => ({
+              minRentalDays:
+                payload.minRentalDays
+                ?? payload.bookingSettings?.minRentalDays
+                ?? prev.minRentalDays,
+              maxRentalDays:
+                payload.maxRentalDays
+                ?? payload.bookingSettings?.maxRentalDays
+                ?? prev.maxRentalDays,
+            }))
+          }
+        } else {
+          setPromoError(getErrorMessage(error))
+        }
       } finally {
         if (!cancelled) setQuoting(false)
       }
@@ -191,9 +277,17 @@ const CarDetails = () => {
     form.returnLocationId,
     form.promoCode,
     form.email,
+    durationCheck.ok,
   ])
 
   const priceBreakdown = useMemo(() => {
+    if (durationError) {
+      return {
+        ...(localPreview || {}),
+        ready: false,
+        pricePerDay: car?.pricePerDay,
+      }
+    }
     if (serverQuote?.priceBreakdown) {
       return {
         ...serverQuote.priceBreakdown,
@@ -202,7 +296,7 @@ const CarDetails = () => {
       }
     }
     return localPreview
-  }, [serverQuote, localPreview, car])
+  }, [serverQuote, localPreview, car, durationError])
 
   const submitReservation = async ({ channel = 'whatsapp' } = {}) => {
     if (submitting || submitted) return
@@ -210,6 +304,11 @@ const CarDetails = () => {
     const ret = toDateTimeLocal(returnDate)
     if (new Date(ret) <= new Date(pickup)) {
       toast.error(t('carDetails.invalidDates'))
+      return
+    }
+    const duration = validateRentalDuration(pickup, ret, { minRentalDays, maxRentalDays })
+    if (!duration.ok) {
+      toast.error(durationMessageFromCode(t, duration))
       return
     }
     if (!form.pickupLocationId || !form.returnLocationId) {
@@ -308,11 +407,24 @@ const CarDetails = () => {
         navigate('/booking-confirmation', { state: confirmation })
       } else {
         waTab?.close()
-        toast.error(data.message)
+        const msg = durationMessageFromCode(t, {
+          code: data.code,
+          minRentalDays: data.minRentalDays ?? data.bookingSettings?.minRentalDays,
+          maxRentalDays: data.maxRentalDays ?? data.bookingSettings?.maxRentalDays,
+          fallback: data.message,
+        })
+        toast.error(msg)
       }
     } catch (error) {
       waTab?.close()
-      toast.error(getErrorMessage(error))
+      const payload = error.response?.data || {}
+      const msg = durationMessageFromCode(t, {
+        code: payload.code,
+        minRentalDays: payload.minRentalDays ?? payload.bookingSettings?.minRentalDays,
+        maxRentalDays: payload.maxRentalDays ?? payload.bookingSettings?.maxRentalDays,
+        fallback: getErrorMessage(error),
+      })
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }
@@ -467,6 +579,8 @@ const CarDetails = () => {
             t={t}
             formatFeeLabel={(loc) => formatFeeLabel(loc, currency, t('carDetails.free'))}
             minDate={minDate}
+            minRentalDays={minRentalDays}
+            durationError={durationError}
             promoError={promoError}
             quoting={quoting}
           />

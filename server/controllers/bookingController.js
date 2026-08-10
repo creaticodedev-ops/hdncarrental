@@ -295,7 +295,20 @@ export const quoteBooking = async (req, res) => {
     });
 
     if (!quote.ok) {
-      return res.status(400).json({ success: false, message: quote.message });
+      return res.status(400).json({
+        success: false,
+        message: quote.message,
+        code: quote.code || undefined,
+        minRentalDays: quote.minRentalDays,
+        maxRentalDays: quote.maxRentalDays,
+        days: quote.days,
+        bookingSettings: quote.settings
+          ? {
+              minRentalDays: quote.settings.minRentalDays,
+              maxRentalDays: quote.settings.maxRentalDays,
+            }
+          : undefined,
+      });
     }
 
     res.json({
@@ -435,7 +448,20 @@ export const createBooking = async (req, res) => {
       requireValidPromoCode: true,
     });
     if (!quote.ok) {
-      return res.status(400).json({ success: false, message: quote.message });
+      return res.status(400).json({
+        success: false,
+        message: quote.message,
+        code: quote.code || undefined,
+        minRentalDays: quote.minRentalDays,
+        maxRentalDays: quote.maxRentalDays,
+        days: quote.days,
+        bookingSettings: quote.settings
+          ? {
+              minRentalDays: quote.settings.minRentalDays,
+              maxRentalDays: quote.settings.maxRentalDays,
+            }
+          : undefined,
+      });
     }
 
     const customerEmail = email.trim().toLowerCase();
@@ -730,7 +756,20 @@ export const createWalkInBooking = async (req, res) => {
       requireValidPromoCode: true,
     });
     if (!quote.ok) {
-      return res.status(400).json({ success: false, message: quote.message });
+      return res.status(400).json({
+        success: false,
+        message: quote.message,
+        code: quote.code || undefined,
+        minRentalDays: quote.minRentalDays,
+        maxRentalDays: quote.maxRentalDays,
+        days: quote.days,
+        bookingSettings: quote.settings
+          ? {
+              minRentalDays: quote.settings.minRentalDays,
+              maxRentalDays: quote.settings.maxRentalDays,
+            }
+          : undefined,
+      });
     }
 
     const reserved = await reservePromotionUsage(quote.applied, {
@@ -1226,7 +1265,14 @@ export const updateBooking = async (req, res) => {
       const settings = await getBookingSettings(booking.owner);
       const rules = assertBookingRules(settings, dates.picked, dates.returned);
       if (!rules.ok) {
-        return res.status(400).json({ success: false, message: rules.message });
+        return res.status(400).json({
+          success: false,
+          message: rules.message,
+          code: rules.code || undefined,
+          minRentalDays: rules.minRentalDays,
+          maxRentalDays: rules.maxRentalDays,
+          days: rules.days,
+        });
       }
 
       const available = await checkAvailability(

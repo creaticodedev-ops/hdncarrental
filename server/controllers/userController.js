@@ -13,6 +13,36 @@ import { syncOwnerPermissions, resolveOwnerPermissions } from '../utils/ownerPer
 import { normalizeEmail, findUserByEmail } from '../utils/emailUtils.js';
 import { BRAND_NAME } from '../utils/brand.js';
 import { attachDisplayPromotions } from '../services/promotionDisplayService.js';
+import { getBookingSettings } from '../services/bookingSettingsService.js';
+
+/** Attach public booking duration rules so the customer UI can guide date selection. */
+const attachBookingRules = async (carsInput) => {
+    const single = !Array.isArray(carsInput);
+    const cars = single ? [carsInput] : carsInput;
+    if (!cars.length) return carsInput;
+
+    const ownerIds = [
+        ...new Set(cars.map((c) => c?.owner).filter(Boolean).map((id) => String(id))),
+    ];
+    const settingsByOwner = {};
+    await Promise.all(
+        ownerIds.map(async (ownerId) => {
+            settingsByOwner[ownerId] = await getBookingSettings(ownerId);
+        }),
+    );
+
+    const mapped = cars.map((car) => {
+        const settings = settingsByOwner[String(car?.owner)] || {};
+        return {
+            ...car,
+            bookingRules: {
+                minRentalDays: settings.minRentalDays ?? 1,
+                maxRentalDays: settings.maxRentalDays ?? 90,
+            },
+        };
+    });
+    return single ? mapped[0] : mapped;
+};
 
 const generateToken = (user) => {
     const payload = { _id: user._id.toString(), tv: user.tokenVersion || 0 };
@@ -136,9 +166,10 @@ export const getCars = async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
         const catalog = await withCatalogDisplayOrders(groupCarsForCatalog(cars));
+        const withPromos = await attachDisplayPromotions(catalog);
         res.json({
             success: true,
-            cars: await attachDisplayPromotions(catalog),
+            cars: await attachBookingRules(withPromos),
         });
     } catch (error) {
         console.error(error.message);
@@ -158,7 +189,8 @@ export const getCarById = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Car not found' });
         }
 
-        res.json({ success: true, car: await attachDisplayPromotions(car) });
+        const withPromo = await attachDisplayPromotions(car);
+        res.json({ success: true, car: await attachBookingRules(withPromo) });
     } catch (error) {
         console.error(error.message);
         res.status(500).json({ success: false, message: 'Failed to fetch car' });

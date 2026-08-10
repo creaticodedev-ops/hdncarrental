@@ -45,7 +45,17 @@ export const buildAuthoritativeQuote = async ({
 } = {}) => {
   const settings = await getBookingSettings(ownerId);
   const rules = assertBookingRules(settings, pickupDate, returnDate);
-  if (!rules.ok) return { ok: false, message: rules.message, settings };
+  if (!rules.ok) {
+    return {
+      ok: false,
+      message: rules.message,
+      code: rules.code,
+      minRentalDays: rules.minRentalDays ?? settings.minRentalDays,
+      maxRentalDays: rules.maxRentalDays ?? settings.maxRentalDays,
+      days: rules.days,
+      settings,
+    };
+  }
 
   if (secondDriverEnabled && !settings.extraDriverAllowed) {
     return {

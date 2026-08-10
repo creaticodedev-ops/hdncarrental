@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import DateRangePicker, { toISODate, parseISODate } from '../DateRangePicker'
 import { useI18n } from '../../i18n/I18nContext'
 import { booking } from '../ui/bookingUi'
+import { earliestReturnIsoDate } from '../../utils/bookingDuration'
 
 const splitDateTime = (value) => {
   if (!value) return { date: '', time: '10:00' }
@@ -64,10 +65,13 @@ export default function ReservationDateTimes({
   setPickupDate,
   setReturnDate,
   minDate,
+  minRentalDays = 1,
+  durationError = '',
 }) {
   const { t } = useI18n()
   const pickup = useMemo(() => splitDateTime(pickupDate), [pickupDate])
   const ret = useMemo(() => splitDateTime(returnDate), [returnDate])
+  const minDays = Math.max(1, Math.round(Number(minRentalDays) || 1))
 
   const startISO = pickup.date
   const endISO = ret.date
@@ -79,7 +83,9 @@ export default function ReservationDateTimes({
       setPickupDate('')
     }
     if (endDate) {
-      setReturnDate(mergeDateTime(endDate, ret.time))
+      const earliest = earliestReturnIsoDate(startDate || startISO, minDays)
+      const safeEnd = earliest && endDate < earliest ? earliest : endDate
+      setReturnDate(mergeDateTime(safeEnd, ret.time))
     } else if (startDate && !endDate) {
       setReturnDate('')
     }
@@ -87,17 +93,29 @@ export default function ReservationDateTimes({
 
   return (
     <div className="space-y-4">
+      {minDays > 1 ? (
+        <p className="rounded-2xl border border-primary/15 bg-primary/[0.04] px-3.5 py-2.5 text-xs leading-relaxed text-ink/80 sm:text-[13px]">
+          {t('carDetails.minRentalGuide', { days: minDays })}
+        </p>
+      ) : null}
       <div className="overflow-hidden rounded-2xl border border-borderColor/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
         <DateRangePicker
           startDate={startISO}
           endDate={endISO}
           onChange={handleRangeChange}
           minDate={minDate}
+          minSpanDays={minDays}
           pickupLabel={t('carDetails.pickupDate')}
           returnLabel={t('carDetails.returnDate')}
           className="w-full"
+          hint={t('carDetails.minRentalGuide', { days: minDays })}
         />
       </div>
+      {durationError ? (
+        <p className="rounded-2xl border border-red-200 bg-red-50/90 px-3.5 py-2.5 text-xs leading-relaxed text-red-700 sm:text-[13px]" role="alert">
+          {durationError}
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <TimeSelect
           id="pickup-time"

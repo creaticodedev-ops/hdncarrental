@@ -154,27 +154,43 @@ export const buildMileagePolicy = (settingsInput, days) => {
 /**
  * Validate rental against owner booking settings.
  * Pickup/return hours are evaluated in Africa/Casablanca.
- * @returns {{ ok: true, days, settings } | { ok: false, message: string }}
+ * Backend is the final authority for customer booking / quote / WhatsApp create.
+ * @returns {{ ok: true, days, settings, timezone } | { ok: false, code?: string, message: string, minRentalDays?: number, maxRentalDays?: number, days?: number, settings }}
  */
 export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
   const settings = normalizeBookingSettings(settingsInput);
   const picked = parseAgencyDateTime(pickupDate);
   const returned = parseAgencyDateTime(returnDate);
-  if (Number.isNaN(picked.getTime()) || Number.isNaN(returned.getTime())) {
-    return { ok: false, message: 'Invalid rental dates' };
+  if (Number.isNaN(picked.getTime()) || Number.isNaN(returned.getTime()) || returned <= picked) {
+    return {
+      ok: false,
+      code: 'INVALID_DATES',
+      message: 'Invalid rental dates',
+      settings,
+    };
   }
 
   const days = calcRentalDays(picked, returned);
   if (days < settings.minRentalDays) {
     return {
       ok: false,
+      code: 'MIN_RENTAL_DAYS',
       message: `Minimum rental duration is ${settings.minRentalDays} day(s)`,
+      minRentalDays: settings.minRentalDays,
+      maxRentalDays: settings.maxRentalDays,
+      days,
+      settings,
     };
   }
   if (days > settings.maxRentalDays) {
     return {
       ok: false,
+      code: 'MAX_RENTAL_DAYS',
       message: `Maximum rental duration is ${settings.maxRentalDays} day(s)`,
+      minRentalDays: settings.minRentalDays,
+      maxRentalDays: settings.maxRentalDays,
+      days,
+      settings,
     };
   }
 
@@ -183,7 +199,9 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
   if (picked > maxAdvance) {
     return {
       ok: false,
+      code: 'ADVANCE_BOOKING',
       message: `Bookings cannot be made more than ${settings.advanceBookingDays} day(s) in advance`,
+      settings,
     };
   }
 
@@ -193,7 +211,9 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
     settings.pickupHoursEnd,
     'Pickup time',
   );
-  if (pickupErr) return { ok: false, message: pickupErr };
+  if (pickupErr) {
+    return { ok: false, code: 'PICKUP_HOURS', message: pickupErr, settings };
+  }
 
   const returnErr = assertWithinHours(
     returned,
@@ -201,7 +221,9 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
     settings.returnHoursEnd,
     'Return time',
   );
-  if (returnErr) return { ok: false, message: returnErr };
+  if (returnErr) {
+    return { ok: false, code: 'RETURN_HOURS', message: returnErr, settings };
+  }
 
   return { ok: true, days, settings, timezone: AGENCY_TIMEZONE };
 };

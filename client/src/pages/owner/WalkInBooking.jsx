@@ -157,8 +157,22 @@ const WalkInBooking = () => {
           })
           return
         }
-      } catch {
-        /* fall back to local preview */
+        // Server rejected the quote (e.g. min rental duration) — do not show a local price.
+        if (data?.code === 'MIN_RENTAL_DAYS' || data?.code === 'MAX_RENTAL_DAYS') {
+          setQuote(null)
+          if (data.message) toast.error(data.message)
+          return
+        }
+      } catch (error) {
+        const payload = error.response?.data || {}
+        if (payload.code === 'MIN_RENTAL_DAYS' || payload.code === 'MAX_RENTAL_DAYS') {
+          if (!cancelled) {
+            setQuote(null)
+            if (payload.message) toast.error(payload.message)
+          }
+          return
+        }
+        /* other failures: fall back to local preview */
       }
       if (cancelled) return
       const pickup = pickupLocations.find((l) => l._id === form.pickupLocationId)

@@ -50,6 +50,13 @@ const formatShort = (iso, language) => {
   return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+const addDays = (date, count) => {
+  const d = new Date(date)
+  d.setDate(d.getDate() + count)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 const MonthGrid = ({
   monthDate,
   minDate,
@@ -156,9 +163,12 @@ const DateRangePicker = ({
   endDate,
   onChange,
   minDate,
+  /** Minimum rental duration in days (from Booking Settings). */
+  minSpanDays = 1,
   pickupLabel,
   returnLabel,
   className = '',
+  hint = '',
 }) => {
   const { t, language } = useI18n()
   const [open, setOpen] = useState(false)
@@ -174,6 +184,14 @@ const DateRangePicker = ({
   const min = useMemo(() => startOfDay(minDate || new Date()), [minDate])
   const start = useMemo(() => parseISODate(startDate), [startDate])
   const end = useMemo(() => parseISODate(endDate), [endDate])
+  const span = Math.max(1, Math.round(Number(minSpanDays) || 1))
+  const endMin = useMemo(() => {
+    if (!start) return min
+    const offset = span > 1 ? span : 0
+    const candidate = addDays(start, offset)
+    return candidate.getTime() > min.getTime() ? candidate : min
+  }, [start, span, min])
+  const gridMin = activeField === 'end' && start ? endMin : min
   const weekdays = WEEKDAYS[language] || WEEKDAYS.en
   const monthNames = MONTHS[language] || MONTHS.en
 
@@ -273,6 +291,9 @@ const DateRangePicker = ({
       return
     }
 
+    // Enforce minimum rental span when choosing the return date.
+    if (isBeforeDay(date, endMin)) return
+
     onChange({ startDate: toISODate(start), endDate: toISODate(date) })
     setHover(null)
     setTimeout(() => setOpen(false), 160)
@@ -322,6 +343,11 @@ const DateRangePicker = ({
             {nights > 0 && (
               <p className="text-sm text-ink mt-1 font-medium truncate">{t('hero.nights', { count: nights })}</p>
             )}
+            {span > 1 ? (
+              <p className="mt-1 text-xs leading-snug text-muted">
+                {hint || t('carDetails.minRentalGuide', { days: span })}
+              </p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -350,7 +376,7 @@ const DateRangePicker = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           <MonthGrid
             monthDate={viewMonth}
-            minDate={min}
+            minDate={gridMin}
             start={start}
             end={end}
             hover={activeField === 'end' ? hover : null}
@@ -362,7 +388,7 @@ const DateRangePicker = ({
           <div className="hidden md:block">
             <MonthGrid
               monthDate={addMonths(viewMonth, 1)}
-              minDate={min}
+              minDate={gridMin}
               start={start}
               end={end}
               hover={activeField === 'end' ? hover : null}
