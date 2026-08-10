@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion as Motion } from 'framer-motion'
 import { getPublishedCities } from '../seo/data/cities'
+import { getCityImage } from '../seo/data/cityImages'
 import { SEO_CATEGORIES } from '../seo/data/categories'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
@@ -12,19 +13,6 @@ const CATEGORY_FALLBACKS = {
   compacte: assets.car_image2,
   familiale: assets.car_image3,
   automatique: null,
-}
-
-const CITY_TONES = [
-  'from-[#8F1F1F]/90 via-[#5c2a24] to-[#2a1814]',
-  'from-[#6B1515]/90 via-[#3d2a22] to-[#1c1612]',
-  'from-[#8F1F1F]/80 via-[#4a342c] to-[#241c18]',
-  'from-[#7a2a22]/90 via-[#3a2820] to-[#1a1410]',
-]
-
-const toneForSlug = (slug = '') => {
-  let hash = 0
-  for (let i = 0; i < slug.length; i += 1) hash = (hash + slug.charCodeAt(i) * (i + 1)) % CITY_TONES.length
-  return CITY_TONES[hash]
 }
 
 /** Pick a real fleet photo for an SEO category when the catalog is loaded. */
@@ -232,41 +220,51 @@ const SeoHomeModule = () => {
             </header>
 
             <ul className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4">
-              {cities.map((city) => (
-                <li key={city.slug} className="min-w-0">
-                  <Link
-                    to={`/location-voiture/${city.slug}`}
-                    className="group flex h-full flex-col overflow-hidden rounded-2xl border border-borderColor/70 bg-light/40 transition duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-white hover:shadow-[0_16px_36px_-28px_rgba(22,18,16,0.45)]"
-                  >
-                    <div className={`relative aspect-[5/3.4] overflow-hidden bg-gradient-to-br ${toneForSlug(city.slug)}`}>
-                      <div
-                        className="absolute inset-0 opacity-40"
-                        style={{
-                          backgroundImage:
-                            'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.25), transparent 45%), radial-gradient(circle at 80% 80%, rgba(0,0,0,0.2), transparent 40%)',
-                        }}
-                        aria-hidden
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white backdrop-blur-[2px] transition duration-300 group-hover:scale-105">
-                          <PinIcon />
+              {cities.map((city) => {
+                const photo = getCityImage(city.slug)
+                return (
+                  <li key={city.slug} className="min-w-0">
+                    <Link
+                      to={`/location-voiture/${city.slug}`}
+                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-borderColor/70 bg-white transition duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_16px_36px_-28px_rgba(22,18,16,0.45)]"
+                    >
+                      <div className="relative aspect-[5/3.4] overflow-hidden bg-sand">
+                        {photo ? (
+                          <img
+                            src={photo.src}
+                            alt={photo.alt}
+                            width={480}
+                            height={326}
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 ease-out group-hover:scale-[1.06]"
+                          />
+                        ) : null}
+                        <div
+                          className="absolute inset-0 bg-gradient-to-t from-ink/55 via-ink/20 to-ink/10 transition duration-500 group-hover:from-ink/45 group-hover:via-ink/15"
+                          aria-hidden
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-ink/35 text-white shadow-sm backdrop-blur-[2px] transition duration-300 group-hover:scale-105 group-hover:bg-ink/45">
+                            <PinIcon />
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-1.5 px-2.5 py-2.5">
+                        <span className="truncate text-[13px] font-semibold text-ink sm:text-sm">
+                          {city.name}
+                        </span>
+                        <span
+                          aria-hidden
+                          className="shrink-0 text-muted transition duration-300 group-hover:translate-x-0.5 group-hover:text-primary"
+                        >
+                          →
                         </span>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-1.5 px-2.5 py-2.5">
-                      <span className="truncate text-[13px] font-semibold text-ink sm:text-sm">
-                        {city.name}
-                      </span>
-                      <span
-                        aria-hidden
-                        className="shrink-0 text-muted transition duration-300 group-hover:translate-x-0.5 group-hover:text-primary"
-                      >
-                        →
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
 
             <div className="mt-auto flex justify-center pt-5">
