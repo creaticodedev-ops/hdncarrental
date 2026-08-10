@@ -33,6 +33,9 @@ import location_icon_colored from "./location_icon_colored.svg"
 import banner_car_image from "./banner_car_image.webp"
 import upload_icon from "./upload_icon.svg"
 import car_image1 from "./car_image1.webp"
+import car_image2 from "./car_image2.webp"
+import car_image3 from "./car_image3.webp"
+import car_image4 from "./car_image4.webp"
 
 /** Stable public URL for LCP preload (unhashed). Prefer over bundled assets on hero. */
 export const HERO_IMAGE = {
@@ -74,6 +77,9 @@ export const assets = {
     filter_icon,
     banner_car_image,
     car_image1,
+    car_image2,
+    car_image3,
+    car_image4,
     upload_icon,
 }
 
