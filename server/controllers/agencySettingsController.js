@@ -24,6 +24,7 @@ export const updateAgencySettings = async (req, res) => {
   try {
     const ownerId = req.user._id;
     const body = req.body || {};
+    let bookingUpdated = null;
 
     if (
       body.whatsappReservationNumber !== undefined ||
@@ -36,10 +37,26 @@ export const updateAgencySettings = async (req, res) => {
     }
 
     if (body.bookingSettings && typeof body.bookingSettings === 'object') {
-      await updateBookingSettings(ownerId, body.bookingSettings);
+      // updateBookingSettings re-reads Mongo and throws if nothing persisted.
+      bookingUpdated = await updateBookingSettings(ownerId, body.bookingSettings);
     }
 
+    // Fresh load after writes — never serialize a pre-update in-memory doc.
     const doc = await getOrCreateAgencySettings(ownerId);
+    const settings = await serializeAgencySettings(ownerId, doc);
+
+    if (bookingUpdated) {
+      // Defense in depth: response must echo the persisted booking rules.
+      const returned = settings.bookingSettings || {};
+      for (const [key, value] of Object.entries(bookingUpdated)) {
+        if (returned[key] !== value) {
+          return res.status(500).json({
+            success: false,
+            message: `Settings save did not persist (${key})`,
+          });
+        }
+      }
+    }
 
     try {
       await logAudit({
@@ -48,7 +65,9 @@ export const updateAgencySettings = async (req, res) => {
         action: 'settings.update',
         entityType: 'AgencySettings',
         entityId: doc._id,
-        details: 'Updated agency settings',
+        details: bookingUpdated
+          ? 'Updated agency booking settings'
+          : 'Updated agency settings',
       });
     } catch (auditError) {
       console.error('[updateAgencySettings] audit', auditError.message);
@@ -57,7 +76,7 @@ export const updateAgencySettings = async (req, res) => {
     res.json({
       success: true,
       message: 'Settings saved',
-      settings: await serializeAgencySettings(ownerId, doc),
+      settings,
     });
   } catch (error) {
     console.error('[updateAgencySettings]', error.message);

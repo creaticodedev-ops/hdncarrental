@@ -67,10 +67,23 @@ export const updateWhatsAppSettings = async (ownerId, body = {}) => {
 
 export const serializeAgencySettings = async (ownerId, doc) => {
   const dials = await resolveWhatsAppDials(ownerId);
+  // Prefer a lean re-read of bookingSettings so nested values are plain objects.
+  // Falling back to doc.bookingSettings still goes through normalize which
+  // plain-ifies Mongoose subdocuments (object-spread alone drops field values).
+  let bookingRaw = doc?.bookingSettings;
+  try {
+    const AgencySettings = (await import('../models/AgencySettings.js')).default;
+    if (ownerId) {
+      const lean = await AgencySettings.findOne({ owner: ownerId }).select('bookingSettings').lean();
+      if (lean?.bookingSettings) bookingRaw = lean.bookingSettings;
+    }
+  } catch {
+    /* use doc snapshot */
+  }
   return {
     whatsappReservationNumber: doc?.whatsappReservationNumber || '',
     whatsappConfirmationNumber: doc?.whatsappConfirmationNumber || '',
-    bookingSettings: normalizeBookingSettings(doc?.bookingSettings || {}),
+    bookingSettings: normalizeBookingSettings(bookingRaw || {}),
     effective: {
       reservationDial: dials.reservationDial,
       confirmationDial: dials.confirmationDial,

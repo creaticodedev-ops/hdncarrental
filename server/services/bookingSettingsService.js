@@ -6,7 +6,27 @@ import {
   parseAgencyDateTime,
 } from '../utils/moroccoTime.js';
 
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const TIME_WITH_SEC_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
+
+const normalizeTimeHm = (value, fallback) => {
+  const raw = String(value ?? '').trim();
+  const m = raw.match(TIME_WITH_SEC_RE);
+  if (!m) return fallback;
+  return `${m[1]}:${m[2]}`;
+};
+
+/**
+ * Mongoose subdocuments must not be object-spread directly — spread yields
+ * internal keys ($__, _doc, …) and drops schema fields, which silently
+ * collapses every read back to DEFAULT_BOOKING_SETTINGS.
+ */
+export const plainBookingSettings = (raw) => {
+  if (!raw) return {};
+  if (typeof raw.toObject === 'function') return raw.toObject();
+  if (typeof raw.toJSON === 'function') return raw.toJSON();
+  if (raw._doc && typeof raw._doc === 'object') return { ...raw._doc };
+  return { ...raw };
+};
 
 export const DEFAULT_BOOKING_SETTINGS = {
   minRentalDays: 1,
@@ -45,11 +65,11 @@ const toMoney = (value) => {
 };
 
 export const normalizeBookingSettings = (raw = {}) => {
-  const base = { ...DEFAULT_BOOKING_SETTINGS, ...(raw || {}) };
-  const pickupHoursStart = TIME_RE.test(base.pickupHoursStart) ? base.pickupHoursStart : '08:00';
-  const pickupHoursEnd = TIME_RE.test(base.pickupHoursEnd) ? base.pickupHoursEnd : '20:00';
-  const returnHoursStart = TIME_RE.test(base.returnHoursStart) ? base.returnHoursStart : '08:00';
-  const returnHoursEnd = TIME_RE.test(base.returnHoursEnd) ? base.returnHoursEnd : '20:00';
+  const base = { ...DEFAULT_BOOKING_SETTINGS, ...plainBookingSettings(raw) };
+  const pickupHoursStart = normalizeTimeHm(base.pickupHoursStart, '08:00');
+  const pickupHoursEnd = normalizeTimeHm(base.pickupHoursEnd, '20:00');
+  const returnHoursStart = normalizeTimeHm(base.returnHoursStart, '08:00');
+  const returnHoursEnd = normalizeTimeHm(base.returnHoursEnd, '20:00');
 
   let minRentalDays = clampInt(base.minRentalDays, 1, 365, 1);
   let maxRentalDays = clampInt(base.maxRentalDays, 1, 730, 90);
@@ -83,7 +103,7 @@ export const normalizeBookingSettings = (raw = {}) => {
 
 export const getBookingSettings = async (ownerId) => {
   const doc = await getOrCreateAgencySettings(ownerId);
-  return normalizeBookingSettings(doc?.bookingSettings || {});
+  return normalizeBookingSettings(plainBookingSettings(doc?.bookingSettings));
 };
 
 const parseHm = (hm) => {
@@ -241,8 +261,8 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
 export const updateBookingSettings = async (ownerId, body = {}) => {
   const doc = await getOrCreateAgencySettings(ownerId);
   if (!doc) throw new Error('Owner required');
-  const current = doc.bookingSettings?.toObject?.() || doc.bookingSettings || {};
-  const next = normalizeBookingSettings({ ...current, ...body });
+  const current = plainBookingSettings(doc.bookingSettings);
+  const next = normalizeBookingSettings({ ...current, ...plainBookingSettings(body) });
 
   // Use atomic $set so nested bookingSettings always persist (avoids silent
   // Mongoose subdoc replace misses).
@@ -252,17 +272,36 @@ export const updateBookingSettings = async (ownerId, body = {}) => {
     { $set: { bookingSettings: next } },
     { new: true, upsert: false, runValidators: true },
   );
+
   if (!updated) {
+    // Matched 0 documents — fall back to the in-memory doc, then verify.
     doc.bookingSettings = next;
     doc.markModified('bookingSettings');
     await doc.save();
-    return next;
   }
-  return normalizeBookingSettings(updated.bookingSettings || next);
+
+  // Re-read from DB (lean) so we never return a stale / mis-normalized subdoc.
+  const fresh = await AgencySettings.findOne({ owner: ownerId }).select('bookingSettings').lean();
+  if (!fresh) {
+    throw new Error('Booking settings were not saved for this agency');
+  }
+  const persisted = normalizeBookingSettings(fresh.bookingSettings || {});
+
+  // Guard: success only when persisted values match what we intended to write.
+  const keys = Object.keys(DEFAULT_BOOKING_SETTINGS);
+  for (const key of keys) {
+    if (persisted[key] !== next[key]) {
+      throw new Error(
+        `Booking settings failed to persist (${key}: expected ${JSON.stringify(next[key])}, got ${JSON.stringify(persisted[key])})`,
+      );
+    }
+  }
+  return persisted;
 };
 
 export default {
   DEFAULT_BOOKING_SETTINGS,
+  plainBookingSettings,
   normalizeBookingSettings,
   getBookingSettings,
   assertBookingRules,

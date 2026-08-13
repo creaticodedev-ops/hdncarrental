@@ -74,11 +74,11 @@ await check('pickup/return hours enforced in Morocco timezone', () => {
     returnHoursStart: '08:00',
     returnHoursEnd: '20:00',
   };
-  const ok = assertBookingRules(settings, '2026-06-20T10:00', '2026-06-23T10:00');
+  const ok = assertBookingRules(settings, '2027-06-20T10:00', '2027-06-23T10:00');
   assert.equal(ok.ok, true);
   assert.equal(ok.timezone, AGENCY_TIMEZONE);
 
-  const late = assertBookingRules(settings, '2026-06-20T22:00', '2026-06-23T10:00');
+  const late = assertBookingRules(settings, '2027-06-20T22:00', '2027-06-23T10:00');
   assert.equal(late.ok, false);
   assert.ok(String(late.message).includes(AGENCY_TIMEZONE));
 });
@@ -87,8 +87,8 @@ await check('pickup/return hours enforced in Morocco timezone', () => {
 await check('min rental duration enforced', () => {
   const short = assertBookingRules(
     { ...DEFAULT_BOOKING_SETTINGS, minRentalDays: 3 },
-    '2026-06-20T10:00',
-    '2026-06-21T10:00',
+    '2027-06-20T10:00',
+    '2027-06-21T10:00',
   );
   assert.equal(short.ok, false);
   assert.equal(short.code, 'MIN_RENTAL_DAYS');
@@ -97,8 +97,8 @@ await check('min rental duration enforced', () => {
 
   const ok = assertBookingRules(
     { ...DEFAULT_BOOKING_SETTINGS, minRentalDays: 3 },
-    '2026-06-20T10:00',
-    '2026-06-23T10:00',
+    '2027-06-20T10:00',
+    '2027-06-23T10:00',
   );
   assert.equal(ok.ok, true);
   assert.equal(ok.days, 3);

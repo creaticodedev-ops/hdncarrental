@@ -33,7 +33,46 @@ const toPayload = (form) => ({
   mileageLimitKmPerDay: Number(form.mileageLimitKmPerDay),
   pendingReservationExpiryHours: Number(form.pendingReservationExpiryHours),
   extraDriverAllowed: Boolean(form.extraDriverAllowed),
+  // Normalize HTML time values (sometimes HH:mm:ss) to HH:mm for the API.
+  pickupHoursStart: String(form.pickupHoursStart || '').slice(0, 5),
+  pickupHoursEnd: String(form.pickupHoursEnd || '').slice(0, 5),
+  returnHoursStart: String(form.returnHoursStart || '').slice(0, 5),
+  returnHoursEnd: String(form.returnHoursEnd || '').slice(0, 5),
 })
+
+/** Compare key booking fields so we never toast success on a stale/default response. */
+const bookingSettingsMatch = (sent, received) => {
+  if (!received || typeof received !== 'object') return false
+  const keys = [
+    'minRentalDays',
+    'maxRentalDays',
+    'advanceBookingDays',
+    'cancellationPolicyText',
+    'cancellationFeeType',
+    'cancellationFeeValue',
+    'securityDepositDefault',
+    'extraDriverAllowed',
+    'extraDriverFeePerDay',
+    'mileageMode',
+    'mileageLimitKmPerDay',
+    'pickupHoursStart',
+    'pickupHoursEnd',
+    'returnHoursStart',
+    'returnHoursEnd',
+    'pendingReservationExpiryHours',
+  ]
+  return keys.every((key) => {
+    const a = sent[key]
+    const b = received[key]
+    if (typeof a === 'number' || typeof b === 'number') {
+      return Number(a) === Number(b)
+    }
+    if (typeof a === 'boolean' || typeof b === 'boolean') {
+      return Boolean(a) === Boolean(b)
+    }
+    return String(a ?? '') === String(b ?? '')
+  })
+}
 
 const BookingSettingsPanel = ({ axios, initial, t, onSaved }) => {
   const [form, setForm] = useState({ ...DEFAULTS, ...(initial || {}) })
@@ -75,12 +114,15 @@ const BookingSettingsPanel = ({ axios, initial, t, onSaved }) => {
         toast.error(data.message || t('admin.settings.saveError'))
         return
       }
-      toast.success(t('admin.settings.saved'))
       const saved = data.settings?.bookingSettings
-      if (saved) {
-        setForm({ ...DEFAULTS, ...saved })
-        onSaved?.(saved)
+      if (!saved || !bookingSettingsMatch(payload, saved)) {
+        toast.error(data.message || t('admin.settings.saveError'))
+        return
       }
+      // Success only after API confirms the persisted values.
+      toast.success(t('admin.settings.saved'))
+      setForm({ ...DEFAULTS, ...saved })
+      onSaved?.(saved)
       setDirty(false)
     } catch (error) {
       toast.error(getErrorMessage(error))
