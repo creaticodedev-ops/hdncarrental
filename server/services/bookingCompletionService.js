@@ -14,6 +14,9 @@ import { getDefaultContractTemplate } from "../utils/resolveExportTemplate.js";
 import { upsertContractFromCompletion } from "./documentInstanceService.js";
 import { logAudit } from "../utils/adminOps.js";
 import { storeDataUrlImage } from "./documentStore.js";
+import { escapeRegex } from "../utils/helpers.js";
+
+export const SIGNATURE_REQUEST_STATUSES = ["none", "pending", "signed", "expired", "cancelled"];
 
 const formatDt = (v) => {
   if (!v) return "—";
@@ -21,31 +24,102 @@ const formatDt = (v) => {
   return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString("en-GB", { hour12: false });
 };
 
+/**
+ * Keep completion.requestStatus aligned with token + signature state.
+ * Cancelled is sticky until a new link is issued.
+ */
+export const syncSignatureRequestStatus = (booking, { persistLazyExpiry = false } = {}) => {
+  booking.completion = booking.completion || {};
+  const c = booking.completion;
+
+  if (c.requestStatus === "cancelled") {
+    return "cancelled";
+  }
+
+  const flags = {
+    signatureComplete: Boolean(
+      c.signatureComplete || (c.signatureUrl && c.signatureSignedAt),
+    ),
+  };
+
+  if (flags.signatureComplete) {
+    c.requestStatus = "signed";
+    return "signed";
+  }
+
+  if (c.tokenHash) {
+    if (isTokenExpired(c.tokenExpiresAt)) {
+      c.requestStatus = "expired";
+      if (persistLazyExpiry) {
+        /* caller may save */
+      }
+      return "expired";
+    }
+    c.requestStatus = "pending";
+    return "pending";
+  }
+
+  if (c.requestStatus === "expired") return "expired";
+  if (!c.requestStatus || c.requestStatus === "pending") {
+    c.requestStatus = "none";
+  }
+  return c.requestStatus || "none";
+};
+
+export const getSignatureRequestSummary = (booking) => {
+  const status = syncSignatureRequestStatus(booking);
+  const c = booking.completion || {};
+  return {
+    requestStatus: status,
+    tokenExpiresAt: c.tokenExpiresAt || null,
+    issuedAt: c.issuedAt || null,
+    linkSentAt: c.linkSentAt || null,
+    cancelledAt: c.cancelledAt || null,
+    cancelledReason: c.cancelledReason || "",
+    signatureComplete: Boolean(c.signatureComplete),
+    documentsComplete: Boolean(c.documentsComplete),
+    paymentComplete: Boolean(c.paymentComplete),
+    shareableCompletionUrl: status === "pending" ? c.shareableCompletionUrl || "" : "",
+    hasActiveLink: status === "pending" && Boolean(c.tokenHash) && !isTokenExpired(c.tokenExpiresAt),
+  };
+};
+
 export const generateCompletionLink = async (bookingId, { resend = false } = {}) => {
-  const booking = await Booking.findById(bookingId).populate('car');
-  if (!booking) throw new Error('Booking not found');
-  if (booking.status === 'cancelled') throw new Error('Cancelled reservations cannot be completed');
+  const booking = await Booking.findById(bookingId).populate("car");
+  if (!booking) throw new Error("Booking not found");
+  if (booking.status === "cancelled") throw new Error("Cancelled reservations cannot be completed");
 
   booking.completion = booking.completion || {};
-  const existingUrl = String(booking.completion.shareableCompletionUrl || '').trim();
+  syncSignatureRequestStatus(booking);
+
+  const existingUrl = String(booking.completion.shareableCompletionUrl || "").trim();
   const hasStoredHash = Boolean(booking.completion.tokenHash);
   const tokenStillValid =
-    hasStoredHash && !isTokenExpired(booking.completion.tokenExpiresAt);
+    hasStoredHash &&
+    !isTokenExpired(booking.completion.tokenExpiresAt) &&
+    booking.completion.requestStatus !== "cancelled" &&
+    booking.completion.requestStatus !== "signed";
 
   if (!resend && existingUrl && tokenStillValid) {
+    booking.completion.requestStatus = "pending";
     return {
       booking,
       completionUrl: existingUrl,
       reused: true,
+      requestStatus: "pending",
     };
   }
 
   const { token, tokenHash, expiresAt } = generateCompletionToken();
   booking.completion.tokenHash = tokenHash;
   booking.completion.tokenExpiresAt = expiresAt;
+  booking.completion.requestStatus = "pending";
+  booking.completion.issuedAt = new Date();
+  booking.completion.cancelledAt = null;
+  booking.completion.cancelledReason = "";
 
-  if (booking.status === 'pending') {
-    booking.status = 'confirmed';
+  if (booking.status === "pending") {
+    booking.status = "confirmed";
   }
 
   const completionUrl = buildCompletionUrl(token);
@@ -56,6 +130,140 @@ export const generateCompletionLink = async (bookingId, { resend = false } = {})
     booking,
     completionUrl,
     reused: false,
+    requestStatus: "pending",
+  };
+};
+
+/**
+ * Invalidate the active completion/signature token without deleting uploaded docs.
+ */
+export const cancelSignatureRequest = async (bookingId, { reason = "", actorId = null } = {}) => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    const err = new Error("Booking not found");
+    err.status = 404;
+    throw err;
+  }
+  if (booking.completion?.signatureComplete) {
+    const err = new Error("Cannot cancel — customer has already signed");
+    err.status = 400;
+    throw err;
+  }
+
+  booking.completion = booking.completion || {};
+  booking.completion.tokenHash = "";
+  booking.completion.shareableCompletionUrl = "";
+  booking.completion.tokenExpiresAt = null;
+  booking.completion.requestStatus = "cancelled";
+  booking.completion.cancelledAt = new Date();
+  booking.completion.cancelledReason = String(reason || "").trim().slice(0, 500);
+  await booking.save();
+
+  try {
+    await logAudit({
+      owner: booking.owner,
+      actor: actorId || booking.owner,
+      action: "booking.signature_request_cancelled",
+      entityType: "Booking",
+      entityId: booking._id,
+      details: `Signature request cancelled for ${booking.reservationId}`,
+    });
+  } catch {
+    /* ignore */
+  }
+
+  return {
+    booking,
+    requestStatus: "cancelled",
+    summary: getSignatureRequestSummary(booking),
+  };
+};
+
+export const listSignatureRequests = async (ownerId, query = {}) => {
+  const pageNum = Math.max(1, Number(query.page) || 1);
+  const lim = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const statusFilter = String(query.status || "all").trim();
+
+  const filter = {
+    owner: ownerId,
+  };
+
+  if (statusFilter === "active") {
+    filter.$or = [
+      { "completion.requestStatus": "pending" },
+      {
+        "completion.tokenHash": { $exists: true, $ne: "" },
+        "completion.signatureComplete": { $ne: true },
+        "completion.requestStatus": { $nin: ["cancelled", "signed", "expired"] },
+        "completion.tokenExpiresAt": { $gt: new Date() },
+      },
+    ];
+  } else if (["pending", "signed", "expired", "cancelled"].includes(statusFilter)) {
+    filter["completion.requestStatus"] = statusFilter;
+  } else {
+    filter.$or = [
+      { "completion.requestStatus": { $in: ["pending", "signed", "expired", "cancelled"] } },
+      { "completion.tokenHash": { $exists: true, $ne: "" } },
+      { "completion.signatureComplete": true },
+    ];
+  }
+
+  const q = String(query.q || "").trim();
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), "i");
+    filter.$and = [
+      ...(filter.$and || []),
+      {
+        $or: [
+          { reservationId: rx },
+          { customerName: rx },
+          { customerEmail: rx },
+          { customerPhone: rx },
+        ],
+      },
+    ];
+  }
+
+  const [rawItems, total] = await Promise.all([
+    Booking.find(filter)
+      .populate("car", "brand model licensePlate year")
+      .sort({ "completion.issuedAt": -1, updatedAt: -1 })
+      .skip((pageNum - 1) * lim)
+      .limit(lim),
+    Booking.countDocuments(filter),
+  ]);
+
+  const items = [];
+  const toSave = [];
+  for (const booking of rawItems) {
+    const before = booking.completion?.requestStatus;
+    const status = syncSignatureRequestStatus(booking);
+    if (before !== status && status === "expired") {
+      toSave.push(booking.save());
+    }
+    items.push({
+      _id: booking._id,
+      reservationId: booking.reservationId,
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      customerPhone: booking.customerPhone,
+      status: booking.status,
+      pickupDate: booking.pickupDate,
+      returnDate: booking.returnDate,
+      car: booking.car,
+      signatureRequest: getSignatureRequestSummary(booking),
+    });
+  }
+  if (toSave.length) await Promise.allSettled(toSave);
+
+  return {
+    items,
+    pagination: {
+      total,
+      page: pageNum,
+      limit: lim,
+      totalPages: Math.max(1, Math.ceil(total / lim)),
+    },
   };
 };
 
@@ -68,19 +276,20 @@ export const ensureBookingCompletionLink = async (bookingId, { refresh = false }
     booking: result.booking,
     completionUrl: result.completionUrl,
     created: !result.reused,
+    requestStatus: result.requestStatus,
   };
 };
 
 export const initiateBookingCompletion = async (bookingId, { resend = false } = {}) => {
-  const { booking, completionUrl } = await generateCompletionLink(bookingId, { resend });
+  const { booking, completionUrl, requestStatus } = await generateCompletionLink(bookingId, { resend });
 
-  const vehicle = booking.car ? `${booking.car.brand} ${booking.car.model}` : 'Vehicle';
-  const currency = process.env.CURRENCY || 'MAD';
+  const vehicle = booking.car ? `${booking.car.brand} ${booking.car.model}` : "Vehicle";
+  const currency = process.env.CURRENCY || "MAD";
 
   let emailResult = {
     success: false,
     skipped: true,
-    reason: 'not attempted',
+    reason: "not attempted",
     to: booking.customerEmail,
   };
 
@@ -97,22 +306,22 @@ export const initiateBookingCompletion = async (bookingId, { resend = false } = 
       currency,
     });
   } catch (emailErr) {
-    console.error('[email] Completion invite threw:', emailErr.message);
+    console.error("[email] Completion invite threw:", emailErr.message);
     emailResult = {
       success: false,
       skipped: false,
-      reason: emailErr.message || 'Email send failed',
+      reason: emailErr.message || "Email send failed",
       to: booking.customerEmail,
     };
   }
 
   booking.completion.lastEmail = {
-    type: 'completion_invite',
+    type: "completion_invite",
     to: emailResult.to || booking.customerEmail,
     success: Boolean(emailResult.success),
     skipped: Boolean(emailResult.skipped),
-    reason: emailResult.reason || '',
-    messageId: emailResult.messageId || '',
+    reason: emailResult.reason || "",
+    messageId: emailResult.messageId || "",
     at: new Date(),
   };
   if (emailResult.success) {
@@ -122,7 +331,7 @@ export const initiateBookingCompletion = async (bookingId, { resend = false } = 
 
   if (!emailResult.success && !emailResult.skipped) {
     console.error(
-      '[email] Completion invite NOT delivered:',
+      "[email] Completion invite NOT delivered:",
       emailResult.reason || emailResult.error,
       { to: booking.customerEmail, reservationId: booking.reservationId },
     );
@@ -131,40 +340,56 @@ export const initiateBookingCompletion = async (bookingId, { resend = false } = 
   try {
     await logAudit({
       owner: booking.owner,
-      action: resend ? 'booking.completion_link_resent' : 'booking.completion_link_sent',
-      entityType: 'Booking',
+      action: resend ? "booking.completion_link_resent" : "booking.completion_link_sent",
+      entityType: "Booking",
       entityId: booking._id,
       details: emailResult.success
         ? `Completion email accepted by SMTP for ${booking.reservationId} → ${booking.customerEmail}`
-        : `Completion link ensured for ${booking.reservationId} (email: ${emailResult.reason || 'skipped'})`,
+        : `Completion link ensured for ${booking.reservationId} (email: ${emailResult.reason || "skipped"})`,
     });
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return {
     booking,
     completionUrl,
     emailResult,
+    requestStatus: requestStatus || syncSignatureRequestStatus(booking),
   };
 };
 
 export const buildCompletionMessageBody = ({ booking, completionUrl, vehicle, pickupDate, returnDate, currency }) => [
-  `Hello ${booking.customerName || 'Customer'},`,
-  '',
-  `Your reservation ${booking.reservationId || ''} has been confirmed.`,
+  `Hello ${booking.customerName || "Customer"},`,
+  "",
+  `Your reservation ${booking.reservationId || ""} has been confirmed.`,
   `Vehicle: ${vehicle}`,
   `Pickup: ${pickupDate}`,
   `Return: ${returnDate}`,
   `Total: ${currency}${booking.price}`,
-  '',
+  "",
   `Complete your booking securely here: ${completionUrl}`,
-].join('\n');
+].join("\n");
 
 export const findBookingByCompletionToken = async (rawToken) => {
   if (!rawToken || String(rawToken).length < 20) return null;
   const tokenHash = hashToken(rawToken);
   const booking = await Booking.findOne({ "completion.tokenHash": tokenHash }).populate("car");
   if (!booking) return null;
+
+  if (booking.completion?.requestStatus === "cancelled") {
+    const err = new Error("This completion link was cancelled by the agency.");
+    err.code = "TOKEN_CANCELLED";
+    throw err;
+  }
+
   if (isTokenExpired(booking.completion?.tokenExpiresAt)) {
+    booking.completion.requestStatus = "expired";
+    try {
+      await booking.save();
+    } catch {
+      /* ignore */
+    }
     const err = new Error("This completion link has expired. Please contact the agency.");
     err.code = "TOKEN_EXPIRED";
     throw err;
@@ -174,23 +399,27 @@ export const findBookingByCompletionToken = async (rawToken) => {
     err.code = "CANCELLED";
     throw err;
   }
+
+  syncSignatureRequestStatus(booking);
   return booking;
 };
 
 export const refreshCompletionFlags = (booking) => {
   const c = booking.completion || {};
   c.documentsComplete = Boolean(
-    c.drivingLicenseUrl && c.identityDocumentUrl && (c.identityType === "national_id" || c.identityType === "passport")
+    c.drivingLicenseUrl && c.identityDocumentUrl && (c.identityType === "national_id" || c.identityType === "passport"),
   );
   c.paymentComplete = Boolean(c.paymentCompletedAt && (c.amountPaid > 0 || booking.paymentStatus === "paid"));
   const needsSecondDriverSig = Boolean(booking.secondDriver?.enabled);
   const secondDriverSigOk =
-    !needsSecondDriverSig ||
-    Boolean(c.secondDriverSignatureUrl && c.secondDriverSignatureSignedAt);
-  c.signatureComplete = Boolean(
-    c.signatureUrl && c.signatureSignedAt && secondDriverSigOk
-  );
+    !needsSecondDriverSig || Boolean(c.secondDriverSignatureUrl && c.secondDriverSignatureSignedAt);
+  c.signatureComplete = Boolean(c.signatureUrl && c.signatureSignedAt && secondDriverSigOk);
   booking.completion = c;
+  if (c.signatureComplete) {
+    c.requestStatus = "signed";
+  } else {
+    syncSignatureRequestStatus(booking);
+  }
   return c;
 };
 
@@ -400,9 +629,14 @@ export const saveSignatureAndMaybeFinalize = async (
 };
 
 export default {
+  SIGNATURE_REQUEST_STATUSES,
+  syncSignatureRequestStatus,
+  getSignatureRequestSummary,
   initiateBookingCompletion,
   generateCompletionLink,
   ensureBookingCompletionLink,
+  cancelSignatureRequest,
+  listSignatureRequests,
   findBookingByCompletionToken,
   refreshCompletionFlags,
   tryFinalizeBookingCompletion,

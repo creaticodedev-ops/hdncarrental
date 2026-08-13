@@ -103,6 +103,7 @@ export const ownerNavGroups = [
         labelKey: 'admin.menuGroups.bookings',
         items: [
             { nameKey: "admin.menu.reservations", path: "/owner/manage-bookings", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
+            { nameKey: "admin.menu.signatureRequests", path: "/owner/signature-requests", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
             { nameKey: "admin.menu.walkIn", path: "/owner/walk-in", icon: addIcon, coloredIcon: addIconColored, permission: "bookings" },
             { nameKey: "admin.menu.calendar", path: "/owner/calendar", icon: calendar_icon_colored, coloredIcon: calendar_icon_colored, permission: "calendar" },
             { nameKey: "admin.menu.customers", path: "/owner/customers", icon: users_icon, coloredIcon: users_icon, permission: "customers" },
@@ -117,7 +118,27 @@ export const ownerNavGroups = [
             { nameKey: "admin.menu.catalogOrder", path: "/owner/catalog-order", icon: listIcon, coloredIcon: listIconColored, permission: "fleet" },
             { nameKey: "admin.menu.vehicleStats", path: "/owner/vehicle-stats", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "fleet" },
             { nameKey: "admin.menu.maintenance", path: "/owner/maintenance", icon: cautionIconColored, coloredIcon: cautionIconColored, permission: "maintenance" },
+            { nameKey: "admin.menu.chauffeurs", path: "/owner/chauffeurs", icon: users_icon, coloredIcon: users_icon, permission: "chauffeurs" },
             { nameKey: "admin.menu.locations", path: "/owner/locations", icon: location_icon, coloredIcon: location_icon_colored, permission: "locations" },
+        ],
+    },
+    {
+        id: 'partners',
+        labelKey: 'admin.menuGroups.partners',
+        items: [
+            { nameKey: "admin.menu.samsars", path: "/owner/samsars", icon: users_icon, coloredIcon: users_icon, permission: "partners" },
+            { nameKey: "admin.menu.partnerCompanies", path: "/owner/partner-companies", icon: users_icon, coloredIcon: users_icon, permission: "partners" },
+        ],
+    },
+    {
+        id: 'accounting',
+        labelKey: 'admin.menuGroups.accounting',
+        items: [
+            { nameKey: "admin.menu.accountingOverview", path: "/owner/accounting", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "accounting" },
+            { nameKey: "admin.menu.revenues", path: "/owner/accounting/revenues", icon: listIcon, coloredIcon: listIconColored, permission: "accounting" },
+            { nameKey: "admin.menu.samsarPayments", path: "/owner/accounting/samsar-payments", icon: listIcon, coloredIcon: listIconColored, permission: "accounting" },
+            { nameKey: "admin.menu.agencyExpenses", path: "/owner/accounting/agency-expenses", icon: listIcon, coloredIcon: listIconColored, permission: "accounting" },
+            { nameKey: "admin.menu.vehicleExpenses", path: "/owner/accounting/vehicle-expenses", icon: listIcon, coloredIcon: listIconColored, permission: "accounting" },
         ],
     },
     {

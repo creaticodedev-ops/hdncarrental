@@ -27,6 +27,7 @@ const CatalogOrder = lazy(() => import('./pages/owner/CatalogOrder'))
 const VehicleStatsPage = lazy(() => import('./pages/owner/VehicleStatsPage'))
 const VehicleStatsListPage = lazy(() => import('./pages/owner/VehicleStatsListPage'))
 const ManageBookings = lazy(() => import('./pages/owner/ManageBookings'))
+const SignatureRequests = lazy(() => import('./pages/owner/SignatureRequests'))
 const WalkInBooking = lazy(() => import('./pages/owner/WalkInBooking'))
 const Customers = lazy(() => import('./pages/owner/Customers'))
 const BookingCalendar = lazy(() => import('./pages/owner/BookingCalendar'))
@@ -38,6 +39,14 @@ const Contracts = lazy(() => import('./pages/owner/Contracts'))
 const Invoices = lazy(() => import('./pages/owner/Invoices'))
 const ExportTemplates = lazy(() => import('./pages/owner/ExportTemplates'))
 const Settings = lazy(() => import('./pages/owner/Settings'))
+const Chauffeurs = lazy(() => import('./pages/owner/Chauffeurs'))
+const Samsars = lazy(() => import('./pages/owner/Samsars'))
+const PartnerCompanies = lazy(() => import('./pages/owner/PartnerCompanies'))
+const AccountingOverview = lazy(() => import('./pages/owner/AccountingOverview'))
+const AccountingRevenues = lazy(() => import('./pages/owner/AccountingRevenues'))
+const AgencyExpenses = lazy(() => import('./pages/owner/AgencyExpenses'))
+const VehicleExpenses = lazy(() => import('./pages/owner/VehicleExpenses'))
+const SamsarPayments = lazy(() => import('./pages/owner/SamsarPayments'))
 
 const SuperAdminLogin = lazy(() => import('./pages/superadmin/Login'))
 const SuperAdminLayout = lazy(() => import('./pages/superadmin/Layout'))
@@ -132,11 +141,20 @@ const App = () => {
               <Route path="vehicle-stats" element={withPerm('fleet', VehicleStatsListPage)} />
               <Route path="vehicle-stats/:id" element={withPerm('fleet', VehicleStatsPage)} />
               <Route path="manage-bookings" element={withPerm('bookings', ManageBookings)} />
+              <Route path="signature-requests" element={withPerm('bookings', SignatureRequests)} />
               <Route path="walk-in" element={withPerm('bookings', WalkInBooking)} />
               <Route path="customers" element={withPerm('customers', Customers)} />
               <Route path="locations" element={withPerm('locations', ManageLocations)} />
               <Route path="calendar" element={withPerm('calendar', BookingCalendar)} />
               <Route path="maintenance" element={withPerm('maintenance', Maintenance)} />
+              <Route path="chauffeurs" element={withPerm('chauffeurs', Chauffeurs)} />
+              <Route path="samsars" element={withPerm('partners', Samsars)} />
+              <Route path="partner-companies" element={withPerm('partners', PartnerCompanies)} />
+              <Route path="accounting" element={withPerm('accounting', AccountingOverview)} />
+              <Route path="accounting/revenues" element={withPerm('accounting', AccountingRevenues)} />
+              <Route path="accounting/agency-expenses" element={withPerm('accounting', AgencyExpenses)} />
+              <Route path="accounting/vehicle-expenses" element={withPerm('accounting', VehicleExpenses)} />
+              <Route path="accounting/samsar-payments" element={withPerm('accounting', SamsarPayments)} />
               <Route path="reports" element={withPerm('reports', Reports)} />
               <Route path="contracts" element={withPerm('contracts', Contracts)} />
               <Route path="invoices" element={withPerm('contracts', Invoices)} />

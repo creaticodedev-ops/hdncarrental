@@ -3,6 +3,9 @@ import {
   findBookingByCompletionToken,
   initiateBookingCompletion,
   ensureBookingCompletionLink,
+  cancelSignatureRequest,
+  listSignatureRequests,
+  getSignatureRequestSummary,
   markCompletionPayment,
   refreshCompletionFlags,
   saveSignatureAndMaybeFinalize,
@@ -36,7 +39,11 @@ const signIfLocalUpload = (url) => {
 };
 
 const safePublicError = (error, fallback) => {
-  if (error?.code === "TOKEN_EXPIRED" || error?.code === "VALIDATION") {
+  if (
+    error?.code === "TOKEN_EXPIRED"
+    || error?.code === "TOKEN_CANCELLED"
+    || error?.code === "VALIDATION"
+  ) {
     return error.message || fallback;
   }
   return fallback;
@@ -52,6 +59,7 @@ const publicBookingView = (booking) => {
   return {
     reservationId: booking.reservationId,
     status: booking.status,
+    requestStatus: c.requestStatus || (flags.signatureComplete ? "signed" : "pending"),
     customerName: booking.customerName,
     customerEmail: booking.customerEmail,
     customerPhone: booking.customerPhone,
@@ -505,12 +513,62 @@ export const ensureCompletionLink = async (req, res) => {
       shareableCompletionUrl: result.completionUrl,
       created: result.created,
       status: result.booking.status,
+      requestStatus: result.requestStatus || getSignatureRequestSummary(result.booking).requestStatus,
+      signatureRequest: getSignatureRequestSummary(result.booking),
       ...(whatsappConfirmationUrl ? { whatsappConfirmationUrl } : {}),
       ...(whatsappConfirmationDial ? { whatsappConfirmationDial } : {}),
     });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: error.message || "Failed to ensure completion link" });
+  }
+};
+
+/** Owner: cancel active signature / completion link */
+export const cancelCompletionLink = async (req, res) => {
+  try {
+    const { bookingId, reason } = req.body || {};
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: "bookingId is required" });
+    }
+    const booking = await Booking.findById(bookingId).select("owner");
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    if (booking.owner?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const result = await cancelSignatureRequest(bookingId, {
+      reason,
+      actorId: req.user._id,
+    });
+    res.json({
+      success: true,
+      message: "Signature request cancelled",
+      requestStatus: result.requestStatus,
+      signatureRequest: result.summary,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status >= 500) console.error(error.message);
+    res.status(status).json({
+      success: false,
+      message: status < 500 ? error.message : "Failed to cancel signature request",
+    });
+  }
+};
+
+/** Owner: signature-request inbox */
+export const listOwnerSignatureRequests = async (req, res) => {
+  try {
+    const result = await listSignatureRequests(req.user._id, req.query);
+    res.json({
+      success: true,
+      requests: result.items,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ success: false, message: "Failed to list signature requests" });
   }
 };
 
@@ -534,6 +592,8 @@ export const resendCompletionLink = async (req, res) => {
         : `Completion link refreshed. Email NOT delivered: ${result.emailResult?.reason || "unknown error"}`,
       completionUrl: result.completionUrl,
       email: result.emailResult,
+      requestStatus: result.requestStatus,
+      signatureRequest: getSignatureRequestSummary(result.booking),
     });
   } catch (error) {
     console.error(error.message);
@@ -591,6 +651,8 @@ export default {
   submitCompletionSignature,
   resendCompletionLink,
   ensureCompletionLink,
+  cancelCompletionLink,
+  listOwnerSignatureRequests,
   emailDiagnostics,
   sendTestEmail,
 };

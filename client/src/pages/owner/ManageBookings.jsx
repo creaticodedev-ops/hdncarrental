@@ -85,6 +85,10 @@ const ManageBookings = () => {
     reservationDial: '',
     confirmationDial: '',
   })
+  const [extensionOpen, setExtensionOpen] = useState(false)
+  const [extensionForm, setExtensionForm] = useState({ newReturnDate: '', notes: '', regenerateContract: true })
+  const [extensionPreview, setExtensionPreview] = useState(null)
+  const [extensionBusy, setExtensionBusy] = useState(false)
 
   const resolveCompletionUrl = (booking) =>
     booking?.completion?.shareableCompletionUrl ||
@@ -233,6 +237,108 @@ const ManageBookings = () => {
       fetchOwnerBookings()
     } catch (error) {
       toast.error(getErrorMessage(error), { duration: 8000 })
+    }
+  }
+
+  const copyCompletionLink = async (booking) => {
+    try {
+      const data = await ensureCompletionLinkPayload(booking)
+      const url = data.shareableCompletionUrl || data.completionUrl
+      await navigator.clipboard.writeText(url)
+      toast.success(t('admin.bookings.linkCopied'))
+      fetchOwnerBookings()
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const cancelCompletionLink = async (bookingId) => {
+    if (!window.confirm(t('admin.bookings.cancelLinkConfirm'))) return
+    try {
+      const { data } = await axios.post('/api/booking-completion/owner/cancel-link', { bookingId })
+      if (!data.success) {
+        toast.error(data.message || t('admin.signatureRequests.actionError'))
+        return
+      }
+      toast.success(t('admin.bookings.linkCancelled'))
+      setCompletionLinkCache((prev) => {
+        const next = { ...prev }
+        delete next[bookingId]
+        return next
+      })
+      fetchOwnerBookings()
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const toInputDateTimeLocal = (v) => {
+    if (!v) return ''
+    const d = new Date(v)
+    if (Number.isNaN(d.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  const openExtensionModal = (booking) => {
+    const current = new Date(booking.returnDate)
+    current.setDate(current.getDate() + 1)
+    setExtensionForm({
+      newReturnDate: toInputDateTimeLocal(current),
+      notes: '',
+      regenerateContract: true,
+    })
+    setExtensionPreview(null)
+    setExtensionOpen(true)
+  }
+
+  const previewExtension = async () => {
+    if (!selectedBooking) return
+    setExtensionBusy(true)
+    setExtensionPreview(null)
+    try {
+      const { data } = await axios.post('/api/bookings/owner/extend/preview', {
+        bookingId: selectedBooking._id,
+        newReturnDate: extensionForm.newReturnDate,
+      })
+      if (!data.success) {
+        toast.error(data.message || t('admin.bookings.extensionPreviewError'))
+        return
+      }
+      setExtensionPreview(data.preview)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setExtensionBusy(false)
+    }
+  }
+
+  const applyExtension = async (e) => {
+    e.preventDefault()
+    if (!selectedBooking) return
+    setExtensionBusy(true)
+    try {
+      const { data } = await axios.post('/api/bookings/owner/extend', {
+        bookingId: selectedBooking._id,
+        newReturnDate: extensionForm.newReturnDate,
+        notes: extensionForm.notes,
+        regenerateContract: extensionForm.regenerateContract,
+      })
+      if (!data.success) {
+        toast.error(data.message || t('admin.bookings.extensionApplyError'))
+        return
+      }
+      toast.success(t('admin.bookings.extensionApplied'))
+      if (data.contract?.reason === 'content_locked') {
+        toast(t('admin.bookings.extensionContractLocked'), { icon: 'ℹ️' })
+      }
+      setExtensionOpen(false)
+      setSelectedBooking(data.booking)
+      fetchOwnerBookings()
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setExtensionBusy(false)
     }
   }
 
@@ -817,6 +923,24 @@ const ManageBookings = () => {
                   {t('admin.bookings.resendLink')}
                 </button>
               )}
+              {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'pending' || selectedBooking.status === 'ready_for_pickup') && (
+                <button
+                  type="button"
+                  onClick={() => copyCompletionLink(selectedBooking)}
+                  className='col-span-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-800 text-xs font-medium cursor-pointer'
+                >
+                  {t('admin.bookings.copyLink')}
+                </button>
+              )}
+              {selectedBooking.completion?.requestStatus === 'pending' && !selectedBooking.completion?.signatureComplete && (
+                <button
+                  type="button"
+                  onClick={() => cancelCompletionLink(selectedBooking._id)}
+                  className='col-span-2 px-3 py-2 rounded-lg bg-red-50 text-red-700 text-xs font-medium cursor-pointer'
+                >
+                  {t('admin.bookings.cancelLink')}
+                </button>
+              )}
               {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'pending') && (
                 <button
                   type="button"
@@ -825,6 +949,15 @@ const ManageBookings = () => {
                   className='col-span-2 px-3 py-2 rounded-lg bg-green-50 text-green-800 text-xs font-medium cursor-pointer disabled:opacity-50'
                 >
                   {openingWhatsApp ? '…' : t('admin.bookings.confirmViaWhatsApp')}
+                </button>
+              )}
+              {['confirmed', 'ready_for_pickup', 'active'].includes(selectedBooking.status) && (
+                <button
+                  type="button"
+                  onClick={() => openExtensionModal(selectedBooking)}
+                  className='col-span-2 px-3 py-2 rounded-lg bg-violet-50 text-violet-800 text-xs font-medium cursor-pointer'
+                >
+                  {t('admin.bookings.extendRental')}
                 </button>
               )}
               {hasPermission('contracts') && selectedBooking.status !== 'cancelled' && (
@@ -849,9 +982,34 @@ const ManageBookings = () => {
             {selectedBooking.completion && (
               <div className='mt-4 rounded-lg border border-borderColor bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-1'>
                 <p className='font-medium text-gray-800'>{t('admin.bookings.completionProgress')}</p>
+                {selectedBooking.completion.requestStatus ? (
+                  <p>
+                    {t('admin.bookings.requestStatus')}:{' '}
+                    {t(`admin.bookings.requestStatuses.${selectedBooking.completion.requestStatus}`)}
+                  </p>
+                ) : null}
                 <p>{t('admin.bookings.docs')}: {selectedBooking.completion.documentsComplete ? '✓' : '—'}</p>
                 <p>{t('admin.bookings.pay')}: {selectedBooking.completion.paymentComplete ? '✓' : '—'}</p>
                 <p>{t('admin.bookings.sign')}: {selectedBooking.completion.signatureComplete ? '✓' : '—'}</p>
+              </div>
+            )}
+
+            {Array.isArray(selectedBooking.extensionHistory) && selectedBooking.extensionHistory.length > 0 && (
+              <div className='mt-4 rounded-lg border border-borderColor bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-2'>
+                <p className='font-medium text-gray-800'>{t('admin.bookings.extensionHistory')}</p>
+                {[...selectedBooking.extensionHistory].reverse().map((ext, idx) => (
+                  <div key={idx} className='border-t border-borderColor/60 pt-2 first:border-0 first:pt-0'>
+                    <p>
+                      {formatDateTime(ext.previousReturnDate)} → {formatDateTime(ext.newReturnDate)}
+                      {' '}(+{ext.deltaDays}d)
+                    </p>
+                    <p>
+                      {currency}{ext.previousPrice} → {currency}{ext.newPrice}
+                      {' '}(+{currency}{ext.deltaAmount})
+                    </p>
+                    {ext.notes ? <p className='text-muted'>{ext.notes}</p> : null}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -954,6 +1112,105 @@ const ManageBookings = () => {
           </div>
         )}
       </div>
+
+      {extensionOpen && selectedBooking && (
+        <div
+          className='fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4'
+          onClick={() => !extensionBusy && setExtensionOpen(false)}
+        >
+          <form
+            onSubmit={applyExtension}
+            onClick={(e) => e.stopPropagation()}
+            className='bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg max-h-[92svh] overflow-y-auto p-5 sm:p-6 space-y-4'
+          >
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <h3 className='text-lg font-semibold text-ink'>{t('admin.bookings.extendTitle')}</h3>
+                <p className='text-xs text-muted mt-1'>
+                  {selectedBooking.reservationId} · {t('admin.bookings.extendCurrentReturn')}:{' '}
+                  {formatDateTime(selectedBooking.returnDate)}
+                </p>
+              </div>
+              <button type="button" disabled={extensionBusy} onClick={() => setExtensionOpen(false)} className='text-muted'>
+                ✕
+              </button>
+            </div>
+
+            <label className='block text-sm'>
+              <span className={labelClass}>{t('admin.bookings.extendNewReturn')}</span>
+              <input
+                type="datetime-local"
+                required
+                value={extensionForm.newReturnDate}
+                onChange={(e) => {
+                  setExtensionPreview(null)
+                  setExtensionForm((f) => ({ ...f, newReturnDate: e.target.value }))
+                }}
+                className={inputClass}
+              />
+            </label>
+
+            <label className='block text-sm'>
+              <span className={labelClass}>{t('admin.bookings.extendNotes')}</span>
+              <textarea
+                rows={2}
+                value={extensionForm.notes}
+                onChange={(e) => setExtensionForm((f) => ({ ...f, notes: e.target.value }))}
+                className={inputClass}
+              />
+            </label>
+
+            <label className='flex items-center gap-2 text-sm text-ink'>
+              <input
+                type="checkbox"
+                checked={extensionForm.regenerateContract}
+                onChange={(e) => setExtensionForm((f) => ({ ...f, regenerateContract: e.target.checked }))}
+              />
+              {t('admin.bookings.extendRegenContract')}
+            </label>
+
+            {extensionPreview && (
+              <div className='rounded-xl border border-borderColor bg-sand/40 px-4 py-3 text-sm space-y-1'>
+                <p>
+                  {t('admin.bookings.extendDeltaDays')}: <strong>+{extensionPreview.deltaDays}</strong>
+                </p>
+                <p>
+                  {t('admin.bookings.extendDeltaAmount')}:{' '}
+                  <strong>
+                    {currency}
+                    {extensionPreview.deltaAmount}
+                  </strong>
+                </p>
+                <p>
+                  {t('admin.bookings.extendNewTotal')}:{' '}
+                  <strong>
+                    {currency}
+                    {extensionPreview.newPrice}
+                  </strong>
+                </p>
+              </div>
+            )}
+
+            <div className='flex flex-wrap gap-2 pt-1'>
+              <button
+                type="button"
+                disabled={extensionBusy || !extensionForm.newReturnDate}
+                onClick={previewExtension}
+                className='min-h-11 px-4 rounded-xl border border-borderColor text-sm font-medium disabled:opacity-50'
+              >
+                {t('admin.bookings.extendPreview')}
+              </button>
+              <button
+                type="submit"
+                disabled={extensionBusy || !extensionPreview}
+                className='min-h-11 px-4 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-50'
+              >
+                {extensionBusy ? t('admin.bookings.extendSaving') : t('admin.bookings.extendConfirm')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {editing && (
         <div className='fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4' onClick={() => setEditing(null)}>

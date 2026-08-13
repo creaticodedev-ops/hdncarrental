@@ -14,6 +14,11 @@ import {
   updateBooking
 } from "../controllers/bookingController.js";
 import { ensureCompletionLink } from "../controllers/bookingCompletionController.js";
+import {
+  previewExtension,
+  applyExtension,
+  getExtensionHistory,
+} from "../controllers/bookingExtensionController.js";
 import { protect } from "../middleware/auth.js";
 import { requireOwner } from "../middleware/ownerAuth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
@@ -37,6 +42,9 @@ bookingRouter.get('/owner', ...bookingsGate, getOwnerBookings);
 bookingRouter.get('/owner/export', ...bookingsGate, exportOwnerBookings);
 bookingRouter.get('/owner/calendar', ...calendarGate, getCalendarBookings);
 bookingRouter.post('/owner/completion/ensure-link', ...bookingsGate, ensureCompletionLink);
+bookingRouter.post('/owner/extend/preview', ...bookingsGate, previewExtension);
+bookingRouter.post('/owner/extend', ...bookingsGate, applyExtension);
+bookingRouter.get('/owner/:bookingId/extensions', ...bookingsGate, getExtensionHistory);
 bookingRouter.post('/change-status', ...bookingsGate, changeBookingStatus);
 bookingRouter.post('/change-payment-status', ...bookingsGate, changePaymentStatus);
 bookingRouter.post('/update', ...bookingsGate, updateBooking);

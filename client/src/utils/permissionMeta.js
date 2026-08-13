@@ -5,7 +5,7 @@
  */
 import { OWNER_PERMISSIONS } from './ownerPermissions'
 
-/** @typedef {'dashboard'|'analytics'|'fleet'|'bookings'|'customers'|'locations'|'calendar'|'maintenance'|'reports'|'audit'|'contracts'|'templates'} OwnerPermission */
+/** @typedef {'dashboard'|'analytics'|'fleet'|'bookings'|'customers'|'locations'|'calendar'|'maintenance'|'chauffeurs'|'partners'|'accounting'|'reports'|'audit'|'contracts'|'templates'} OwnerPermission */
 
 /**
  * Capability chips are informational only (what the module unlocks).
@@ -83,6 +83,39 @@ export const PERMISSION_MODULES = [
         descKey: 'superadmin.perms.desc.locations',
         actions: ['view', 'create', 'edit', 'manage'],
         sensitive: false,
+      },
+      {
+        key: 'chauffeurs',
+        labelKey: 'superadmin.perms.keys.chauffeurs',
+        descKey: 'superadmin.perms.desc.chauffeurs',
+        actions: ['view', 'create', 'edit', 'manage'],
+        sensitive: false,
+      },
+    ],
+  },
+  {
+    id: 'partners',
+    labelKey: 'superadmin.perms.groups.partners',
+    permissions: [
+      {
+        key: 'partners',
+        labelKey: 'superadmin.perms.keys.partners',
+        descKey: 'superadmin.perms.desc.partners',
+        actions: ['view', 'create', 'edit', 'manage'],
+        sensitive: false,
+      },
+    ],
+  },
+  {
+    id: 'accounting',
+    labelKey: 'superadmin.perms.groups.accounting',
+    permissions: [
+      {
+        key: 'accounting',
+        labelKey: 'superadmin.perms.keys.accounting',
+        descKey: 'superadmin.perms.desc.accounting',
+        actions: ['view', 'create', 'edit', 'manage'],
+        sensitive: true,
       },
     ],
   },

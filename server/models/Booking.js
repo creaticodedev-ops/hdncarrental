@@ -14,6 +14,25 @@ const bookingSchema = new mongoose.Schema({
     default: "pending",
   },
   price: { type: Number, required: true },
+  /**
+   * Non-destructive history of contract extensions (Phase D).
+   * Each entry snapshots previous returnDate + price before the change.
+   */
+  extensionHistory: [{
+    previousReturnDate: { type: Date, required: true },
+    newReturnDate: { type: Date, required: true },
+    previousPrice: { type: Number, required: true },
+    newPrice: { type: Number, required: true },
+    previousDays: { type: Number, default: 0 },
+    newDays: { type: Number, default: 0 },
+    deltaDays: { type: Number, default: 0 },
+    deltaAmount: { type: Number, default: 0 },
+    notes: { type: String, default: '', maxlength: 2000 },
+    contractRegenerated: { type: Boolean, default: false },
+    contractSkippedReason: { type: String, default: '' },
+    extendedBy: { type: ObjectId, ref: 'User', default: null },
+    extendedAt: { type: Date, default: Date.now },
+  }],
   priceBreakdown: {
     days: { type: Number, default: 0 },
     pricePerDay: { type: Number, default: 0 },
@@ -135,6 +154,12 @@ const bookingSchema = new mongoose.Schema({
     },
     uploadedBy: { type: ObjectId, ref: "User", default: null },
   },
+  /** Optional chauffeur assigned to this rental (Phase A directory link). */
+  chauffeur: { type: ObjectId, ref: 'Chauffeur', default: null, index: true },
+  /** Optional Samsar (broker) who originated this booking. */
+  samsar: { type: ObjectId, ref: 'Samsar', default: null, index: true },
+  /** Optional B2B partner company associated with this booking. */
+  partnerCompany: { type: ObjectId, ref: 'PartnerCompany', default: null, index: true },
   paymentStatus: {
     type: String,
     enum: ["pending", "paid", "failed", "refunded"],
@@ -186,6 +211,19 @@ const bookingSchema = new mongoose.Schema({
     documentsComplete: { type: Boolean, default: false },
     paymentComplete: { type: Boolean, default: false },
     signatureComplete: { type: Boolean, default: false },
+    /**
+     * Signature / completion request lifecycle (Phase C).
+     * Derived + persisted: none | pending | signed | expired | cancelled
+     */
+    requestStatus: {
+      type: String,
+      enum: ["none", "pending", "signed", "expired", "cancelled"],
+      default: "none",
+      index: true,
+    },
+    issuedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+    cancelledReason: { type: String, default: "", maxlength: 500 },
     completedAt: { type: Date, default: null },
     lastEmail: {
       type: { type: String, default: "" },
@@ -212,6 +250,7 @@ bookingSchema.index({ owner: 1, createdAt: -1 });
 bookingSchema.index({ owner: 1, customerEmail: 1 });
 bookingSchema.index({ owner: 1, channel: 1, createdAt: -1 });
 bookingSchema.index({ "completion.tokenHash": 1 });
+bookingSchema.index({ owner: 1, "completion.requestStatus": 1, updatedAt: -1 });
 bookingSchema.index({ status: 1, pendingExpiresAt: 1 });
 
 const Booking = mongoose.model("Booking", bookingSchema);

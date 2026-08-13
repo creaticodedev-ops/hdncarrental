@@ -57,6 +57,30 @@ import {
   deletePromotion,
   previewPromotion,
 } from "../controllers/promotionController.js";
+import {
+  chauffeurs,
+  samsars,
+  partnerCompanies,
+} from "../controllers/directoryController.js";
+import {
+  getAccountingMeta,
+  getKpis,
+  getRevenues,
+  listAccountingCars,
+  listAccountingSamsars,
+  listAgencyExpense,
+  createAgencyExpense,
+  updateAgencyExpense,
+  deleteAgencyExpense,
+  listVehicleExpense,
+  createVehicleExpense,
+  updateVehicleExpense,
+  deleteVehicleExpense,
+  listSamsarPayment,
+  createSamsarPayment,
+  updateSamsarPayment,
+  deleteSamsarPayment,
+} from "../controllers/accountingController.js";
 
 const ownerRouter = express.Router();
 const gate = (perm) => [protect, requireOwner, requirePermission(perm)];
@@ -110,5 +134,46 @@ ownerRouter.get('/promotions/:id', protect, requireOwner, getPromotion);
 ownerRouter.put('/promotions/:id', protect, requireOwner, updatePromotion);
 ownerRouter.patch('/promotions/:id/active', protect, requireOwner, setPromotionActive);
 ownerRouter.delete('/promotions/:id', protect, requireOwner, deletePromotion);
+
+/* —— Directory: Chauffeurs / Samsars / Partner companies (Phase A) —— */
+ownerRouter.get('/chauffeurs', ...gate('chauffeurs'), chauffeurs.list);
+ownerRouter.post('/chauffeurs', ...gate('chauffeurs'), chauffeurs.create);
+ownerRouter.get('/chauffeurs/:id', ...gate('chauffeurs'), chauffeurs.getOne);
+ownerRouter.put('/chauffeurs/:id', ...gate('chauffeurs'), chauffeurs.update);
+ownerRouter.patch('/chauffeurs/:id/status', ...gate('chauffeurs'), chauffeurs.setStatus);
+
+ownerRouter.get('/samsars', ...gate('partners'), samsars.list);
+ownerRouter.post('/samsars', ...gate('partners'), samsars.create);
+ownerRouter.get('/samsars/:id', ...gate('partners'), samsars.getOne);
+ownerRouter.put('/samsars/:id', ...gate('partners'), samsars.update);
+ownerRouter.patch('/samsars/:id/status', ...gate('partners'), samsars.setStatus);
+
+ownerRouter.get('/partner-companies', ...gate('partners'), partnerCompanies.list);
+ownerRouter.post('/partner-companies', ...gate('partners'), partnerCompanies.create);
+ownerRouter.get('/partner-companies/:id', ...gate('partners'), partnerCompanies.getOne);
+ownerRouter.put('/partner-companies/:id', ...gate('partners'), partnerCompanies.update);
+ownerRouter.patch('/partner-companies/:id/status', ...gate('partners'), partnerCompanies.setStatus);
+
+/* —— Accounting / Comptabilité (Phase B) —— */
+ownerRouter.get('/accounting/meta', ...gate('accounting'), getAccountingMeta);
+ownerRouter.get('/accounting/kpis', ...gate('accounting'), getKpis);
+ownerRouter.get('/accounting/revenues', ...gate('accounting'), getRevenues);
+ownerRouter.get('/accounting/cars', ...gate('accounting'), listAccountingCars);
+ownerRouter.get('/accounting/samsars', ...gate('accounting'), listAccountingSamsars);
+
+ownerRouter.get('/accounting/agency-expenses', ...gate('accounting'), listAgencyExpense);
+ownerRouter.post('/accounting/agency-expenses', ...gate('accounting'), createAgencyExpense);
+ownerRouter.put('/accounting/agency-expenses/:id', ...gate('accounting'), updateAgencyExpense);
+ownerRouter.delete('/accounting/agency-expenses/:id', ...gate('accounting'), deleteAgencyExpense);
+
+ownerRouter.get('/accounting/vehicle-expenses', ...gate('accounting'), listVehicleExpense);
+ownerRouter.post('/accounting/vehicle-expenses', ...gate('accounting'), createVehicleExpense);
+ownerRouter.put('/accounting/vehicle-expenses/:id', ...gate('accounting'), updateVehicleExpense);
+ownerRouter.delete('/accounting/vehicle-expenses/:id', ...gate('accounting'), deleteVehicleExpense);
+
+ownerRouter.get('/accounting/samsar-payments', ...gate('accounting'), listSamsarPayment);
+ownerRouter.post('/accounting/samsar-payments', ...gate('accounting'), createSamsarPayment);
+ownerRouter.put('/accounting/samsar-payments/:id', ...gate('accounting'), updateSamsarPayment);
+ownerRouter.delete('/accounting/samsar-payments/:id', ...gate('accounting'), deleteSamsarPayment);
 
 export default ownerRouter;
