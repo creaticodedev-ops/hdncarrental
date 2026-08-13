@@ -512,7 +512,7 @@ const Contracts = () => {
   }
 
   return (
-    <div className="relative px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0 space-y-6">
+    <div className="relative admin-page-pad flex-1 pb-12 min-w-0 space-y-6">
       {!editOpen && (
         <DocumentGenerationOverlay
           open={docGen.open}

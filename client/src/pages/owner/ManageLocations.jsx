@@ -158,7 +158,7 @@ const ManageLocations = () => {
   const money = currency || 'MAD '
 
   return (
-    <div className='px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 w-full pb-12'>
+    <div className='admin-page-pad w-full pb-12'>
       <Title
         title={t('admin.locations.title')}
         subTitle={t('admin.locations.subtitle')}

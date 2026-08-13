@@ -5,23 +5,16 @@ import ConfirmDialog from '../../components/owner/ConfirmDialog'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
+import { AdminDrawer, EmptyState, SkeletonBlock, StatusBadge as ToneBadge } from '../../admin/ui'
 
-const inputClass =
-  'w-full min-h-11 rounded-xl border border-borderColor bg-white px-3.5 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40'
-const labelClass = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted'
+const inputClass = 'admin-input'
+const labelClass = 'admin-label'
 
-const StatusBadge = ({ status, t }) => {
-  const active = status === 'active'
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-        active ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-sand/80 text-muted ring-1 ring-borderColor'
-      }`}
-    >
-      {active ? t('admin.directory.statusActive') : t('admin.directory.statusInactive')}
-    </span>
-  )
-}
+const StatusBadge = ({ status, t }) => (
+  <ToneBadge tone={status === 'active' ? 'success' : 'neutral'}>
+    {status === 'active' ? t('admin.directory.statusActive') : t('admin.directory.statusInactive')}
+  </ToneBadge>
+)
 
 /**
  * Shared list + create/edit drawer for Chauffeur / Samsar / PartnerCompany.
@@ -128,19 +121,19 @@ const DirectoryCrudPage = ({ config }) => {
   const columns = useMemo(() => config.columns(t), [config, t])
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-16 min-w-0">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="admin-page-pad flex-1 min-w-0">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-2">
         <Title title={t(config.titleKey)} subTitle={t(config.subtitleKey)} />
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-dull"
+          className="admin-btn admin-btn-primary"
         >
           {t(config.createKey)}
         </button>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-borderColor/70 bg-white p-3 sm:flex-row sm:items-center sm:p-4">
+      <div className="mt-6 admin-filter-bar">
         <input
           type="search"
           value={q}
@@ -175,53 +168,45 @@ const DirectoryCrudPage = ({ config }) => {
         </select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-borderColor/70 bg-white">
+      <div className="mt-4 admin-table-wrap">
         {loading ? (
-          <div className="space-y-3 p-5 animate-pulse" aria-busy="true">
+          <div className="space-y-3 p-5" aria-busy="true">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 rounded-xl bg-sand/70" />
+              <SkeletonBlock key={i} className="h-12" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <p className="font-display text-xl text-ink">{t('admin.directory.emptyTitle')}</p>
-            <p className="mt-2 text-sm text-muted">{t('admin.directory.emptyHint')}</p>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-dull"
-            >
-              {t(config.createKey)}
-            </button>
-          </div>
+          <EmptyState
+            title={t('admin.directory.emptyTitle')}
+            description={t('admin.directory.emptyHint')}
+            action={
+              <button type="button" onClick={openCreate} className="admin-btn admin-btn-primary">
+                {t(config.createKey)}
+              </button>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-borderColor/70 bg-sand/40 text-[11px] uppercase tracking-[0.12em] text-muted">
+            <table className="admin-table min-w-full">
+              <thead>
                 <tr>
                   {columns.map((col) => (
-                    <th key={col.key} className="px-4 py-3 font-semibold whitespace-nowrap">
-                      {col.label}
-                    </th>
+                    <th key={col.key}>{col.label}</th>
                   ))}
-                  <th className="px-4 py-3 font-semibold">{t('admin.directory.actions')}</th>
+                  <th>{t('admin.directory.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={row._id} className="border-b border-borderColor/50 last:border-0 hover:bg-sand/30">
+                  <tr key={row._id}>
                     {columns.map((col) => (
-                      <td key={col.key} className="px-4 py-3 align-middle text-ink/90">
+                      <td key={col.key}>
                         {col.render ? col.render(row, t) : row[col.key] || '—'}
                       </td>
                     ))}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="whitespace-nowrap">
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="rounded-lg border border-borderColor px-3 py-1.5 text-xs font-semibold hover:bg-light"
-                        >
+                        <button type="button" onClick={() => openEdit(row)} className="admin-btn admin-btn-secondary min-h-9 px-3 text-xs">
                           {t('admin.directory.edit')}
                         </button>
                         <button
@@ -232,7 +217,7 @@ const DirectoryCrudPage = ({ config }) => {
                               next: row.status === 'active' ? 'inactive' : 'active',
                             })
                           }
-                          className="rounded-lg border border-borderColor px-3 py-1.5 text-xs font-semibold hover:bg-light"
+                          className="admin-btn admin-btn-ghost min-h-9 px-3 text-xs"
                         >
                           {row.status === 'active'
                             ? t('admin.directory.deactivate')
@@ -248,8 +233,8 @@ const DirectoryCrudPage = ({ config }) => {
         )}
 
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between gap-3 border-t border-borderColor/70 px-4 py-3 text-sm">
-            <p className="text-muted">
+          <div className="flex items-center justify-between gap-3 border-t border-[var(--admin-border)] px-4 py-3 text-sm">
+            <p className="text-[var(--admin-muted)]">
               {t('admin.directory.pageOf', {
                 page: pagination.page,
                 total: pagination.totalPages,
@@ -261,7 +246,7 @@ const DirectoryCrudPage = ({ config }) => {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="rounded-lg border border-borderColor px-3 py-1.5 disabled:opacity-40"
+                className="admin-btn admin-btn-secondary min-h-9 px-3 text-xs"
               >
                 {t('admin.directory.prev')}
               </button>
@@ -269,7 +254,7 @@ const DirectoryCrudPage = ({ config }) => {
                 type="button"
                 disabled={page >= pagination.totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="rounded-lg border border-borderColor px-3 py-1.5 disabled:opacity-40"
+                className="admin-btn admin-btn-secondary min-h-9 px-3 text-xs"
               >
                 {t('admin.directory.next')}
               </button>
@@ -278,80 +263,66 @@ const DirectoryCrudPage = ({ config }) => {
         )}
       </div>
 
-      {drawerOpen && (
-        <div className="fixed inset-0 z-[70] flex justify-end bg-ink/40">
-          <button type="button" className="flex-1 cursor-default" aria-label="Close" onClick={() => setDrawerOpen(false)} />
-          <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">
-            <div className="border-b border-borderColor px-5 py-4">
-              <h3 className="font-display text-2xl text-ink">
-                {editing ? t(config.editKey) : t(config.createKey)}
-              </h3>
-            </div>
-            <form onSubmit={onSave} className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-                {config.fields.map((field) => (
-                  <div key={field.name}>
-                    <label htmlFor={`dir-${field.name}`} className={labelClass}>
-                      {t(field.labelKey)}
-                      {field.required ? ' *' : ''}
-                    </label>
-                    {field.type === 'textarea' ? (
-                      <textarea
-                        id={`dir-${field.name}`}
-                        rows={3}
-                        className={inputClass}
-                        value={form[field.name] ?? ''}
-                        onChange={(e) => setField(field.name, e.target.value)}
-                        required={field.required}
-                      />
-                    ) : field.type === 'select' ? (
-                      <select
-                        id={`dir-${field.name}`}
-                        className={inputClass}
-                        value={form[field.name] ?? ''}
-                        onChange={(e) => setField(field.name, e.target.value)}
-                      >
-                        {field.options.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {t(opt.labelKey)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        id={`dir-${field.name}`}
-                        type={field.type || 'text'}
-                        className={inputClass}
-                        value={form[field.name] ?? ''}
-                        onChange={(e) => setField(field.name, e.target.value)}
-                        required={field.required}
-                        min={field.min}
-                        step={field.step}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2 border-t border-borderColor px-5 py-4">
-                <button
-                  type="button"
-                  onClick={() => setDrawerOpen(false)}
-                  className="min-h-11 flex-1 rounded-xl border border-borderColor text-sm font-semibold"
-                >
-                  {t('admin.directory.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="min-h-11 flex-1 rounded-xl bg-primary text-sm font-semibold text-white hover:bg-primary-dull disabled:opacity-60"
-                >
-                  {saving ? t('admin.directory.saving') : t('admin.directory.save')}
-                </button>
-              </div>
-            </form>
+      <AdminDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title={editing ? t(config.editKey) : t(config.createKey)}
+        footer={
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDrawerOpen(false)} className="admin-btn admin-btn-secondary flex-1">
+              {t('admin.directory.cancel')}
+            </button>
+            <button type="submit" form="directory-crud-form" disabled={saving} className="admin-btn admin-btn-primary flex-1">
+              {saving ? t('admin.directory.saving') : t('admin.directory.save')}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <form id="directory-crud-form" onSubmit={onSave} className="space-y-4">
+          {config.fields.map((field) => (
+            <div key={field.name}>
+              <label htmlFor={`dir-${field.name}`} className={labelClass}>
+                {t(field.labelKey)}
+                {field.required ? ' *' : ''}
+              </label>
+              {field.type === 'textarea' ? (
+                <textarea
+                  id={`dir-${field.name}`}
+                  rows={3}
+                  className={inputClass}
+                  value={form[field.name] ?? ''}
+                  onChange={(e) => setField(field.name, e.target.value)}
+                  required={field.required}
+                />
+              ) : field.type === 'select' ? (
+                <select
+                  id={`dir-${field.name}`}
+                  className={inputClass}
+                  value={form[field.name] ?? ''}
+                  onChange={(e) => setField(field.name, e.target.value)}
+                >
+                  {field.options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {t(opt.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id={`dir-${field.name}`}
+                  type={field.type || 'text'}
+                  className={inputClass}
+                  value={form[field.name] ?? ''}
+                  onChange={(e) => setField(field.name, e.target.value)}
+                  required={field.required}
+                  min={field.min}
+                  step={field.step}
+                />
+              )}
+            </div>
+          ))}
+        </form>
+      </AdminDrawer>
 
       <ConfirmDialog
         isOpen={Boolean(pendingStatus)}

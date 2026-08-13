@@ -132,7 +132,7 @@ const SignatureRequests = () => {
   }
 
   return (
-    <div className="px-4 py-6 md:px-8">
+    <div className="admin-page-pad">
       <Title
         title={t('admin.signatureRequests.title')}
         subTitle={t('admin.signatureRequests.subtitle')}

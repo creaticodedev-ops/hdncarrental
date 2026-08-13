@@ -237,7 +237,7 @@ const ExportTemplates = () => {
   }
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0 space-y-6">
+    <div className="admin-page-pad flex-1 pb-12 min-w-0 space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <Title title={t('admin.templates.title')} subTitle={t('admin.templates.subtitle')} />
         <button

@@ -145,7 +145,7 @@ const Customers = () => {
   const inputClass = 'border border-borderColor rounded-md px-3 py-2 text-sm w-full outline-none focus:border-primary';
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0">
+    <div className="admin-page-pad flex-1 pb-12 min-w-0">
       <Title
         title={t('admin.customers.title')}
         subTitle={t('admin.customers.subtitle')}

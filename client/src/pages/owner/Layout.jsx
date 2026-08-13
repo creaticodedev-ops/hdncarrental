@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react'
+import '../../admin/adminTheme.css'
+import { AdminThemeProvider, useAdminTheme } from '../../admin/AdminThemeContext'
 import NavbarOwner from '../../components/owner/NavbarOwner'
 import Sidebar from '../../components/owner/Sidebar'
 import TrialExpired from '../../components/owner/TrialExpired'
@@ -6,11 +8,19 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 
-const Layout = () => {
+const OwnerShell = () => {
   const { isOwner, navigate, authReady, setShowLogin, licenseLocked } = useAppContext()
   const { t } = useI18n()
+  const { resolved } = useAdminTheme()
   const location = useLocation()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('hdn.admin.sidebar.collapsed') === '1'
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     if (authReady && !isOwner) {
@@ -20,14 +30,25 @@ const Layout = () => {
     }
   }, [isOwner, authReady, navigate, setShowLogin])
 
-  // Close drawer on route change
   useEffect(() => {
     setMobileNavOpen(false)
   }, [location.pathname])
 
+  const toggleCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('hdn.admin.sidebar.collapsed', next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
+
   if (!authReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500 px-4">
+      <div className="admin-shell min-h-svh flex items-center justify-center text-[var(--admin-muted)] px-4" data-theme={resolved}>
         {t('admin.shell.loading')}
       </div>
     )
@@ -35,10 +56,9 @@ const Layout = () => {
 
   if (!isOwner) return null
 
-  // Trial expired: keep session + top bar (logout), hide dashboard chrome
   if (licenseLocked) {
     return (
-      <div className="flex flex-col min-h-svh bg-light">
+      <div className="admin-shell flex flex-col min-h-svh" data-theme={resolved}>
         <NavbarOwner />
         <TrialExpired />
       </div>
@@ -46,19 +66,32 @@ const Layout = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-svh bg-light">
+    <div className="admin-shell flex flex-col min-h-svh" data-theme={resolved}>
       <NavbarOwner
         mobileNavOpen={mobileNavOpen}
         onToggleMobileNav={() => setMobileNavOpen((open) => !open)}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebarCollapse={toggleCollapsed}
       />
       <div className="flex flex-1 min-w-0">
-        <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
-        <main className="flex-1 min-w-0 admin-page pb-12">
+        <Sidebar
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
+        <main className="flex-1 min-w-0 admin-page pb-8 bg-[var(--admin-bg)]">
           <Outlet />
         </main>
       </div>
     </div>
   )
 }
+
+const Layout = () => (
+  <AdminThemeProvider>
+    <OwnerShell />
+  </AdminThemeProvider>
+)
 
 export default Layout

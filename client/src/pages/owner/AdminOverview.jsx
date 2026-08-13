@@ -34,7 +34,7 @@ const AdminOverview = () => {
 
   if (error && !overview) {
     return (
-      <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 flex-1'>
+      <div className='admin-page-pad flex-1'>
         <Title title={t('admin.dashboard.title')} subTitle={t('admin.dashboard.subtitle')} />
         <p className='text-red-500 mt-6'>{error}</p>
       </div>
@@ -43,7 +43,7 @@ const AdminOverview = () => {
 
   if (!overview) {
     return (
-      <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 flex-1'>
+      <div className='admin-page-pad flex-1'>
         <Title title={t('admin.dashboard.title')} subTitle={t('admin.dashboard.subtitle')} />
         <p className='text-gray-500 mt-6'>{t('admin.common.loading')}</p>
       </div>
@@ -51,7 +51,7 @@ const AdminOverview = () => {
   }
 
   return (
-    <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 flex-1 pb-10'>
+    <div className='admin-page-pad flex-1 pb-10'>
       <Title title={t('admin.dashboard.title')} subTitle={t('admin.dashboard.subtitle')} />
 
       <div className='grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mt-6'>

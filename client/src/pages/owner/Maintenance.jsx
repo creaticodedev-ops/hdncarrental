@@ -255,7 +255,7 @@ const Maintenance = () => {
   ]
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0">
+    <div className="admin-page-pad flex-1 pb-12 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <Title title={t('admin.maintenance.title')} subTitle={t('admin.maintenance.subtitle')} />
         <button

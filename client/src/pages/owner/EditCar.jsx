@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../utils/apiError'
 import { VEHICLE_CATEGORIES } from '../../utils/vehicleCategories'
 import LocationMultiSelect from '../../components/owner/LocationMultiSelect'
 import { getCarLocations } from '../../utils/carLocations'
+import { AdminPage, FormField, FormSection, SkeletonBlock, StickyFormFooter } from '../../admin/ui'
 
 const EditCar = () => {
   const { id } = useParams()
@@ -31,6 +32,7 @@ const EditCar = () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
+
   const [car, setCar] = useState({
     brand: '',
     model: '',
@@ -116,143 +118,146 @@ const EditCar = () => {
     }
   }
 
+  const setField = (key) => (e) => setCar((c) => ({ ...c, [key]: e.target.value }))
+
   if (loading) {
-    return <div className="px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 text-gray-500">{t('admin.fleet.loading')}</div>
+    return (
+      <AdminPage>
+        <SkeletonBlock className="h-10 w-64 mb-4" />
+        <SkeletonBlock className="h-40 mb-4" />
+        <SkeletonBlock className="h-56" />
+        <p className="mt-3 text-sm text-[var(--admin-muted)]">{t('admin.fleet.loading')}</p>
+      </AdminPage>
+    )
   }
 
   return (
-    <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 flex-1 min-w-0 pb-12'>
-      <Title title={`${t('admin.common.edit')} ${t('admin.fleet.car')}`} subTitle={t('admin.fleet.subtitle')} />
+    <AdminPage>
+      <Title
+        title={`${t('admin.common.edit')} ${t('admin.fleet.car')}`}
+        subTitle={t('admin.fleet.subtitle')}
+        breadcrumb={[
+          { label: t('admin.fleet.title'), to: '/owner/manage-cars' },
+          { label: t('admin.common.edit') },
+        ]}
+      />
 
-      <form onSubmit={onSubmitHandler} className='flex flex-col gap-5 text-gray-500 text-sm mt-6 max-w-xl w-full'>
-        <div className='flex items-center gap-2 w-full'>
-          <label htmlFor="car-image">
-            <img
-              src={previewUrl || existingImage || assets.car_image1}
-              alt=""
-              className='h-14 w-20 rounded object-cover cursor-pointer'
-            />
-            <input type="file" id="car-image" accept="image/*" hidden onChange={(e) => setImage(e.target.files[0])} />
-          </label>
-          <p className='text-sm text-gray-500'>Upload a new image (optional)</p>
-        </div>
+      <form onSubmit={onSubmitHandler} className="mt-2 max-w-3xl space-y-5">
+        <FormSection title={t('admin.addCar.uploadHint')} description={t('admin.addCar.assetHint')}>
+          <div className="sm:col-span-2 flex items-center gap-4">
+            <label htmlFor="car-image" className="cursor-pointer">
+              <img
+                src={previewUrl || existingImage || assets.car_image1}
+                alt=""
+                className="h-20 w-28 rounded-[var(--admin-radius)] object-cover ring-1 ring-[var(--admin-border)]"
+              />
+              <input
+                type="file"
+                id="car-image"
+                accept="image/*"
+                hidden
+                onChange={(e) => setImage(e.target.files[0])}
+              />
+            </label>
+            <p className="text-sm text-[var(--admin-muted)]">{t('admin.addCar.uploadHint')}</p>
+          </div>
+        </FormSection>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.brand')}</label>
-            <input type="text" required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none' value={car.brand} onChange={(e) => setCar({ ...car, brand: e.target.value })} />
-          </div>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.model')}</label>
-            <input type="text" required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none' value={car.model} onChange={(e) => setCar({ ...car, model: e.target.value })} />
-          </div>
-        </div>
-
-        <div className='w-full rounded-xl border border-borderColor bg-gray-50/80 p-4 space-y-4'>
-          <div>
-            <p className='text-sm font-semibold text-gray-900'>{t('admin.addCar.assetIdentity')}</p>
-            <p className='text-xs text-gray-500 mt-0.5'>{t('admin.addCar.assetHint')}</p>
-          </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4'>
-            <div className='flex flex-col w-full'>
-              <label>{t('admin.addCar.fleetId')}</label>
-              <input type="text" className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none bg-white' value={car.fleetId} onChange={(e) => setCar({ ...car, fleetId: e.target.value })} placeholder="AC-0001" />
-            </div>
-            <div className='flex flex-col w-full'>
-              <label>{t('admin.addCar.vin')}</label>
-              <input type="text" className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none bg-white' value={car.vin} onChange={(e) => setCar({ ...car, vin: e.target.value })} />
-            </div>
-            <div className='flex flex-col w-full'>
-              <label>{t('admin.addCar.plate')} *</label>
-              <input type="text" required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none bg-white' value={car.licensePlate} onChange={(e) => setCar({ ...car, licensePlate: e.target.value })} />
-            </div>
-            <div className='flex flex-col w-full'>
-              <label>{t('admin.addCar.mileage')}</label>
-              <input type="number" min="0" className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none bg-white' value={car.mileage} onChange={(e) => setCar({ ...car, mileage: e.target.value })} />
-            </div>
-            <div className='flex flex-col w-full sm:col-span-2'>
-              <label>{t('admin.addCar.branch')}</label>
-              <input type="text" className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none bg-white' value={car.branch} onChange={(e) => setCar({ ...car, branch: e.target.value })} placeholder={car.locations?.[0] || ''} />
-            </div>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.year')}</label>
-            <input type="number" required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none' value={car.year} onChange={(e) => setCar({ ...car, year: e.target.value })} />
-          </div>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.dailyPrice')} ({currency})</label>
-            <input type="number" required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none' value={car.pricePerDay} onChange={(e) => setCar({ ...car, pricePerDay: e.target.value })} />
-          </div>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.category')}</label>
-            <select required value={car.category} onChange={(e) => setCar({ ...car, category: e.target.value })} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+        <FormSection title={`${t('admin.addCar.brand')} & model`}>
+          <FormField label={t('admin.addCar.brand')} required>
+            <input type="text" required className="admin-input" value={car.brand} onChange={setField('brand')} />
+          </FormField>
+          <FormField label={t('admin.addCar.model')} required>
+            <input type="text" required className="admin-input" value={car.model} onChange={setField('model')} />
+          </FormField>
+          <FormField label={t('admin.addCar.year')} required>
+            <input type="number" required className="admin-input" value={car.year} onChange={setField('year')} />
+          </FormField>
+          <FormField label={t('admin.addCar.category')} required>
+            <select required className="admin-input" value={car.category} onChange={setField('category')}>
               <option value="">Select a category</option>
               {VEHICLE_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-          </div>
-        </div>
+          </FormField>
+        </FormSection>
 
-        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.transmission')}</label>
-            <select required value={car.transmission} onChange={(e) => setCar({ ...car, transmission: e.target.value })} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+        <FormSection title={t('admin.addCar.assetIdentity')} description={t('admin.addCar.assetHint')}>
+          <FormField label={t('admin.addCar.fleetId')}>
+            <input type="text" className="admin-input uppercase" value={car.fleetId} onChange={setField('fleetId')} placeholder="AC-0001" />
+          </FormField>
+          <FormField label={t('admin.addCar.vin')}>
+            <input type="text" className="admin-input uppercase" value={car.vin} onChange={setField('vin')} />
+          </FormField>
+          <FormField label={t('admin.addCar.plate')} required>
+            <input type="text" required className="admin-input uppercase" value={car.licensePlate} onChange={setField('licensePlate')} />
+          </FormField>
+          <FormField label={t('admin.addCar.mileage')}>
+            <input type="number" min="0" className="admin-input" value={car.mileage} onChange={setField('mileage')} />
+          </FormField>
+          <FormField label={t('admin.addCar.branch')} className="sm:col-span-2">
+            <input type="text" className="admin-input" value={car.branch} onChange={setField('branch')} placeholder={car.locations?.[0] || ''} />
+          </FormField>
+        </FormSection>
+
+        <FormSection title={t('admin.addCar.dailyPrice')}>
+          <FormField label={`${t('admin.addCar.dailyPrice')} (${currency})`} required>
+            <input type="number" required className="admin-input" value={car.pricePerDay} onChange={setField('pricePerDay')} />
+          </FormField>
+          <FormField label={t('admin.addCar.transmission')} required>
+            <select required className="admin-input" value={car.transmission} onChange={setField('transmission')}>
               <option value="">Select a transmission</option>
               <option value="Automatic">Automatic</option>
               <option value="Manual">Manual</option>
               <option value="Semi-Automatic">Semi-Automatic</option>
             </select>
-          </div>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.fuelType')}</label>
-            <select required value={car.fuel_type} onChange={(e) => setCar({ ...car, fuel_type: e.target.value })} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+          </FormField>
+          <FormField label={t('admin.addCar.fuelType')} required>
+            <select required className="admin-input" value={car.fuel_type} onChange={setField('fuel_type')}>
               <option value="">Select a fuel type</option>
               <option value="Gas">ESSENCE</option>
               <option value="Diesel">DIESEL</option>
               <option value="Electric">Electric</option>
               <option value="Hybrid">Hybrid</option>
             </select>
+          </FormField>
+          <FormField label={t('admin.addCar.seats')} required>
+            <input type="number" required className="admin-input" value={car.seating_capacity} onChange={setField('seating_capacity')} />
+          </FormField>
+        </FormSection>
+
+        <FormSection title={t('admin.addCar.locations')} description={t('admin.addCar.locationsHint')}>
+          <div className="sm:col-span-2">
+            <LocationMultiSelect
+              cities={cities}
+              selected={car.locations}
+              onChange={(locations) => setCar({ ...car, locations })}
+              label={t('admin.addCar.locations')}
+              selectAllLabel={t('admin.addCar.selectAllLocations')}
+              hint={t('admin.addCar.locationsHint')}
+              required
+            />
           </div>
-          <div className='flex flex-col w-full'>
-            <label>{t('admin.addCar.seats')}</label>
-            <input type="number" required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none' value={car.seating_capacity} onChange={(e) => setCar({ ...car, seating_capacity: e.target.value })} />
-          </div>
-        </div>
+          <FormField label={t('admin.addCar.description')} required className="sm:col-span-2">
+            <textarea rows={4} required className="admin-input" value={car.description} onChange={setField('description')} />
+          </FormField>
+        </FormSection>
 
-        <LocationMultiSelect
-          cities={cities}
-          selected={car.locations}
-          onChange={(locations) => setCar({ ...car, locations })}
-          label={t('admin.addCar.locations')}
-          selectAllLabel={t('admin.addCar.selectAllLocations')}
-          hint={t('admin.addCar.locationsHint')}
-          required
-        />
-
-        <div className='flex flex-col w-full'>
-          <label>{t('admin.addCar.description')}</label>
-          <textarea rows={5} required className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none' value={car.description} onChange={(e) => setCar({ ...car, description: e.target.value })} />
-        </div>
-
-        <div className='flex flex-wrap gap-3'>
-          <button type="button" onClick={() => navigate('/owner/manage-cars')} className='px-4 py-2.5 border border-borderColor rounded-md cursor-pointer'>
+        <StickyFormFooter>
+          <button type="button" onClick={() => navigate('/owner/manage-cars')} className="admin-btn admin-btn-secondary">
             {t('admin.common.cancel')}
           </button>
-          <button type="button" onClick={() => navigate(`/owner/vehicle-stats/${id}`)} className='px-4 py-2.5 border border-primary text-primary rounded-md cursor-pointer'>
+          <button type="button" onClick={() => navigate(`/owner/vehicle-stats/${id}`)} className="admin-btn admin-btn-ghost">
             {t('admin.vehicleStats.viewStats')}
           </button>
-          <button className='flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-md font-medium cursor-pointer disabled:opacity-60'>
-            <img src={assets.tick_icon} alt="" />
+          <button type="submit" disabled={isSaving} className="admin-btn admin-btn-primary">
+            <img src={assets.tick_icon} alt="" className="h-4 w-4" />
             {isSaving ? t('admin.common.loading') : t('admin.common.save')}
           </button>
-        </div>
+        </StickyFormFooter>
       </form>
-
-    </div>
+    </AdminPage>
   )
 }
 

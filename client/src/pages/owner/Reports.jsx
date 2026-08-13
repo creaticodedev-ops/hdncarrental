@@ -68,7 +68,7 @@ const Reports = () => {
   };
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12">
+    <div className="admin-page-pad flex-1 pb-12">
       <Title title={t('admin.reports.title')} subTitle={t('admin.reports.subtitle')} />
 
       <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

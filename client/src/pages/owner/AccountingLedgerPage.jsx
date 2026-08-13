@@ -5,9 +5,8 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 
-const inputClass =
-  'w-full min-h-11 rounded-xl border border-borderColor bg-white px-3.5 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40'
-const labelClass = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted'
+const inputClass = 'admin-input'
+const labelClass = 'admin-label'
 
 const toInputDate = (v) => {
   if (!v) return ''
@@ -165,13 +164,13 @@ const AccountingLedgerPage = ({ config }) => {
   }
 
   return (
-    <div className="px-4 py-6 md:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="admin-page-pad">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <Title title={t(config.titleKey)} subTitle={t(config.subtitleKey)} />
         <button
           type="button"
           onClick={openCreate}
-          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
+          className="admin-btn admin-btn-primary"
         >
           {t(config.createKey)}
         </button>

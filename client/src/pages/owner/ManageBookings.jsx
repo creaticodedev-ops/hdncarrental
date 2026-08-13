@@ -650,21 +650,21 @@ const ManageBookings = () => {
     win.document.close()
   }
 
-  const inputClass = 'border border-borderColor rounded-md px-3 py-2 text-sm outline-none focus:border-primary w-full'
-  const labelClass = 'text-xs font-medium text-gray-500 mb-1 block'
+  const inputClass = 'admin-input'
+  const labelClass = 'admin-label'
 
   return (
-    <div className='px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 w-full pb-16 min-w-0'>
-      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
+    <div className='admin-page-pad w-full min-w-0'>
+      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4'>
         <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
         <div className='flex flex-wrap gap-2'>
-          <Link to="/owner/walk-in" className='px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700'>
+          <Link to="/owner/walk-in" className='admin-btn admin-btn-secondary min-h-10'>
             {t('admin.walkIn.menu')}
           </Link>
-          <button type="button" onClick={() => setShowFilters((v) => !v)} className='px-4 py-2 text-sm border border-borderColor rounded-lg hover:bg-gray-50 cursor-pointer'>
+          <button type="button" onClick={() => setShowFilters((v) => !v)} className='admin-btn admin-btn-secondary min-h-10'>
             {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.showFilters')}
           </button>
-          <button type="button" onClick={exportCsv} className='px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dull cursor-pointer'>
+          <button type="button" onClick={exportCsv} className='admin-btn admin-btn-primary min-h-10'>
             {t('admin.bookings.exportCsv')}
           </button>
         </div>
@@ -1100,10 +1100,10 @@ const ManageBookings = () => {
             </div>
 
             <div className='mt-4 flex flex-wrap gap-2'>
-              <button onClick={() => startEdit(selectedBooking)} className='px-3 py-2 text-xs border rounded-lg cursor-pointer'>{t('admin.bookings.edit')}</button>
-              <button onClick={() => openWhatsApp(selectedBooking)} className='px-3 py-2 text-xs border border-green-200 text-green-700 rounded-lg cursor-pointer'>{t('admin.bookings.whatsapp')}</button>
-              <button onClick={() => printBooking(selectedBooking)} className='px-3 py-2 text-xs border rounded-lg cursor-pointer'>{t('admin.bookings.print')}</button>
-              <button onClick={() => deleteBooking(selectedBooking._id)} className='px-3 py-2 text-xs border border-red-200 text-red-600 rounded-lg cursor-pointer'>{t('admin.bookings.delete')}</button>
+              <button onClick={() => startEdit(selectedBooking)} className='admin-btn admin-btn-secondary min-h-9 text-xs'>{t('admin.bookings.edit')}</button>
+              <button onClick={() => openWhatsApp(selectedBooking)} className='admin-btn admin-btn-secondary min-h-9 text-xs'>{t('admin.bookings.whatsapp')}</button>
+              <button onClick={() => printBooking(selectedBooking)} className='admin-btn admin-btn-ghost min-h-9 text-xs'>{t('admin.bookings.print')}</button>
+              <button onClick={() => deleteBooking(selectedBooking._id)} className='admin-btn admin-btn-danger min-h-9 text-xs'>{t('admin.bookings.delete')}</button>
             </div>
           </div>
         ) : (
@@ -1115,25 +1115,38 @@ const ManageBookings = () => {
 
       {extensionOpen && selectedBooking && (
         <div
-          className='fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4'
+          className='fixed inset-0 z-50 bg-[var(--admin-overlay)] flex items-end sm:items-center justify-center p-0 sm:p-4'
           onClick={() => !extensionBusy && setExtensionOpen(false)}
         >
           <form
             onSubmit={applyExtension}
             onClick={(e) => e.stopPropagation()}
-            className='bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg max-h-[92svh] overflow-y-auto p-5 sm:p-6 space-y-4'
+            className='admin-card rounded-t-2xl sm:rounded-[var(--admin-radius-xl)] w-full max-w-lg max-h-[92svh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-[var(--admin-shadow-lg)]'
           >
             <div className='flex items-start justify-between gap-3'>
               <div>
-                <h3 className='text-lg font-semibold text-ink'>{t('admin.bookings.extendTitle')}</h3>
-                <p className='text-xs text-muted mt-1'>
+                <h3 className='text-lg font-semibold text-[var(--admin-ink)]'>{t('admin.bookings.extendTitle')}</h3>
+                <p className='text-xs text-[var(--admin-muted)] mt-1'>
                   {selectedBooking.reservationId} · {t('admin.bookings.extendCurrentReturn')}:{' '}
                   {formatDateTime(selectedBooking.returnDate)}
                 </p>
               </div>
-              <button type="button" disabled={extensionBusy} onClick={() => setExtensionOpen(false)} className='text-muted'>
-                ✕
+              <button type="button" disabled={extensionBusy} onClick={() => setExtensionOpen(false)} className='admin-btn admin-btn-ghost min-h-9 w-9 px-0'>
+                ×
               </button>
+            </div>
+
+            <ol className='flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--admin-muted)]'>
+              <li className={`rounded-full px-2.5 py-1 border ${!extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>1 · {t('admin.bookings.extendNewReturn')}</li>
+              <li className={`rounded-full px-2.5 py-1 border ${extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>2 · {t('admin.bookings.extendPreview')}</li>
+              <li className='rounded-full px-2.5 py-1 border border-[var(--admin-border)]'>3 · {t('admin.bookings.extendConfirm')}</li>
+            </ol>
+
+            <div className='admin-card bg-[var(--admin-surface-2)] p-3 text-sm'>
+              <p className='admin-label mb-1'>{t('admin.bookings.extendCurrentReturn')}</p>
+              <p className='text-[var(--admin-ink)] font-medium'>
+                {currency}{selectedBooking.price} · {formatDateTime(selectedBooking.pickupDate)} → {formatDateTime(selectedBooking.returnDate)}
+              </p>
             </div>
 
             <label className='block text-sm'>
@@ -1160,7 +1173,7 @@ const ManageBookings = () => {
               />
             </label>
 
-            <label className='flex items-center gap-2 text-sm text-ink'>
+            <label className='flex items-center gap-2 text-sm text-[var(--admin-ink)]'>
               <input
                 type="checkbox"
                 checked={extensionForm.regenerateContract}
@@ -1170,40 +1183,35 @@ const ManageBookings = () => {
             </label>
 
             {extensionPreview && (
-              <div className='rounded-xl border border-borderColor bg-sand/40 px-4 py-3 text-sm space-y-1'>
-                <p>
-                  {t('admin.bookings.extendDeltaDays')}: <strong>+{extensionPreview.deltaDays}</strong>
+              <div className='rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] px-4 py-3 text-sm space-y-1.5'>
+                <p className='flex justify-between'>
+                  <span>{t('admin.bookings.extendDeltaDays')}</span>
+                  <strong>+{extensionPreview.deltaDays}</strong>
                 </p>
-                <p>
-                  {t('admin.bookings.extendDeltaAmount')}:{' '}
-                  <strong>
-                    {currency}
-                    {extensionPreview.deltaAmount}
-                  </strong>
+                <p className='flex justify-between'>
+                  <span>{t('admin.bookings.extendDeltaAmount')}</span>
+                  <strong>{currency}{extensionPreview.deltaAmount}</strong>
                 </p>
-                <p>
-                  {t('admin.bookings.extendNewTotal')}:{' '}
-                  <strong>
-                    {currency}
-                    {extensionPreview.newPrice}
-                  </strong>
+                <p className='flex justify-between text-base pt-2 border-t border-[var(--admin-border)]'>
+                  <span>{t('admin.bookings.extendNewTotal')}</span>
+                  <strong className='text-[var(--admin-primary)]'>{currency}{extensionPreview.newPrice}</strong>
                 </p>
               </div>
             )}
 
-            <div className='flex flex-wrap gap-2 pt-1'>
+            <div className='flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1'>
               <button
                 type="button"
                 disabled={extensionBusy || !extensionForm.newReturnDate}
                 onClick={previewExtension}
-                className='min-h-11 px-4 rounded-xl border border-borderColor text-sm font-medium disabled:opacity-50'
+                className='admin-btn admin-btn-secondary'
               >
                 {t('admin.bookings.extendPreview')}
               </button>
               <button
                 type="submit"
                 disabled={extensionBusy || !extensionPreview}
-                className='min-h-11 px-4 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-50'
+                className='admin-btn admin-btn-primary'
               >
                 {extensionBusy ? t('admin.bookings.extendSaving') : t('admin.bookings.extendConfirm')}
               </button>

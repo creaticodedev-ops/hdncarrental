@@ -324,10 +324,10 @@ const WalkInBooking = () => {
     }
   }
 
-  const input = 'border border-borderColor rounded-md px-3 py-2 text-sm w-full outline-none focus:border-primary bg-white'
+  const input = 'admin-input'
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12 min-w-0">
+    <div className="admin-page-pad flex-1 pb-12 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <Title title={t('admin.walkIn.title')} subTitle={t('admin.walkIn.subtitle')} />
         <div className="flex items-center gap-2">
@@ -418,65 +418,67 @@ const WalkInBooking = () => {
       )}
 
       <form onSubmit={onSubmit} className="mt-6 grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-5 rounded-xl border border-borderColor bg-white p-4 sm:p-6">
-          <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">{t('admin.walkIn.customer')}</h2>
+        <div className="lg:col-span-2 space-y-5">
+          <section className="admin-card p-4 sm:p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.customer')}</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.fullName')} *</label>
+              <label className="admin-label">{t('admin.walkIn.fullName')} *</label>
               <input className={input} required value={form.fullName} onChange={(e) => setField('fullName', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.phone')} *</label>
+              <label className="admin-label">{t('admin.walkIn.phone')} *</label>
               <PhoneInput value={form.phone} onChange={(phone) => setField('phone', phone)} required />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.email')}</label>
+              <label className="admin-label">{t('admin.walkIn.email')}</label>
               <input type="email" className={input} value={form.email} onChange={(e) => setField('email', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.address')}</label>
+              <label className="admin-label">{t('admin.walkIn.address')}</label>
               <input className={input} value={form.customerAddress} onChange={(e) => setField('customerAddress', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.nationality')}</label>
+              <label className="admin-label">{t('admin.walkIn.nationality')}</label>
               <input className={input} value={form.nationality} onChange={(e) => setField('nationality', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.dateOfBirth')}</label>
+              <label className="admin-label">{t('admin.walkIn.dateOfBirth')}</label>
               <input type="date" className={input} value={form.dateOfBirth} onChange={(e) => setField('dateOfBirth', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.placeOfBirth')}</label>
+              <label className="admin-label">{t('admin.walkIn.placeOfBirth')}</label>
               <input className={input} value={form.placeOfBirth} onChange={(e) => setField('placeOfBirth', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.identityNumber')}</label>
+              <label className="admin-label">{t('admin.walkIn.identityNumber')}</label>
               <input className={input} value={form.identityDocumentNumber} onChange={(e) => setField('identityDocumentNumber', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.identityIssued')}</label>
+              <label className="admin-label">{t('admin.walkIn.identityIssued')}</label>
               <input type="date" className={input} value={form.identityIssuedOn} onChange={(e) => setField('identityIssuedOn', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.license')}</label>
+              <label className="admin-label">{t('admin.walkIn.license')}</label>
               <input className={input} value={form.driverLicenseNumber} onChange={(e) => setField('driverLicenseNumber', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.licenseIssued')}</label>
+              <label className="admin-label">{t('admin.walkIn.licenseIssued')}</label>
               <input type="date" className={input} value={form.driverLicenseIssuedOn} onChange={(e) => setField('driverLicenseIssuedOn', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.licenseExpiry')}</label>
+              <label className="admin-label">{t('admin.walkIn.licenseExpiry')}</label>
               <input type="date" className={input} value={form.driverLicenseExpiry} onChange={(e) => setField('driverLicenseExpiry', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.passport')}</label>
+              <label className="admin-label">{t('admin.walkIn.passport')}</label>
               <input className={input} value={form.passportNumber} onChange={(e) => setField('passportNumber', e.target.value)} />
             </div>
           </div>
+          </section>
 
-          <div className="rounded-xl border border-borderColor bg-gray-50 p-4 space-y-3">
-            <label className="flex items-center gap-2 text-sm text-gray-800">
+          <section className="admin-card p-4 sm:p-5 space-y-3">
+            <label className="flex items-center gap-2 text-sm text-[var(--admin-ink)]">
               <input
                 type="checkbox"
                 checked={form.secondDriverEnabled}
@@ -487,41 +489,42 @@ const WalkInBooking = () => {
             {form.secondDriverEnabled && (
               <div className="grid sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.secondDriverName')}</label>
+                  <label className="admin-label">{t('admin.walkIn.secondDriverName')}</label>
                   <input className={input} value={form.secondDriverFullName} onChange={(e) => setField('secondDriverFullName', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.secondDriverDob')}</label>
+                  <label className="admin-label">{t('admin.walkIn.secondDriverDob')}</label>
                   <input type="date" className={input} value={form.secondDriverDob} onChange={(e) => setField('secondDriverDob', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.nationality')}</label>
+                  <label className="admin-label">{t('admin.walkIn.nationality')}</label>
                   <input className={input} value={form.secondDriverNationality} onChange={(e) => setField('secondDriverNationality', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.phone')}</label>
+                  <label className="admin-label">{t('admin.walkIn.phone')}</label>
                   <input className={input} value={form.secondDriverPhone} onChange={(e) => setField('secondDriverPhone', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.license')}</label>
+                  <label className="admin-label">{t('admin.walkIn.license')}</label>
                   <input className={input} value={form.secondDriverLicenseNumber} onChange={(e) => setField('secondDriverLicenseNumber', e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.licenseExpiry')}</label>
+                  <label className="admin-label">{t('admin.walkIn.licenseExpiry')}</label>
                   <input type="date" className={input} value={form.secondDriverLicenseExpiry} onChange={(e) => setField('secondDriverLicenseExpiry', e.target.value)} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-xs text-gray-500">{t('admin.walkIn.passport')}</label>
+                  <label className="admin-label">{t('admin.walkIn.passport')}</label>
                   <input className={input} value={form.secondDriverPassportNumber} onChange={(e) => setField('secondDriverPassportNumber', e.target.value)} />
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
-          <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide pt-2">{t('admin.walkIn.rental')}</h2>
+          <section className="admin-card p-4 sm:p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.rental')}</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="text-xs text-gray-500">{t('admin.walkIn.vehicle')} *</label>
+              <label className="admin-label">{t('admin.walkIn.vehicle')} *</label>
               <select
                 className={input}
                 required
@@ -548,15 +551,15 @@ const WalkInBooking = () => {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.pickup')} *</label>
+              <label className="admin-label">{t('admin.walkIn.pickup')} *</label>
               <input type="datetime-local" className={input} required value={form.pickupDate} onChange={(e) => setField('pickupDate', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.return')} *</label>
+              <label className="admin-label">{t('admin.walkIn.return')} *</label>
               <input type="datetime-local" className={input} required value={form.returnDate} onChange={(e) => setField('returnDate', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.pickupLoc')} *</label>
+              <label className="admin-label">{t('admin.walkIn.pickupLoc')} *</label>
               <select className={input} required value={form.pickupLocationId} onChange={(e) => setField('pickupLocationId', e.target.value)}>
                 <option value="">{t('admin.walkIn.selectLoc')}</option>
                 {bookableLocations.map((l) => (
@@ -565,7 +568,7 @@ const WalkInBooking = () => {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.returnLoc')} *</label>
+              <label className="admin-label">{t('admin.walkIn.returnLoc')} *</label>
               <select className={input} required value={form.returnLocationId} onChange={(e) => setField('returnLocationId', e.target.value)}>
                 <option value="">{t('admin.walkIn.selectLoc')}</option>
                 {bookableLocations.map((l) => (
@@ -574,31 +577,31 @@ const WalkInBooking = () => {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.franchise')}</label>
+              <label className="admin-label">{t('admin.walkIn.franchise')}</label>
               <input type="number" min="0" step="0.01" className={input} value={form.franchiseAmount} onChange={(e) => setField('franchiseAmount', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.fuelLevel')}</label>
+              <label className="admin-label">{t('admin.walkIn.fuelLevel')}</label>
               <input className={input} value={form.fuelLevelStart} onChange={(e) => setField('fuelLevelStart', e.target.value)} placeholder="e.g. 1/1" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.kmDepart')}</label>
+              <label className="admin-label">{t('admin.walkIn.kmDepart')}</label>
               <input className={input} value={form.kmDepart} onChange={(e) => setField('kmDepart', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.kmRetour')}</label>
+              <label className="admin-label">{t('admin.walkIn.kmRetour')}</label>
               <input className={input} value={form.kmRetour} onChange={(e) => setField('kmRetour', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.deliveredBy')}</label>
+              <label className="admin-label">{t('admin.walkIn.deliveredBy')}</label>
               <input className={input} value={form.deliveredBy} onChange={(e) => setField('deliveredBy', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.receivedBy')}</label>
+              <label className="admin-label">{t('admin.walkIn.receivedBy')}</label>
               <input className={input} value={form.receivedBy} onChange={(e) => setField('receivedBy', e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.settings.promoCode')}</label>
+              <label className="admin-label">{t('admin.settings.promoCode')}</label>
               <input
                 className={`${input} uppercase`}
                 value={form.promoCode}
@@ -607,54 +610,55 @@ const WalkInBooking = () => {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-xs text-gray-500">{t('admin.walkIn.notes')}</label>
+              <label className="admin-label">{t('admin.walkIn.notes')}</label>
               <textarea rows={2} className={input} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
             </div>
           </div>
+          </section>
 
-          <div className="rounded-xl border border-borderColor bg-gray-50 p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">{t('admin.walkIn.uploadDocuments')}</h2>
-            <p className="text-xs text-gray-500">{t('admin.walkIn.uploadDocumentsHint')}</p>
+          <section className="admin-card p-4 sm:p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.uploadDocuments')}</h2>
+            <p className="text-xs text-[var(--admin-muted)]">{t('admin.walkIn.uploadDocumentsHint')}</p>
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
-                <label className="text-xs text-gray-500">{t('admin.walkIn.uploadLicense')} *</label>
+                <label className="admin-label">{t('admin.walkIn.uploadLicense')} *</label>
                 <input
                   type="file"
                   accept="image/*"
                   className="block text-xs mt-1 w-full"
                   onChange={(e) => setDocFiles((d) => ({ ...d, driving_license: e.target.files?.[0] || null }))}
                 />
-                {docFiles.driving_license && <p className="text-[11px] text-emerald-700 mt-1 truncate">{docFiles.driving_license.name}</p>}
+                {docFiles.driving_license && <p className="text-[11px] text-[var(--admin-success)] mt-1 truncate">{docFiles.driving_license.name}</p>}
               </div>
               <div>
-                <label className="text-xs text-gray-500">{t('admin.walkIn.uploadNationalId')} *</label>
+                <label className="admin-label">{t('admin.walkIn.uploadNationalId')} *</label>
                 <input
                   type="file"
                   accept="image/*"
                   className="block text-xs mt-1 w-full"
                   onChange={(e) => setDocFiles((d) => ({ ...d, national_id: e.target.files?.[0] || null }))}
                 />
-                {docFiles.national_id && <p className="text-[11px] text-emerald-700 mt-1 truncate">{docFiles.national_id.name}</p>}
+                {docFiles.national_id && <p className="text-[11px] text-[var(--admin-success)] mt-1 truncate">{docFiles.national_id.name}</p>}
               </div>
               <div>
-                <label className="text-xs text-gray-500">{t('admin.walkIn.uploadPassport')}</label>
+                <label className="admin-label">{t('admin.walkIn.uploadPassport')}</label>
                 <input
                   type="file"
                   accept="image/*"
                   className="block text-xs mt-1 w-full"
                   onChange={(e) => setDocFiles((d) => ({ ...d, passport: e.target.files?.[0] || null }))}
                 />
-                {docFiles.passport && <p className="text-[11px] text-emerald-700 mt-1 truncate">{docFiles.passport.name}</p>}
+                {docFiles.passport && <p className="text-[11px] text-[var(--admin-success)] mt-1 truncate">{docFiles.passport.name}</p>}
               </div>
             </div>
-          </div>
+          </section>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-borderColor bg-white p-4 sm:p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-800">{t('admin.walkIn.options')}</h2>
+          <div className="admin-card p-4 sm:p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.options')}</h2>
             <div>
-              <label className="text-xs text-gray-500">{t('admin.walkIn.initialStatus')}</label>
+              <label className="admin-label">{t('admin.walkIn.initialStatus')}</label>
               <select className={input} value={form.status} onChange={(e) => setField('status', e.target.value)}>
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
@@ -662,11 +666,11 @@ const WalkInBooking = () => {
                 <option value="active">Active (out)</option>
               </select>
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-[var(--admin-ink-secondary)]">
               <input type="checkbox" checked={form.markPaid} onChange={(e) => setField('markPaid', e.target.checked)} />
               {t('admin.walkIn.markPaid')}
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-[var(--admin-ink-secondary)]">
               <input
                 type="checkbox"
                 checked={form.sendCompletionLink}
@@ -675,18 +679,18 @@ const WalkInBooking = () => {
               />
               {t('admin.walkIn.sendLink')}
             </label>
-            <p className="text-xs text-gray-400">{t('admin.walkIn.sendLinkHint')}</p>
+            <p className="text-xs text-[var(--admin-muted)]">{t('admin.walkIn.sendLinkHint')}</p>
           </div>
 
-          <div className="rounded-xl border border-borderColor bg-white p-4 sm:p-5">
-            <h2 className="text-sm font-semibold text-gray-800 mb-3">{t('admin.walkIn.estimate')}</h2>
+          <div className="admin-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold text-[var(--admin-ink)] mb-3">{t('admin.walkIn.estimate')}</h2>
             {quote ? (
-              <ul className="text-sm space-y-1.5 text-gray-600">
+              <ul className="text-sm space-y-1.5 text-[var(--admin-ink-secondary)]">
                 <li className="flex justify-between"><span>{t('admin.walkIn.days', { count: quote.days })}</span><span>{currency}{quote.rental}</span></li>
                 {quote.pickupFee > 0 && <li className="flex justify-between"><span>Pickup fee</span><span>{currency}{quote.pickupFee}</span></li>}
                 {quote.dropoffFee > 0 && <li className="flex justify-between"><span>Return fee</span><span>{currency}{quote.dropoffFee}</span></li>}
                 {(quote.discount || 0) > 0 && (
-                  <li className="flex justify-between text-emerald-700">
+                  <li className="flex justify-between text-[var(--admin-success)]">
                     <span>{t('admin.bookings.discounts')}</span>
                     <span>−{currency}{quote.discount}</span>
                   </li>
@@ -694,18 +698,18 @@ const WalkInBooking = () => {
                 {form.franchiseAmount !== '' && (
                   <li className="flex justify-between"><span>{t('admin.walkIn.franchise')}</span><span>{currency}{form.franchiseAmount}</span></li>
                 )}
-                <li className="flex justify-between font-semibold text-gray-900 pt-2 border-t border-borderColor">
+                <li className="flex justify-between font-semibold text-[var(--admin-ink)] pt-2 border-t border-[var(--admin-border)]">
                   <span>{t('admin.walkIn.total')}</span>
                   <span>{currency}{quote.total}</span>
                 </li>
               </ul>
             ) : (
-              <p className="text-sm text-gray-400">{t('admin.walkIn.estimateHint')}</p>
+              <p className="text-sm text-[var(--admin-muted)]">{t('admin.walkIn.estimateHint')}</p>
             )}
             <button
               type="submit"
               disabled={saving}
-              className="mt-5 w-full bg-primary hover:bg-primary-dull text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-60"
+              className="admin-btn admin-btn-primary mt-5 w-full"
             >
               {saving ? t('admin.walkIn.saving') : t('admin.walkIn.submit')}
             </button>

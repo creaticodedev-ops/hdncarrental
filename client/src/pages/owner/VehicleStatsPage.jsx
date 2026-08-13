@@ -219,11 +219,11 @@ const VehicleStatsPage = () => {
   ]
 
   if (loading) {
-    return <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 text-gray-500'>{t('admin.vehicleStats.loadingDetail')}</div>
+    return <div className='admin-page-pad text-gray-500'>{t('admin.vehicleStats.loadingDetail')}</div>
   }
 
   return (
-    <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 w-full pb-12'>
+    <div className='admin-page-pad w-full pb-12'>
       <div className='rounded-[28px] border border-borderColor bg-white p-4 shadow-[0_18px_55px_-28px_rgba(22,18,16,0.24)] sm:p-6 lg:p-8'>
         <div className='flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between'>
           <div>

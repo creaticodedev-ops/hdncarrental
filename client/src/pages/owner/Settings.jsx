@@ -69,11 +69,10 @@ const Settings = () => {
   }, [axios])
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-16 min-w-0 overflow-x-clip">
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-borderColor/60 bg-gradient-to-br from-white via-white to-sand/50 px-5 py-6 sm:px-7 sm:py-7 shadow-[0_24px_60px_-42px_rgba(22,18,16,0.4)]">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/5 blur-2xl" aria-hidden />
+    <div className="admin-page-pad flex-1 pb-16 min-w-0 overflow-x-clip">
+      <div className="admin-card px-5 py-5 sm:px-6 sm:py-6">
         <Title title={t('admin.settings.title')} subTitle={t('admin.settings.subtitle')} />
-        <p className="mt-3 max-w-2xl text-sm text-muted leading-relaxed">
+        <p className="mt-1 max-w-2xl text-sm text-[var(--admin-muted)] leading-relaxed">
           {t('admin.settings.heroHint')}
         </p>
       </div>

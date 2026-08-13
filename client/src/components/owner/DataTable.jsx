@@ -1,6 +1,14 @@
 import React from 'react'
 
-const DataTable = ({ columns, data, sortBy, sortOrder, onSort, loading, emptyMessage = 'No data found' }) => {
+const DataTable = ({
+  columns,
+  data,
+  sortBy,
+  sortOrder,
+  onSort,
+  loading,
+  emptyMessage = 'No data found',
+}) => {
   const handleSort = (key) => {
     if (!key || !onSort) return
     if (sortBy === key) {
@@ -12,20 +20,20 @@ const DataTable = ({ columns, data, sortBy, sortOrder, onSort, loading, emptyMes
 
   const SortIcon = ({ columnKey }) => {
     if (!columnKey) return null
-    if (sortBy !== columnKey) return <span className="text-gray-300 ml-1">↕</span>
-    return <span className="text-primary ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+    if (sortBy !== columnKey) return <span className="text-[var(--admin-muted)] ml-1 opacity-50">↕</span>
+    return <span className="text-[var(--admin-primary)] ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
   }
 
   return (
-    <div className="w-full rounded-md overflow-hidden border border-borderColor bg-white">
+    <div className="admin-card overflow-hidden">
       <div className="table-scroll">
-        <table className="w-full border-collapse text-left text-sm text-gray-600 max-lg:min-w-[720px]">
-          <thead className="text-gray-500 bg-gray-50">
+        <table className="w-full border-collapse text-left text-sm text-[var(--admin-ink-secondary)] max-lg:min-w-[720px]">
+          <thead className="text-[var(--admin-muted)] bg-[var(--admin-table-head)]">
             <tr>
-              {columns.map(col => (
+              {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`p-3 font-medium whitespace-nowrap ${col.className || ''} ${col.sortable ? 'cursor-pointer select-none hover:bg-gray-100' : ''}`}
+                  className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${col.className || ''} ${col.sortable ? 'cursor-pointer select-none hover:bg-[var(--admin-hover)]' : ''}`}
                   onClick={() => col.sortable && handleSort(col.sortKey || col.key)}
                 >
                   <span className="inline-flex items-center">
@@ -39,21 +47,27 @@ const DataTable = ({ columns, data, sortBy, sortOrder, onSort, loading, emptyMes
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="p-8 text-center text-gray-400">
-                  Loading...
+                <td colSpan={columns.length} className="px-4 py-10 text-center text-[var(--admin-muted)]">
+                  <div className="mx-auto max-w-sm space-y-2">
+                    <div className="admin-skeleton h-3 w-full" />
+                    <div className="admin-skeleton h-3 w-4/5 mx-auto" />
+                  </div>
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="p-8 text-center text-gray-400">
+                <td colSpan={columns.length} className="px-4 py-10 text-center text-[var(--admin-muted)]">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
               data.map((row, index) => (
-                <tr key={row._id || index} className="border-t border-borderColor hover:bg-gray-50/50">
-                  {columns.map(col => (
-                    <td key={col.key} className={`p-3 ${col.className || ''}`}>
+                <tr
+                  key={row._id || index}
+                  className="border-t border-[var(--admin-border)] hover:bg-[var(--admin-hover)] transition-colors"
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className={`px-4 py-3 align-middle ${col.className || ''}`}>
                       {col.render ? col.render(row) : row[col.key]}
                     </td>
                   ))}

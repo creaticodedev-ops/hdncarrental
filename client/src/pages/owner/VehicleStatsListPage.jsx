@@ -40,7 +40,7 @@ const VehicleStatsListPage = () => {
   }, [axios, isOwner, t])
 
   return (
-    <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 w-full pb-12'>
+    <div className='admin-page-pad w-full pb-12'>
       <div className='flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between'>
         <div>
           <Title title={t('admin.vehicleStats.title')} subTitle={t('admin.vehicleStats.subtitle')} />

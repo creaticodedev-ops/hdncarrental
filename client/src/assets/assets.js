@@ -88,36 +88,24 @@ export const menuLinks = [
     { name: "Cars", path: "/cars" },
 ]
 
-/** Admin sidebar: grouped navigation (permissions + paths unchanged). */
+/** Admin sidebar: professional IA (permissions + paths unchanged). */
 export const ownerNavGroups = [
     {
-        id: 'overview',
-        labelKey: 'admin.menuGroups.overview',
+        id: 'main',
+        labelKey: 'admin.menuGroups.main',
         items: [
             { nameKey: "admin.menu.dashboard", path: "/owner", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "dashboard" },
-            { nameKey: "admin.menu.analytics", path: "/owner/analytics", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "analytics" },
         ],
     },
     {
-        id: 'bookings',
-        labelKey: 'admin.menuGroups.bookings',
+        id: 'operations',
+        labelKey: 'admin.menuGroups.operations',
         items: [
             { nameKey: "admin.menu.reservations", path: "/owner/manage-bookings", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
-            { nameKey: "admin.menu.signatureRequests", path: "/owner/signature-requests", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
-            { nameKey: "admin.menu.walkIn", path: "/owner/walk-in", icon: addIcon, coloredIcon: addIconColored, permission: "bookings" },
             { nameKey: "admin.menu.calendar", path: "/owner/calendar", icon: calendar_icon_colored, coloredIcon: calendar_icon_colored, permission: "calendar" },
             { nameKey: "admin.menu.customers", path: "/owner/customers", icon: users_icon, coloredIcon: users_icon, permission: "customers" },
-        ],
-    },
-    {
-        id: 'fleet',
-        labelKey: 'admin.menuGroups.fleet',
-        items: [
-            { nameKey: "admin.menu.addCar", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored, permission: "fleet" },
             { nameKey: "admin.menu.fleet", path: "/owner/manage-cars", icon: carIcon, coloredIcon: carIconColored, permission: "fleet" },
-            { nameKey: "admin.menu.catalogOrder", path: "/owner/catalog-order", icon: listIcon, coloredIcon: listIconColored, permission: "fleet" },
-            { nameKey: "admin.menu.vehicleStats", path: "/owner/vehicle-stats", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "fleet" },
-            { nameKey: "admin.menu.maintenance", path: "/owner/maintenance", icon: cautionIconColored, coloredIcon: cautionIconColored, permission: "maintenance" },
+            { nameKey: "admin.menu.addCar", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored, permission: "fleet" },
             { nameKey: "admin.menu.chauffeurs", path: "/owner/chauffeurs", icon: users_icon, coloredIcon: users_icon, permission: "chauffeurs" },
             { nameKey: "admin.menu.locations", path: "/owner/locations", icon: location_icon, coloredIcon: location_icon_colored, permission: "locations" },
         ],
@@ -131,8 +119,8 @@ export const ownerNavGroups = [
         ],
     },
     {
-        id: 'accounting',
-        labelKey: 'admin.menuGroups.accounting',
+        id: 'finance',
+        labelKey: 'admin.menuGroups.finance',
         items: [
             { nameKey: "admin.menu.accountingOverview", path: "/owner/accounting", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "accounting" },
             { nameKey: "admin.menu.revenues", path: "/owner/accounting/revenues", icon: listIcon, coloredIcon: listIconColored, permission: "accounting" },
@@ -146,16 +134,28 @@ export const ownerNavGroups = [
         labelKey: 'admin.menuGroups.documents',
         items: [
             { nameKey: "admin.menu.contracts", path: "/owner/contracts", icon: listIcon, coloredIcon: listIconColored, permission: "contracts" },
+            { nameKey: "admin.menu.signatureRequests", path: "/owner/signature-requests", icon: listIcon, coloredIcon: listIconColored, permission: "bookings" },
             { nameKey: "admin.menu.invoices", path: "/owner/invoices", icon: listIcon, coloredIcon: listIconColored, permission: "contracts" },
             { nameKey: "admin.menu.templates", path: "/owner/templates", icon: edit_icon, coloredIcon: edit_icon, permission: "templates" },
         ],
     },
     {
-        id: 'reporting',
-        labelKey: 'admin.menuGroups.reporting',
+        id: 'management',
+        labelKey: 'admin.menuGroups.management',
         items: [
+            { nameKey: "admin.menu.walkIn", path: "/owner/walk-in", icon: addIcon, coloredIcon: addIconColored, permission: "bookings" },
+            { nameKey: "admin.menu.maintenance", path: "/owner/maintenance", icon: cautionIconColored, coloredIcon: cautionIconColored, permission: "maintenance" },
+            { nameKey: "admin.menu.catalogOrder", path: "/owner/catalog-order", icon: listIcon, coloredIcon: listIconColored, permission: "fleet" },
+            { nameKey: "admin.menu.vehicleStats", path: "/owner/vehicle-stats", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "fleet" },
+            { nameKey: "admin.menu.analytics", path: "/owner/analytics", icon: dashboardIcon, coloredIcon: dashboardIconColored, permission: "analytics" },
             { nameKey: "admin.menu.reports", path: "/owner/reports", icon: listIcon, coloredIcon: listIconColored, permission: "reports" },
             { nameKey: "admin.menu.audit", path: "/owner/audit", icon: listIcon, coloredIcon: listIconColored, permission: "audit" },
+        ],
+    },
+    {
+        id: 'settings',
+        labelKey: 'admin.menuGroups.settings',
+        items: [
             { nameKey: "admin.menu.settings", path: "/owner/settings", icon: edit_icon, coloredIcon: edit_icon },
         ],
     },

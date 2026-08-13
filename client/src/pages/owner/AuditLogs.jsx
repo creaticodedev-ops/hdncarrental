@@ -32,7 +32,7 @@ const AuditLogs = () => {
   }, [page, axios]);
 
   return (
-    <div className="px-4 pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 flex-1 pb-12">
+    <div className="admin-page-pad flex-1 pb-12">
       <Title title={t('admin.audit.title')} subTitle={t('admin.audit.subtitle')} />
 
       <div className="mt-6 rounded-xl border border-borderColor bg-white overflow-hidden">

@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Title from '../../components/owner/Title'
+import { AdminPage, StatCard, SkeletonBlock } from '../../admin/ui'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
-
-const cardClass = 'rounded-2xl border border-borderColor bg-white p-5 shadow-sm'
 
 const formatMoney = (n, currency = 'MAD') =>
   `${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`
@@ -53,6 +51,7 @@ const AccountingOverview = () => {
           paid: formatMoney(kpis.paidRevenue, currency),
         }),
         to: '/owner/accounting/revenues',
+        tone: 'success',
       },
       {
         key: 'samsar',
@@ -81,72 +80,50 @@ const AccountingOverview = () => {
         value: formatMoney(kpis.netResult, currency),
         hint: t('admin.accounting.kpiNetHint'),
         to: null,
-        emphasize: true,
+        tone: 'primary',
       },
     ]
   }, [currency, kpis, t])
 
   return (
-    <div className="px-4 py-6 md:px-8">
+    <AdminPage>
       <Title title={t('admin.accounting.overviewTitle')} subTitle={t('admin.accounting.overviewSubtitle')} />
 
-      <div className="mt-6 flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 mb-6">
         <label className="text-sm">
-          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">
-            {t('admin.accounting.from')}
-          </span>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="min-h-11 rounded-xl border border-borderColor bg-white px-3 text-sm"
-          />
+          <span className="admin-label">{t('admin.accounting.from')}</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="admin-input" />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">
-            {t('admin.accounting.to')}
-          </span>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="min-h-11 rounded-xl border border-borderColor bg-white px-3 text-sm"
-          />
+          <span className="admin-label">{t('admin.accounting.to')}</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="admin-input" />
         </label>
-        <button
-          type="button"
-          onClick={load}
-          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
-        >
+        <button type="button" onClick={load} className="admin-btn admin-btn-primary">
           {t('admin.accounting.applyFilters')}
         </button>
       </div>
 
       {loading && !kpis ? (
-        <p className="mt-8 text-sm text-muted">{t('admin.accounting.loading')}</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonBlock key={i} className="h-28" />
+          ))}
+        </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {tiles.map((tile) => {
-            const inner = (
-              <div
-                className={`${cardClass} ${tile.emphasize ? 'ring-1 ring-primary/30' : ''} transition hover:border-primary/40`}
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{tile.label}</p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{tile.value}</p>
-                {tile.hint ? <p className="mt-1 text-xs text-muted">{tile.hint}</p> : null}
-              </div>
-            )
-            return tile.to ? (
-              <Link key={tile.key} to={tile.to}>
-                {inner}
-              </Link>
-            ) : (
-              <div key={tile.key}>{inner}</div>
-            )
-          })}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {tiles.map((tile) => (
+            <StatCard
+              key={tile.key}
+              label={tile.label}
+              value={tile.value}
+              hint={tile.hint}
+              to={tile.to || undefined}
+              tone={tile.tone || 'default'}
+            />
+          ))}
         </div>
       )}
-    </div>
+    </AdminPage>
   )
 }
 

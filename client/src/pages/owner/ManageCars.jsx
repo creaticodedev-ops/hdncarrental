@@ -101,8 +101,7 @@ const ManageCars = () => {
     if (isOwner) fetchOwnerCars()
   }, [isOwner, query])
 
-  const inputClass =
-    'border border-borderColor rounded-lg px-3 py-2.5 text-sm w-full min-w-0 outline-none focus:border-primary bg-white'
+  const inputClass = 'admin-input'
 
   const emptyFilters = {
     search: '',
@@ -154,15 +153,23 @@ const ManageCars = () => {
   )
 
   return (
-    <div className="admin-page px-4 pt-6 sm:pt-8 md:px-8 lg:px-10 xl:px-12 md:pt-10 w-full pb-10 min-w-0 max-w-[1600px]">
-      <Title title={t('admin.fleet.title')} subTitle={t('admin.fleet.subtitle')} />
+    <div className="admin-page-pad w-full min-w-0 max-w-[1600px]">
+      <Title
+        title={t('admin.fleet.title')}
+        subTitle={t('admin.fleet.subtitle')}
+        primaryAction={
+          <button type="button" onClick={() => navigate('/owner/add-car')} className="admin-btn admin-btn-primary">
+            {t('admin.menu.addCar')}
+          </button>
+        }
+      />
 
       <form
         onSubmit={(e) => {
           e.preventDefault()
           setApplied({ ...filters })
         }}
-        className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 rounded-xl border border-borderColor bg-white p-4 sm:p-5 shadow-sm"
+        className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 admin-card p-4 sm:p-5"
       >
         <input
           className={`${inputClass} lg:col-span-2`}

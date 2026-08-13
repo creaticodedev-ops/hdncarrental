@@ -109,7 +109,7 @@ const BookingCalendar = () => {
   };
 
   return (
-    <div className='px-4 py-8 md:px-8 lg:px-10 xl:px-12 md:py-10 flex-1 pb-10'>
+    <div className='admin-page-pad flex-1 pb-10'>
       <Title title={t('admin.calendar.title')} subTitle={t('admin.calendar.subtitle')} />
 
       <div className='mt-6 rounded-xl border border-borderColor bg-white p-4 min-w-0'>
