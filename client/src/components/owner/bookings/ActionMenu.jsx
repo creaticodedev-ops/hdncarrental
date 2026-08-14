@@ -2,10 +2,8 @@ import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'reac
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 
-const MENU_WIDTH = 196
-const ITEM_H = 32
-const SEP_H = 9
-const PAD = 6
+const MENU_WIDTH = 220
+const MOBILE_MQ = '(max-width: 639px)'
 
 const MoreIcon = () => (
   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -77,9 +75,14 @@ const ICONS = {
   ),
 }
 
+const getPortalRoot = () =>
+  (typeof document !== 'undefined' && document.querySelector('.admin-shell')) ||
+  (typeof document !== 'undefined' ? document.body : null)
+
 /**
  * Compact SaaS overflow menu.
  * items: { key, label, onClick?, href?, tone?, icon?, separator?, hidden? }
+ * Portaled into `.admin-shell` so theme tokens stay applied (opaque surface).
  */
 const ActionMenu = ({
   label,
@@ -90,7 +93,10 @@ const ActionMenu = ({
   className = '',
 }) => {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0, placement: 'bottom' })
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(MOBILE_MQ).matches : false,
+  )
+  const [pos, setPos] = useState({ top: 8, left: 8, maxHeight: 320, placement: 'bottom' })
   const [focusIdx, setFocusIdx] = useState(-1)
   const btnRef = useRef(null)
   const menuRef = useRef(null)
@@ -98,30 +104,52 @@ const ActionMenu = ({
   const visible = items.filter((item) => item && !item.hidden)
   const actionable = visible.filter((item) => !item.separator)
 
-  const estimateHeight = () =>
-    PAD * 2 +
-    visible.reduce((sum, item) => sum + (item.separator ? SEP_H : ITEM_H), 0)
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_MQ)
+    const sync = () => setIsMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return undefined
     const place = () => {
       const rect = btnRef.current.getBoundingClientRect()
-      const menuHeight = Math.min(estimateHeight(), window.innerHeight - 16)
-      const gap = 4
+      const mobile = window.matchMedia(MOBILE_MQ).matches
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const gap = 6
+      const pad = 10
+      if (mobile) {
+        setPos({
+          top: 0,
+          left: 0,
+          maxHeight: Math.round(vh * 0.72),
+          placement: 'sheet',
+        })
+        return
+      }
+      const measured = menuRef.current?.offsetHeight
+      const menuHeight = Math.min(measured || 280, vh - pad * 2)
       let left = align === 'left' ? rect.left : rect.right - MENU_WIDTH
-      left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH - 8))
-
-      const spaceBelow = window.innerHeight - rect.bottom - 8
-      const spaceAbove = rect.top - 8
+      left = Math.max(pad, Math.min(left, vw - MENU_WIDTH - pad))
+      const spaceBelow = vh - rect.bottom - pad
+      const spaceAbove = rect.top - pad
       let placement = 'bottom'
       let top = rect.bottom + gap
-      if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+      if (spaceBelow < Math.min(menuHeight, 220) && spaceAbove > spaceBelow) {
         placement = 'top'
-        top = Math.max(8, rect.top - menuHeight - gap)
+        top = Math.max(pad, rect.top - (measured || menuHeight) - gap)
       } else {
-        top = Math.min(top, window.innerHeight - menuHeight - 8)
+        top = Math.min(top, vh - menuHeight - pad)
       }
-      setPos({ top, left, placement })
+      setPos({
+        top,
+        left,
+        maxHeight: placement === 'bottom' ? Math.max(160, spaceBelow - gap) : Math.max(160, spaceAbove - gap),
+        placement,
+      })
     }
     place()
     window.addEventListener('resize', place)
@@ -130,7 +158,7 @@ const ActionMenu = ({
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [open, align, visible.length])
+  }, [open, align, visible.length, isMobile])
 
   useEffect(() => {
     if (!open) {
@@ -154,11 +182,9 @@ const ActionMenu = ({
         setFocusIdx((prev) => {
           if (!actionable.length) return -1
           if (prev < 0) return e.key === 'ArrowDown' ? 0 : actionable.length - 1
-          const next =
-            e.key === 'ArrowDown'
-              ? (prev + 1) % actionable.length
-              : (prev - 1 + actionable.length) % actionable.length
-          return next
+          return e.key === 'ArrowDown'
+            ? (prev + 1) % actionable.length
+            : (prev - 1 + actionable.length) % actionable.length
         })
       }
       if (e.key === 'Enter' && focusIdx >= 0) {
@@ -184,9 +210,59 @@ const ActionMenu = ({
     nodes[focusIdx]?.focus()
   }, [focusIdx, open])
 
+  useEffect(() => {
+    if (!open || !isMobile) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open, isMobile])
+
   if (!visible.length) return null
 
+  const portalRoot = getPortalRoot()
   let actionCounter = -1
+
+  const renderItems = () =>
+    visible.map((item) => {
+      if (item.separator) {
+        return <div key={item.key} className="res-menu-sep" role="separator" />
+      }
+      actionCounter += 1
+      const idx = actionCounter
+      const icon = item.icon ? ICONS[item.icon] : null
+      const danger = item.tone === 'danger'
+      const shared = {
+        key: item.key,
+        role: 'menuitem',
+        'data-menu-action': '1',
+        className: `res-menu-item${danger ? ' is-danger' : ''}${focusIdx === idx ? ' is-focused' : ''}`,
+        onMouseEnter: () => setFocusIdx(idx),
+      }
+      if (item.href) {
+        return (
+          <Link {...shared} to={item.href} onClick={() => setOpen(false)}>
+            {icon ? <span className="res-menu-icon">{icon}</span> : <span className="res-menu-icon" />}
+            <span className="res-menu-label">{item.label}</span>
+          </Link>
+        )
+      }
+      return (
+        <button
+          {...shared}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpen(false)
+            item.onClick?.()
+          }}
+        >
+          {icon ? <span className="res-menu-icon">{icon}</span> : <span className="res-menu-icon" />}
+          <span className="res-menu-label">{item.label}</span>
+        </button>
+      )
+    })
 
   return (
     <>
@@ -210,59 +286,38 @@ const ActionMenu = ({
         <MoreIcon />
         {trigger === 'button' || !iconOnly ? <span>{label}</span> : null}
       </button>
-      {open
+      {open && portalRoot
         ? createPortal(
-            <div
-              ref={menuRef}
-              id={menuId}
-              role="menu"
-              style={{ position: 'fixed', top: pos.top, left: pos.left, width: MENU_WIDTH }}
-              className={`res-menu res-menu-${pos.placement}`}
-            >
-              {visible.map((item) => {
-                if (item.separator) {
-                  return <div key={item.key} className="res-menu-sep" role="separator" />
+            <div className={`res-menu-layer${isMobile ? ' is-sheet' : ''}`} data-theme-layer="menu">
+              <button
+                type="button"
+                className="res-menu-scrim"
+                aria-label={label}
+                tabIndex={-1}
+                onClick={() => setOpen(false)}
+              />
+              <div
+                ref={menuRef}
+                id={menuId}
+                role="menu"
+                className={`res-menu${isMobile ? ' is-sheet' : ` res-menu-${pos.placement}`}`}
+                style={
+                  isMobile
+                    ? { maxHeight: pos.maxHeight }
+                    : {
+                        top: pos.top,
+                        left: pos.left,
+                        width: MENU_WIDTH,
+                        maxHeight: pos.maxHeight,
+                      }
                 }
-                actionCounter += 1
-                const idx = actionCounter
-                const icon = item.icon ? ICONS[item.icon] : null
-                const danger = item.tone === 'danger'
-                const shared = {
-                  key: item.key,
-                  role: 'menuitem',
-                  'data-menu-action': '1',
-                  className: `res-menu-item${danger ? ' is-danger' : ''}${focusIdx === idx ? ' is-focused' : ''}`,
-                  onMouseEnter: () => setFocusIdx(idx),
-                }
-                if (item.href) {
-                  return (
-                    <Link
-                      {...shared}
-                      to={item.href}
-                      onClick={() => setOpen(false)}
-                    >
-                      {icon ? <span className="res-menu-icon">{icon}</span> : null}
-                      <span className="res-menu-label">{item.label}</span>
-                    </Link>
-                  )
-                }
-                return (
-                  <button
-                    {...shared}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpen(false)
-                      item.onClick?.()
-                    }}
-                  >
-                    {icon ? <span className="res-menu-icon">{icon}</span> : null}
-                    <span className="res-menu-label">{item.label}</span>
-                  </button>
-                )
-              })}
+              >
+                {isMobile ? <div className="res-menu-handle" aria-hidden /> : null}
+                {isMobile ? <p className="res-menu-title">{label}</p> : null}
+                <div className="res-menu-list">{renderItems()}</div>
+              </div>
             </div>,
-            document.body,
+            portalRoot,
           )
         : null}
     </>
