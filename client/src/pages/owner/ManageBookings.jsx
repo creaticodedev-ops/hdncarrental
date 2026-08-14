@@ -1,13 +1,21 @@
-﻿import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Title from '../../components/owner/Title'
-import ChannelBadge from '../../components/owner/ChannelBadge'
-import BookingRowActions from '../../components/owner/BookingRowActions'
+import ConfirmDialog from '../../components/owner/ConfirmDialog'
+import ReservationList from '../../components/owner/bookings/ReservationList'
+import ReservationDetail from '../../components/owner/bookings/ReservationDetail'
+import SignatureRequestDrawer from '../../components/owner/bookings/SignatureRequestDrawer'
+import {
+  extraCalendarDays,
+  formatDateTime as formatDt,
+  money,
+  reservationRef,
+} from '../../components/owner/bookings/reservationHelpers'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
-import { Link } from 'react-router-dom'
 import { buildOwnerCompletionWaUrl, buildWaMeUrl } from '../../utils/whatsapp'
 import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 
@@ -48,24 +56,10 @@ const toInputDateTime = (value) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const formatDateTime = (value) => {
-  if (!value) return '-'
-  const d = new Date(value)
-  return isNaN(d.getTime()) ? '-' : d.toLocaleString()
-}
-
-const statusClass = (status) => {
-  if (status === 'confirmed') return 'bg-green-100 text-green-600'
-  if (status === 'ready_for_pickup') return 'bg-emerald-100 text-emerald-700'
-  if (status === 'active') return 'bg-blue-100 text-blue-600'
-  if (status === 'completed') return 'bg-purple-100 text-purple-600'
-  if (status === 'cancelled') return 'bg-red-100 text-red-600'
-  return 'bg-yellow-100 text-yellow-700'
-}
-
 const ManageBookings = () => {
   const { currency, axios, hasPermission } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [bookings, setBookings] = useState([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 })
@@ -75,7 +69,7 @@ const ManageBookings = () => {
   const [editing, setEditing] = useState(null)
   const [editForm, setEditForm] = useState(emptyEdit)
   const [loading, setLoading] = useState(false)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [fleetCars, setFleetCars] = useState([])
   const [assigningVehicle, setAssigningVehicle] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState('')
@@ -90,6 +84,12 @@ const ManageBookings = () => {
   const [extensionForm, setExtensionForm] = useState({ newReturnDate: '', notes: '', regenerateContract: true })
   const [extensionPreview, setExtensionPreview] = useState(null)
   const [extensionBusy, setExtensionBusy] = useState(false)
+  const [extensionError, setExtensionError] = useState('')
+  const [signatureOpen, setSignatureOpen] = useState(false)
+  const [signatureBusy, setSignatureBusy] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
+  const selectedIdRef = useRef(null)
+  selectedIdRef.current = selectedBooking?._id
 
   const resolveCompletionUrl = (booking) =>
     booking?.completion?.shareableCompletionUrl ||
@@ -121,8 +121,8 @@ const ManageBookings = () => {
       if (data.success) {
         setBookings(data.bookings)
         setPagination((prev) => ({ ...prev, ...data.pagination }))
-        if (selectedBooking) {
-          const refreshed = data.bookings.find((b) => b._id === selectedBooking._id)
+        if (selectedIdRef.current) {
+          const refreshed = data.bookings.find((b) => b._id === selectedIdRef.current)
           if (refreshed) setSelectedBooking(refreshed)
         }
       } else {
@@ -158,6 +158,38 @@ const ManageBookings = () => {
       })
       .catch(() => {})
   }, [axios])
+
+  const selectBooking = (booking) => {
+    setSelectedBooking(booking)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (booking?._id) next.set('bookingId', booking._id)
+      else next.delete('bookingId')
+      return next
+    }, { replace: true })
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedBooking(null)
+    setSignatureOpen(false)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('bookingId')
+      return next
+    }, { replace: true })
+  }
+
+  useEffect(() => {
+    const id = searchParams.get('bookingId')
+    if (!id || !bookings.length) return
+    const found = bookings.find((b) => b._id === id)
+    if (found && found._id !== selectedIdRef.current) {
+      setSelectedBooking(found)
+    }
+  }, [bookings, searchParams])
 
   const compatibleVehicles = useMemo(() => {
     if (!selectedBooking?.car) return []
@@ -221,6 +253,7 @@ const ManageBookings = () => {
   }
 
   const resendCompletionLink = async (bookingId) => {
+    setSignatureBusy(true)
     try {
       const { data } = await axios.post('/api/booking-completion/owner/resend-link', { bookingId })
       if (data.success) {
@@ -238,10 +271,39 @@ const ManageBookings = () => {
       fetchOwnerBookings()
     } catch (error) {
       toast.error(getErrorMessage(error), { duration: 8000 })
+    } finally {
+      setSignatureBusy(false)
     }
   }
 
+  const ensureCompletionLinkPayload = async (booking) => {
+    const bookingId = booking._id
+    const tryEnsure = async (url) => {
+      const { data } = await axios.post(url, { bookingId })
+      return data
+    }
+
+    let data
+    try {
+      data = await tryEnsure('/api/booking-completion/owner/ensure-link')
+    } catch (err) {
+      if (err.response?.status === 404) {
+        data = await tryEnsure('/api/bookings/owner/completion/ensure-link')
+      } else {
+        throw err
+      }
+    }
+
+    const url = data.shareableCompletionUrl || data.completionUrl
+    if (!data.success || !url) {
+      throw new Error(data.message || t('admin.bookings.noCompletionLink'))
+    }
+    cacheCompletionUrl(bookingId, url)
+    return data
+  }
+
   const copyCompletionLink = async (booking) => {
+    setSignatureBusy(true)
     try {
       const data = await ensureCompletionLinkPayload(booking)
       const url = data.shareableCompletionUrl || data.completionUrl
@@ -250,11 +312,25 @@ const ManageBookings = () => {
       fetchOwnerBookings()
     } catch (error) {
       toast.error(getErrorMessage(error))
+    } finally {
+      setSignatureBusy(false)
+    }
+  }
+
+  const generateSignatureLink = async (booking) => {
+    setSignatureBusy(true)
+    try {
+      await ensureCompletionLinkPayload(booking)
+      toast.success(t('admin.bookings.linkReady'))
+      fetchOwnerBookings()
+    } catch (error) {
+      toast.error(getErrorMessage(error), { duration: 8000 })
+    } finally {
+      setSignatureBusy(false)
     }
   }
 
   const cancelCompletionLink = async (bookingId) => {
-    if (!window.confirm(t('admin.bookings.cancelLinkConfirm'))) return
     try {
       const { data } = await axios.post('/api/booking-completion/owner/cancel-link', { bookingId })
       if (!data.success) {
@@ -290,6 +366,7 @@ const ManageBookings = () => {
       regenerateContract: true,
     })
     setExtensionPreview(null)
+    setExtensionError('')
     setExtensionOpen(true)
   }
 
@@ -297,18 +374,22 @@ const ManageBookings = () => {
     if (!selectedBooking) return
     setExtensionBusy(true)
     setExtensionPreview(null)
+    setExtensionError('')
     try {
       const { data } = await axios.post('/api/bookings/owner/extend/preview', {
         bookingId: selectedBooking._id,
         newReturnDate: extensionForm.newReturnDate,
       })
       if (!data.success) {
-        toast.error(data.message || t('admin.bookings.extensionPreviewError'))
+        toast.error(data.message || t('admin.bookings.extendPreviewError'))
+        setExtensionError(data.message || t('admin.bookings.extendUnavailable'))
         return
       }
       setExtensionPreview(data.preview)
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      const msg = getErrorMessage(error)
+      setExtensionError(msg)
+      toast.error(msg)
     } finally {
       setExtensionBusy(false)
     }
@@ -326,12 +407,12 @@ const ManageBookings = () => {
         regenerateContract: extensionForm.regenerateContract,
       })
       if (!data.success) {
-        toast.error(data.message || t('admin.bookings.extensionApplyError'))
+        toast.error(data.message || t('admin.bookings.extendApplyError'))
         return
       }
       toast.success(t('admin.bookings.extensionApplied'))
       if (data.contract?.reason === 'content_locked') {
-        toast(t('admin.bookings.extensionContractLocked'), { icon: 'â„¹ï¸' })
+        toast(t('admin.bookings.extensionContractLocked'), { icon: 'ℹ️' })
       }
       setExtensionOpen(false)
       setSelectedBooking(data.booking)
@@ -343,39 +424,6 @@ const ManageBookings = () => {
     }
   }
 
-  const ensureCompletionLinkPayload = async (booking) => {
-    const bookingId = booking._id
-    const tryEnsure = async (url) => {
-      const { data } = await axios.post(url, { bookingId })
-      return data
-    }
-
-    let data
-    try {
-      data = await tryEnsure('/api/booking-completion/owner/ensure-link')
-    } catch (err) {
-      if (err.response?.status === 404) {
-        data = await tryEnsure('/api/bookings/owner/completion/ensure-link')
-      } else {
-        throw err
-      }
-    }
-
-    const url = data.shareableCompletionUrl || data.completionUrl
-    if (!data.success || !url) {
-      throw new Error(data.message || t('admin.bookings.noCompletionLink'))
-    }
-    cacheCompletionUrl(bookingId, url)
-    return data
-  }
-
-  const ensureCompletionUrl = async (booking) => {
-    const cached = resolveCompletionUrl(booking)
-    if (cached) return cached
-    const data = await ensureCompletionLinkPayload(booking)
-    return data.shareableCompletionUrl || data.completionUrl
-  }
-
   const openCompletionWaMe = (booking, completionUrl, dial) => {
     const url = buildOwnerCompletionWaUrl(booking, completionUrl, {
       currency,
@@ -384,10 +432,10 @@ const ManageBookings = () => {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  /** Ensures completion link exists, then opens wa.me (no WhatsApp send API). */
   const confirmViaWhatsApp = async (booking) => {
     if (!booking?._id) return
     setOpeningWhatsApp(true)
+    setSignatureBusy(true)
     try {
       const data = await ensureCompletionLinkPayload(booking)
       const completionUrl = data.shareableCompletionUrl || data.completionUrl
@@ -405,6 +453,7 @@ const ManageBookings = () => {
       toast.error(getErrorMessage(error), { duration: 8000 })
     } finally {
       setOpeningWhatsApp(false)
+      setSignatureBusy(false)
     }
   }
 
@@ -463,12 +512,11 @@ const ManageBookings = () => {
   }
 
   const deleteBooking = async (bookingId) => {
-    if (!window.confirm('Delete this reservation permanently?')) return
     try {
       const { data } = await axios.post('/api/bookings/delete', { bookingId })
       if (data.success) {
         toast.success(data.message)
-        if (selectedBooking?._id === bookingId) setSelectedBooking(null)
+        if (selectedBooking?._id === bookingId) clearSelection()
         fetchOwnerBookings()
       } else {
         toast.error(data.message)
@@ -556,17 +604,15 @@ const ManageBookings = () => {
   }
 
   const openWhatsApp = (booking) => {
-    const vehicle = booking.car
-      ? `${booking.car.brand} ${booking.car.model}`
-      : 'â€”'
+    const vehicle = booking.car ? `${booking.car.brand} ${booking.car.model}` : '—'
     const text = [
       'Hello, regarding this reservation:',
       '',
-      `ID: ${booking.reservationId || 'â€”'}`,
-      `Customer: ${booking.customerName || 'â€”'}`,
-      `Phone: ${booking.customerPhone || 'â€”'}`,
+      `ID: ${booking.reservationId || '—'}`,
+      `Customer: ${booking.customerName || '—'}`,
+      `Phone: ${booking.customerPhone || '—'}`,
       `Vehicle: ${vehicle}`,
-      `Status: ${booking.status || 'â€”'}`,
+      `Status: ${booking.status || '—'}`,
     ].join('\n')
     window.open(
       buildWaMeUrl(text, whatsappDials.confirmationDial || whatsappDials.reservationDial),
@@ -631,8 +677,8 @@ const ManageBookings = () => {
             <tr><td>Vehicle</td><td>${escapeHtml(vehicle)}</td></tr>
             <tr><td>Pickup Location</td><td>${escapeHtml(booking.pickupLocation || '-')}</td></tr>
             <tr><td>Drop-off Location</td><td>${escapeHtml(booking.returnLocation || '-')}</td></tr>
-            <tr><td>Pickup</td><td>${escapeHtml(formatDateTime(booking.pickupDate))}</td></tr>
-            <tr><td>Return</td><td>${escapeHtml(formatDateTime(booking.returnDate))}</td></tr>
+            <tr><td>Pickup</td><td>${escapeHtml(formatDt(booking.pickupDate, language))}</td></tr>
+            <tr><td>Return</td><td>${escapeHtml(formatDt(booking.returnDate, language))}</td></tr>
             <tr><td>Status</td><td>${escapeHtml(booking.status)}</td></tr>
             <tr><td>Payment</td><td>${escapeHtml(booking.paymentStatus)}</td></tr>
             <tr><td>Total</td><td>${escapeHtml(String(currency))}${escapeHtml(String(booking.price))}</td></tr>
@@ -651,474 +697,194 @@ const ManageBookings = () => {
     win.document.close()
   }
 
+  const runConfirm = () => {
+    const action = confirmAction
+    setConfirmAction(null)
+    if (!action) return
+    if (action.type === 'delete') deleteBooking(action.bookingId)
+    if (action.type === 'cancelLink') cancelCompletionLink(action.bookingId)
+    if (action.type === 'cancelBooking') changeBookingStatus(action.bookingId, 'cancelled')
+  }
+
+  const liveExtraDays = selectedBooking
+    ? extraCalendarDays(selectedBooking.returnDate, extensionForm.newReturnDate)
+    : 0
+  const partnerDiscounts = extensionPreview?.priceBreakdown?.discounts?.filter((d) => Number(d.amount) > 0) || []
   const inputClass = 'admin-input'
-  const labelClass = 'admin-label'
 
   return (
-    <div className='admin-page-pad w-full min-w-0'>
-      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4'>
-        <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
-        <div className='flex flex-wrap gap-2'>
-          <Link to="/owner/walk-in" className='admin-btn admin-btn-secondary min-h-10'>
-            {t('admin.walkIn.menu')}
-          </Link>
-          <button type="button" onClick={() => setShowFilters((v) => !v)} className='admin-btn admin-btn-secondary min-h-10'>
-            {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.showFilters')}
-          </button>
-          <button type="button" onClick={exportCsv} className='admin-btn admin-btn-primary min-h-10'>
-            {t('admin.bookings.exportCsv')}
-          </button>
-        </div>
-      </div>
-
-      {showFilters && (
-        <form onSubmit={applyFilters} className='mt-6 rounded-xl border border-borderColor bg-white p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.customerName')}</label>
-            <input className={inputClass} value={filters.customerName} onChange={(e) => setFilters({ ...filters, customerName: e.target.value })} placeholder="Name" />
+    <div className={`res-module admin-page-pad w-full min-w-0 ${selectedBooking ? 'has-selection' : ''}`}>
+      <div className="res-chrome">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
+          <div className="flex flex-wrap gap-2">
+            <Link to="/owner/walk-in" className="admin-btn admin-btn-secondary admin-btn-sm">
+              {t('admin.walkIn.menu')}
+            </Link>
+            <button type="button" onClick={() => setShowFilters((v) => !v)} className="admin-btn admin-btn-secondary admin-btn-sm">
+              {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.showFilters')}
+            </button>
+            <button type="button" onClick={exportCsv} className="admin-btn admin-btn-primary admin-btn-sm">
+              {t('admin.bookings.exportCsv')}
+            </button>
           </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.phone')}</label>
-            <input className={inputClass} value={filters.phone} onChange={(e) => setFilters({ ...filters, phone: e.target.value })} placeholder="Phone" />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.email')}</label>
-            <input className={inputClass} value={filters.email} onChange={(e) => setFilters({ ...filters, email: e.target.value })} placeholder="Email" />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.reservationId')}</label>
-            <input className={inputClass} value={filters.reservationId} onChange={(e) => setFilters({ ...filters, reservationId: e.target.value })} placeholder="RES-XXXXXXXX" />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.vehicle')}</label>
-            <input className={inputClass} value={filters.vehicle} onChange={(e) => setFilters({ ...filters, vehicle: e.target.value })} placeholder="Brand or model" />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.licensePlate')}</label>
-            <input className={inputClass} value={filters.licensePlate} onChange={(e) => setFilters({ ...filters, licensePlate: e.target.value })} placeholder={t('admin.bookings.licensePlatePlaceholder')} />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.status')}</label>
-            <select className={inputClass} value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-              <option value="">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="ready_for_pickup">Ready for Pickup</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.paymentStatus')}</label>
-            <select className={inputClass} value={filters.paymentStatus} onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}>
-              <option value="">All payments</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.channel')}</label>
-            <select className={inputClass} value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
-              <option value="">All channels</option>
-              <option value="online">Online</option>
-              <option value="walk_in">Walk-in</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.pickupLocation')}</label>
-            <input className={inputClass} value={filters.pickupLocation} onChange={(e) => setFilters({ ...filters, pickupLocation: e.target.value })} placeholder="Location" />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.pickupFrom')}</label>
-            <input type="date" className={inputClass} value={filters.pickupDateFrom} onChange={(e) => setFilters({ ...filters, pickupDateFrom: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelClass}>{t('admin.bookings.pickupTo')}</label>
-            <input type="date" className={inputClass} value={filters.pickupDateTo} onChange={(e) => setFilters({ ...filters, pickupDateTo: e.target.value })} />
-          </div>
-          <div className='sm:col-span-2 lg:col-span-3 xl:col-span-4 flex flex-wrap gap-2 pt-1'>
-            <button type="submit" className='px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dull cursor-pointer'>{t('admin.bookings.applyFilters')}</button>
-            <button type="button" onClick={clearFilters} className='px-4 py-2 text-sm border border-borderColor rounded-lg hover:bg-gray-50 cursor-pointer'>{t('admin.bookings.clear')}</button>
-            <span className='text-sm text-gray-500 self-center ml-auto'>
-              {pagination.total === 1
-                ? t('admin.bookings.count', { count: pagination.total })
-                : t('admin.bookings.count_plural', { count: pagination.total })}
-            </span>
-          </div>
-        </form>
-      )}
-
-      <div className='mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.95fr]'>
-        <div className='w-full rounded-xl overflow-hidden border border-borderColor bg-white'>
-          <div className='table-scroll'>
-            <table className='w-full border-collapse text-left text-sm text-gray-600 max-lg:min-w-[640px]'>
-              <thead className='text-gray-500 bg-gray-50'>
-                <tr>
-                  <th className="p-3 font-medium">{t('admin.bookings.reservation')}</th>
-                  <th className="p-3 font-medium">{t('admin.bookings.customer')}</th>
-                  <th className="p-3 font-medium max-md:hidden">{t('admin.bookings.dates')}</th>
-                  <th className="p-3 font-medium">{t('admin.bookings.total')}</th>
-                  <th className="p-3 font-medium">{t('admin.bookings.status')}</th>
-                  <th className="p-3 font-medium text-right w-[1%] whitespace-nowrap">{t('admin.bookings.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="6" className='p-6 text-center text-gray-400'>{t('admin.bookings.loading')}</td></tr>
-                ) : bookings.length === 0 ? (
-                  <tr><td colSpan="6" className='p-6 text-center text-gray-400'>{t('admin.bookings.none')}</td></tr>
-                ) : bookings.map((booking) => (
-                  <tr key={booking._id} className='border-t border-borderColor hover:bg-gray-50/60'>
-                    <td className='p-3'>
-                      <button type="button" onClick={() => setSelectedBooking(booking)} className='text-left cursor-pointer'>
-                        <p className='font-medium text-primary'>{booking.reservationId || `RES-${booking._id.toString().slice(-8).toUpperCase()}`}</p>
-                        <p className='text-xs text-gray-500'>{booking.car?.brand} {booking.car?.model}</p>
-                        {booking.car?.licensePlate && (
-                          <p className='text-[10px] text-gray-400'>{booking.car.licensePlate}</p>
-                        )}
-                        <ChannelBadge channel={booking.channel || 'online'} className="mt-1" />
-                      </button>
-                    </td>
-                    <td className='p-3'>
-                      <p className='font-medium text-gray-700'>{booking.customerName || t('admin.common.guest')}</p>
-                      <p className='text-xs'>{booking.customerPhone || '-'}</p>
-                    </td>
-                    <td className='p-3 max-md:hidden text-xs'>
-                      {formatDateTime(booking.pickupDate)}
-                      <br />to {formatDateTime(booking.returnDate)}
-                    </td>
-                    <td className='p-3'>{currency}{booking.price}</td>
-                    <td className='p-3'>
-                      <select
-                        onChange={(e) => changeBookingStatus(booking._id, e.target.value)}
-                        value={booking.status}
-                        className='px-2 py-1.5 text-xs border border-borderColor rounded-md outline-none'
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="ready_for_pickup">Ready for Pickup</option>
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                      <p className='text-[11px] mt-1 capitalize text-gray-400'>
-                        Pay: {booking.paymentStatus}
-                      </p>
-                    </td>
-                    <td className='p-2 sm:p-3 text-right align-middle'>
-                      <BookingRowActions
-                        t={t}
-                        onView={() => setSelectedBooking(booking)}
-                        onEdit={() => startEdit(booking)}
-                        onDownloadLicense={() => downloadDocument(booking._id, 'driving_license')}
-                        onDownloadId={() => downloadDocument(booking._id, 'identity')}
-                        onDownloadPassport={() => downloadDocument(booking._id, 'passport')}
-                        onWhatsApp={() => openWhatsApp(booking)}
-                        onPrint={() => printBooking(booking)}
-                        onDelete={() => deleteBooking(booking._id)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {pagination.totalPages > 1 && (
-            <div className='flex items-center justify-between px-4 py-3 border-t border-borderColor text-sm'>
-              <button
-                disabled={pagination.page <= 1}
-                onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
-                className='px-3 py-1.5 border rounded-lg disabled:opacity-40 cursor-pointer'
-              >
-                {t('admin.bookings.previous')}
-              </button>
-              <span>{t('admin.bookings.pageOf', { page: pagination.page, total: pagination.totalPages })}</span>
-              <button
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
-                className='px-3 py-1.5 border rounded-lg disabled:opacity-40 cursor-pointer'
-              >
-                {t('admin.bookings.next')}
-              </button>
-            </div>
-          )}
         </div>
 
-        {selectedBooking ? (
-          <div className='rounded-xl border border-borderColor bg-white p-5 text-sm text-gray-600 h-max xl:sticky xl:top-24 min-w-0'>
-            <div className='flex items-start justify-between gap-3'>
-              <div className="min-w-0">
-                <h2 className='text-lg font-semibold text-gray-800'>{t('admin.bookings.details')}</h2>
-                <p className='text-primary font-medium mt-1 break-all'>
-                  {selectedBooking.reservationId || `RES-${selectedBooking._id.toString().slice(-8).toUpperCase()}`}
-                </p>
-                <ChannelBadge channel={selectedBooking.channel || 'online'} className="mt-2" />
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize shrink-0 ${statusClass(selectedBooking.status)}`}>
-                {selectedBooking.status}
-              </span>
+        {showFilters && (
+          <form onSubmit={applyFilters} className="admin-card mt-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div>
+              <label className="admin-label">{t('admin.bookings.customerName')}</label>
+              <input className={inputClass} value={filters.customerName} onChange={(e) => setFilters({ ...filters, customerName: e.target.value })} />
             </div>
-
-            <div className='mt-4 space-y-2 break-words'>
-              <p><span className='font-medium'>{t('admin.bookings.customer')}:</span> {selectedBooking.customerName || '-'}</p>
-              <p><span className='font-medium'>{t('admin.bookings.email')}:</span> {selectedBooking.customerEmail || '-'}</p>
-              <p><span className='font-medium'>{t('admin.bookings.phone')}:</span> {selectedBooking.customerPhone || '-'}</p>
-              <p><span className='font-medium'>{t('admin.bookings.vehicle')}:</span> {selectedBooking.car?.brand} {selectedBooking.car?.model}</p>
-              {selectedBooking.car?.licensePlate && (
-                <p><span className='font-medium'>{t('admin.bookings.licensePlate')}:</span> {selectedBooking.car.licensePlate}</p>
-              )}
-              {compatibleVehicles.length > 0 && (
-                <div className='rounded-lg border border-borderColor bg-gray-50 p-3'>
-                  <label className={labelClass}>{t('admin.bookings.assignVehicle')}</label>
-                  <select
-                    className={inputClass}
-                    disabled={assigningVehicle}
-                    value={selectedBooking.car?._id || ''}
-                    onChange={(e) => assignVehicle(selectedBooking._id, e.target.value)}
-                  >
-                    {compatibleVehicles.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.licensePlate || c.fleetId || c._id.slice(-6)} â€” {c.brand} {c.model}
-                      </option>
-                    ))}
-                  </select>
-                  <p className='mt-2 text-[11px] text-gray-500'>Same-model vehicles available for the selected dates are shown.</p>
-                </div>
-              )}
-              <p><span className='font-medium'>Pickup:</span> {formatDateTime(selectedBooking.pickupDate)}</p>
-              <p><span className='font-medium'>Return:</span> {formatDateTime(selectedBooking.returnDate)}</p>
-              <p><span className='font-medium'>{t('admin.bookings.pickupLocation')}:</span> {selectedBooking.pickupLocation || '-'}</p>
-              <p><span className='font-medium'>Drop-off Location:</span> {selectedBooking.returnLocation || '-'}</p>
-              <p><span className='font-medium'>{t('admin.bookings.paymentStatus')}:</span> {selectedBooking.paymentStatus}</p>
-              {selectedBooking.priceBreakdown ? (
-                <div className='rounded-lg border border-borderColor bg-gray-50 px-3 py-2 space-y-1 text-sm'>
-                  <p className='text-xs uppercase text-gray-400 font-medium'>{t('admin.bookings.priceBreakdown')}</p>
-                  <p className='flex justify-between gap-2'><span>{t('admin.bookings.rentalPrice')}</span><span>{currency}{selectedBooking.priceBreakdown.rentalPrice ?? 0}</span></p>
-                  <p className='flex justify-between gap-2'><span>{t('admin.bookings.pickupFee')}</span><span>{(selectedBooking.priceBreakdown.pickupDeliveryFee || 0) <= 0 ? t('admin.bookings.free') : `${currency}${selectedBooking.priceBreakdown.pickupDeliveryFee}`}</span></p>
-                  <p className='flex justify-between gap-2'><span>{t('admin.bookings.dropoffFee')}</span><span>{(selectedBooking.priceBreakdown.dropoffDeliveryFee || 0) <= 0 ? t('admin.bookings.free') : `${currency}${selectedBooking.priceBreakdown.dropoffDeliveryFee}`}</span></p>
-                  {(selectedBooking.priceBreakdown.discountTotal || 0) > 0 && (
-                    <p className='flex justify-between gap-2 text-green-700'><span>{t('admin.bookings.discounts')}</span><span>âˆ’{currency}{selectedBooking.priceBreakdown.discountTotal}</span></p>
-                  )}
-                  <p className='flex justify-between gap-2 font-semibold border-t border-borderColor pt-1'><span>{t('admin.bookings.total')}</span><span>{currency}{selectedBooking.price}</span></p>
-                </div>
-              ) : (
-                <p><span className='font-medium'>{t('admin.bookings.total')}:</span> {currency}{selectedBooking.price}</p>
-              )}
-              <p><span className='font-medium'>Notes:</span> {selectedBooking.notes || 'No notes'}</p>
+            <div>
+              <label className="admin-label">{t('admin.bookings.phone')}</label>
+              <input className={inputClass} value={filters.phone} onChange={(e) => setFilters({ ...filters, phone: e.target.value })} />
             </div>
-
-            <div className='mt-5 grid grid-cols-2 gap-2'>
-              <button onClick={() => changeBookingStatus(selectedBooking._id, 'confirmed')} className='px-3 py-2 rounded-lg bg-green-50 text-green-700 text-xs font-medium cursor-pointer'>{t('admin.bookings.confirm')}</button>
-              <button onClick={() => changeBookingStatus(selectedBooking._id, 'cancelled')} className='px-3 py-2 rounded-lg bg-red-50 text-red-700 text-xs font-medium cursor-pointer'>{t('admin.bookings.cancel')}</button>
-              <button onClick={() => changeBookingStatus(selectedBooking._id, 'completed')} className='px-3 py-2 rounded-lg bg-purple-50 text-purple-700 text-xs font-medium cursor-pointer'>{t('admin.bookings.complete')}</button>
-              <button onClick={() => changeBookingStatus(selectedBooking._id, 'active')} className='px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium cursor-pointer'>{t('admin.bookings.markActive')}</button>
-              {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'pending') && (
-                <button
-                  onClick={() => resendCompletionLink(selectedBooking._id)}
-                  className='col-span-2 px-3 py-2 rounded-lg bg-amber-50 text-amber-800 text-xs font-medium cursor-pointer'
-                >
-                  {t('admin.bookings.resendLink')}
-                </button>
-              )}
-              {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'pending' || selectedBooking.status === 'ready_for_pickup') && (
-                <button
-                  type="button"
-                  onClick={() => copyCompletionLink(selectedBooking)}
-                  className='col-span-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-800 text-xs font-medium cursor-pointer'
-                >
-                  {t('admin.bookings.copyLink')}
-                </button>
-              )}
-              {selectedBooking.completion?.requestStatus === 'pending' && !selectedBooking.completion?.signatureComplete && (
-                <button
-                  type="button"
-                  onClick={() => cancelCompletionLink(selectedBooking._id)}
-                  className='col-span-2 px-3 py-2 rounded-lg bg-red-50 text-red-700 text-xs font-medium cursor-pointer'
-                >
-                  {t('admin.bookings.cancelLink')}
-                </button>
-              )}
-              {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'pending') && (
-                <button
-                  type="button"
-                  disabled={openingWhatsApp}
-                  onClick={() => confirmViaWhatsApp(selectedBooking)}
-                  className='col-span-2 px-3 py-2 rounded-lg bg-green-50 text-green-800 text-xs font-medium cursor-pointer disabled:opacity-50'
-                >
-                  {openingWhatsApp ? 'â€¦' : t('admin.bookings.confirmViaWhatsApp')}
-                </button>
-              )}
-              {['confirmed', 'ready_for_pickup', 'active'].includes(selectedBooking.status) && (
-                <button
-                  type="button"
-                  onClick={() => openExtensionModal(selectedBooking)}
-                  className='col-span-2 px-3 py-2 rounded-lg bg-violet-50 text-violet-800 text-xs font-medium cursor-pointer'
-                >
-                  {t('admin.bookings.extendRental')}
-                </button>
-              )}
-              {hasPermission('contracts') && selectedBooking.status !== 'cancelled' && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => generateInvoiceForBooking(selectedBooking)}
-                    className='col-span-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium cursor-pointer'
-                  >
-                    {t('admin.bookings.generateInvoice')}
-                  </button>
-                  <Link
-                    to={`/owner/contracts?bookingId=${selectedBooking._id}`}
-                    className='col-span-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium text-center hover:bg-primary/15'
-                  >
-                    {t('admin.bookings.generateContract')}
-                  </Link>
-                </>
-              )}
+            <div>
+              <label className="admin-label">{t('admin.bookings.email')}</label>
+              <input className={inputClass} value={filters.email} onChange={(e) => setFilters({ ...filters, email: e.target.value })} />
             </div>
-
-            {selectedBooking.completion && (
-              <div className='mt-4 rounded-lg border border-borderColor bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-1'>
-                <p className='font-medium text-gray-800'>{t('admin.bookings.completionProgress')}</p>
-                {selectedBooking.completion.requestStatus ? (
-                  <p>
-                    {t('admin.bookings.requestStatus')}:{' '}
-                    {t(`admin.bookings.requestStatuses.${selectedBooking.completion.requestStatus}`)}
-                  </p>
-                ) : null}
-                <p>{t('admin.bookings.docs')}: {selectedBooking.completion.documentsComplete ? 'âœ“' : 'â€”'}</p>
-                <p>{t('admin.bookings.pay')}: {selectedBooking.completion.paymentComplete ? 'âœ“' : 'â€”'}</p>
-                <p>{t('admin.bookings.sign')}: {selectedBooking.completion.signatureComplete ? 'âœ“' : 'â€”'}</p>
-              </div>
-            )}
-
-            {Array.isArray(selectedBooking.extensionHistory) && selectedBooking.extensionHistory.length > 0 && (
-              <div className='mt-4 rounded-lg border border-borderColor bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-2'>
-                <p className='font-medium text-gray-800'>{t('admin.bookings.extensionHistory')}</p>
-                {[...selectedBooking.extensionHistory].reverse().map((ext, idx) => (
-                  <div key={idx} className='border-t border-borderColor/60 pt-2 first:border-0 first:pt-0'>
-                    <p>
-                      {formatDateTime(ext.previousReturnDate)} â†’ {formatDateTime(ext.newReturnDate)}
-                      {' '}(+{ext.deltaDays}d)
-                    </p>
-                    <p>
-                      {currency}{ext.previousPrice} â†’ {currency}{ext.newPrice}
-                      {' '}(+{currency}{ext.deltaAmount})
-                    </p>
-                    {ext.notes ? <p className='text-muted'>{ext.notes}</p> : null}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className='mt-4 rounded-lg border border-borderColor bg-gray-50 px-3 py-3 space-y-2'>
-              <p className='font-medium text-gray-800 text-xs'>{t('admin.bookings.uploadDocuments')}</p>
-              <div className='flex flex-wrap gap-2'>
-                <button
-                  type="button"
-                  onClick={() => downloadDocument(selectedBooking._id, 'driving_license')}
-                  className='px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50'
-                >
-                  â†“ {t('admin.bookings.downloadLicense')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadDocument(selectedBooking._id, 'identity')}
-                  className='px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50'
-                >
-                  â†“ {t('admin.bookings.downloadId')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadDocument(selectedBooking._id, 'passport')}
-                  className='px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50'
-                >
-                  â†“ {t('admin.bookings.downloadPassport')}
-                </button>
-              </div>
-              <div className='grid gap-2 pt-1'>
-                <label className='text-xs text-gray-500'>{t('admin.bookings.uploadLicense')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={uploadingDoc === 'driving_license'}
-                  onChange={(e) => {
-                    uploadDocument(selectedBooking._id, e.target.files?.[0], 'driving_license')
-                    e.target.value = ''
-                  }}
-                  className='text-xs'
-                />
-                <div className='flex flex-wrap items-center gap-2'>
-                  <select
-                    className='border border-borderColor rounded px-2 py-1 text-xs'
-                    value={identityType}
-                    onChange={(e) => setIdentityType(e.target.value)}
-                  >
-                    <option value="national_id">{t('admin.bookings.nationalId')}</option>
-                    <option value="passport">{t('admin.bookings.passport')}</option>
-                  </select>
-                  <label className='text-xs text-gray-500'>{t('admin.bookings.uploadIdentity')}</label>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={uploadingDoc === 'identity'}
-                  onChange={(e) => {
-                    uploadDocument(selectedBooking._id, e.target.files?.[0], 'identity')
-                    e.target.value = ''
-                  }}
-                  className='text-xs'
-                />
-                <label className='text-xs text-gray-500'>{t('admin.bookings.downloadPassport')} (upload)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={uploadingDoc === 'passport'}
-                  onChange={(e) => {
-                    uploadDocument(selectedBooking._id, e.target.files?.[0], 'passport')
-                    e.target.value = ''
-                  }}
-                  className='text-xs'
-                />
-              </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.reservationId')}</label>
+              <input className={inputClass} value={filters.reservationId} onChange={(e) => setFilters({ ...filters, reservationId: e.target.value })} placeholder="RES-XXXXXXXX" />
             </div>
-
-            <div className='mt-3'>
-              <label className={labelClass}>{t('admin.bookings.paymentStatus')}</label>
-              <select
-                className={inputClass}
-                value={selectedBooking.paymentStatus || 'pending'}
-                onChange={(e) => changePaymentStatus(selectedBooking._id, e.target.value)}
-              >
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="failed">Failed</option>
-                <option value="refunded">Refunded</option>
+            <div>
+              <label className="admin-label">{t('admin.bookings.vehicle')}</label>
+              <input className={inputClass} value={filters.vehicle} onChange={(e) => setFilters({ ...filters, vehicle: e.target.value })} />
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.licensePlate')}</label>
+              <input className={inputClass} value={filters.licensePlate} onChange={(e) => setFilters({ ...filters, licensePlate: e.target.value })} />
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.status')}</label>
+              <select className={inputClass} value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                <option value="">{t('admin.bookings.allStatuses')}</option>
+                <option value="pending">{t('admin.bookings.statuses.pending')}</option>
+                <option value="confirmed">{t('admin.bookings.statuses.confirmed')}</option>
+                <option value="ready_for_pickup">{t('admin.bookings.statuses.ready_for_pickup')}</option>
+                <option value="active">{t('admin.bookings.statuses.active')}</option>
+                <option value="completed">{t('admin.bookings.statuses.completed')}</option>
+                <option value="cancelled">{t('admin.bookings.statuses.cancelled')}</option>
               </select>
             </div>
-
-            <div className='mt-4 flex flex-wrap gap-2'>
-              <button onClick={() => startEdit(selectedBooking)} className='admin-btn admin-btn-secondary min-h-9 text-xs'>{t('admin.bookings.edit')}</button>
-              <button onClick={() => openWhatsApp(selectedBooking)} className='admin-btn admin-btn-secondary min-h-9 text-xs'>{t('admin.bookings.whatsapp')}</button>
-              <button onClick={() => printBooking(selectedBooking)} className='admin-btn admin-btn-ghost min-h-9 text-xs'>{t('admin.bookings.print')}</button>
-              <button onClick={() => deleteBooking(selectedBooking._id)} className='admin-btn admin-btn-danger min-h-9 text-xs'>{t('admin.bookings.delete')}</button>
+            <div>
+              <label className="admin-label">{t('admin.bookings.paymentStatus')}</label>
+              <select className={inputClass} value={filters.paymentStatus} onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}>
+                <option value="">{t('admin.bookings.allPayments')}</option>
+                <option value="pending">{t('admin.bookings.paymentLabels.unpaid')}</option>
+                <option value="paid">{t('admin.bookings.paymentLabels.paid')}</option>
+                <option value="failed">{t('admin.bookings.paymentLabels.failed')}</option>
+                <option value="refunded">{t('admin.bookings.paymentLabels.refunded')}</option>
+              </select>
             </div>
-          </div>
-        ) : (
-          <div className='rounded-xl border border-dashed border-borderColor bg-white p-8 text-center text-gray-400 h-max'>
-            {t('admin.bookings.selectHint')}
-          </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.channel')}</label>
+              <select className={inputClass} value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
+                <option value="">{t('admin.bookings.allChannels')}</option>
+                <option value="online">Online</option>
+                <option value="walk_in">Walk-in</option>
+              </select>
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.pickupLocation')}</label>
+              <input className={inputClass} value={filters.pickupLocation} onChange={(e) => setFilters({ ...filters, pickupLocation: e.target.value })} />
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.pickupFrom')}</label>
+              <input type="date" className={inputClass} value={filters.pickupDateFrom} onChange={(e) => setFilters({ ...filters, pickupDateFrom: e.target.value })} />
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.pickupTo')}</label>
+              <input type="date" className={inputClass} value={filters.pickupDateTo} onChange={(e) => setFilters({ ...filters, pickupDateTo: e.target.value })} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+              <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">{t('admin.bookings.applyFilters')}</button>
+              <button type="button" onClick={clearFilters} className="admin-btn admin-btn-secondary admin-btn-sm">{t('admin.bookings.clear')}</button>
+              <span className="ml-auto text-sm text-[var(--admin-muted)]">
+                {pagination.total === 1
+                  ? t('admin.bookings.count', { count: pagination.total })
+                  : t('admin.bookings.count_plural', { count: pagination.total })}
+              </span>
+            </div>
+          </form>
         )}
       </div>
+
+      <div className="res-split mt-5">
+        <div className="res-list min-w-0">
+          <ReservationList
+            t={t}
+            language={language}
+            currency={currency}
+            bookings={bookings}
+            loading={loading}
+            selectedId={selectedBooking?._id}
+            onSelect={selectBooking}
+            onEdit={startEdit}
+            onPrint={printBooking}
+            onWhatsApp={openWhatsApp}
+            onDelete={(booking) => setConfirmAction({ type: 'delete', bookingId: booking._id })}
+            onDownloadLicense={(booking) => downloadDocument(booking._id, 'driving_license')}
+            onDownloadId={(booking) => downloadDocument(booking._id, 'identity')}
+            onDownloadPassport={(booking) => downloadDocument(booking._id, 'passport')}
+            pagination={pagination}
+            onPrev={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+            onNext={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+          />
+        </div>
+
+        <ReservationDetail
+          t={t}
+          language={language}
+          currency={currency}
+          booking={selectedBooking}
+          completionUrl={resolveCompletionUrl(selectedBooking)}
+          compatibleVehicles={compatibleVehicles}
+          assigningVehicle={assigningVehicle}
+          uploadingDoc={uploadingDoc}
+          identityType={identityType}
+          setIdentityType={setIdentityType}
+          hasPermission={hasPermission}
+          onBack={clearSelection}
+          onRequestSignature={() => setSignatureOpen(true)}
+          onExtend={() => openExtensionModal(selectedBooking)}
+          onEdit={() => startEdit(selectedBooking)}
+          onChangeStatus={(status) => changeBookingStatus(selectedBooking._id, status)}
+          onChangePayment={(status) => changePaymentStatus(selectedBooking._id, status)}
+          onAssignVehicle={(carId) => assignVehicle(selectedBooking._id, carId)}
+          onWhatsApp={() => openWhatsApp(selectedBooking)}
+          onPrint={() => printBooking(selectedBooking)}
+          onDelete={() => setConfirmAction({ type: 'delete', bookingId: selectedBooking._id })}
+          onCancelReservation={() => setConfirmAction({ type: 'cancelBooking', bookingId: selectedBooking._id })}
+          onGenerateInvoice={() => generateInvoiceForBooking(selectedBooking)}
+          onDownloadLicense={() => downloadDocument(selectedBooking._id, 'driving_license')}
+          onDownloadId={() => downloadDocument(selectedBooking._id, 'identity')}
+          onDownloadPassport={() => downloadDocument(selectedBooking._id, 'passport')}
+          onUpload={(file, docType) => uploadDocument(selectedBooking._id, file, docType)}
+        />
+      </div>
+
+      <SignatureRequestDrawer
+        open={Boolean(signatureOpen && selectedBooking)}
+        onClose={() => setSignatureOpen(false)}
+        booking={selectedBooking}
+        t={t}
+        language={language}
+        linkUrl={resolveCompletionUrl(selectedBooking)}
+        busy={signatureBusy || openingWhatsApp}
+        onGenerate={() => generateSignatureLink(selectedBooking)}
+        onCopy={() => copyCompletionLink(selectedBooking)}
+        onResend={() => resendCompletionLink(selectedBooking._id)}
+        onShare={() => confirmViaWhatsApp(selectedBooking)}
+        onCancelRequest={() => setConfirmAction({ type: 'cancelLink', bookingId: selectedBooking._id })}
+      />
 
       <AdminDrawer
         open={Boolean(extensionOpen && selectedBooking)}
         onClose={() => !extensionBusy && setExtensionOpen(false)}
         title={t('admin.bookings.extendTitle')}
-        description={selectedBooking ? `${selectedBooking.reservationId} · ${t('admin.bookings.extendCurrentReturn')}: ${formatDateTime(selectedBooking.returnDate)}` : ''}
+        description={selectedBooking ? reservationRef(selectedBooking) : ''}
         size="lg"
         dirty={Boolean(extensionForm.newReturnDate) && !extensionBusy}
         unsavedTitle={t('admin.ui.unsavedTitle')}
@@ -1150,17 +916,26 @@ const ManageBookings = () => {
         {selectedBooking && (
           <form id="booking-extend-form" onSubmit={applyExtension} className="space-y-6">
             <ol className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--admin-muted)]">
-              <li className={`rounded-full px-2.5 py-1 border ${!extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>1 · {t('admin.bookings.extendNewReturn')}</li>
-              <li className={`rounded-full px-2.5 py-1 border ${extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>2 · {t('admin.bookings.extendPreview')}</li>
-              <li className="rounded-full px-2.5 py-1 border border-[var(--admin-border)]">3 · {t('admin.bookings.extendConfirm')}</li>
+              <li className={`rounded-full border px-2.5 py-1 ${!extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>
+                1 · {t('admin.bookings.extendStepDates')}
+              </li>
+              <li className={`rounded-full border px-2.5 py-1 ${extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>
+                2 · {t('admin.bookings.extendStepReview')}
+              </li>
+              <li className="rounded-full border border-[var(--admin-border)] px-2.5 py-1">
+                3 · {t('admin.bookings.extendStepConfirm')}
+              </li>
             </ol>
-            <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] p-3 text-sm">
+
+            <div className="space-y-2 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] p-3 text-sm">
               <p className="admin-label mb-1">{t('admin.bookings.extendCurrentReturn')}</p>
-              <p className="font-medium text-[var(--admin-ink)]">
-                {currency}{selectedBooking.price} · {formatDateTime(selectedBooking.pickupDate)} → {formatDateTime(selectedBooking.returnDate)}
+              <p className="font-medium text-[var(--admin-ink)]">{formatDt(selectedBooking.returnDate, language)}</p>
+              <p className="text-xs text-[var(--admin-muted)]">
+                {t('admin.bookings.extendCurrentTotal')}: {money(currency, selectedBooking.price)}
               </p>
             </div>
-            <DrawerSection title={t('admin.bookings.extendNewReturn')}>
+
+            <DrawerSection title={t('admin.bookings.extendNewReturn')} description={t('admin.bookings.extendPreviewHint')}>
               <FormField label={t('admin.bookings.extendNewReturn')} required className="sm:col-span-2">
                 <input
                   type="datetime-local"
@@ -1168,10 +943,14 @@ const ManageBookings = () => {
                   value={extensionForm.newReturnDate}
                   onChange={(e) => {
                     setExtensionPreview(null)
+                    setExtensionError('')
                     setExtensionForm((f) => ({ ...f, newReturnDate: e.target.value }))
                   }}
                   className={inputClass}
                 />
+              </FormField>
+              <FormField label={t('admin.bookings.extendDeltaDays')}>
+                <p className="text-sm font-medium text-[var(--admin-ink)]">+{liveExtraDays}</p>
               </FormField>
               <FormField label={t('admin.bookings.extendNotes')} className="sm:col-span-2">
                 <textarea
@@ -1190,21 +969,40 @@ const ManageBookings = () => {
                 {t('admin.bookings.extendRegenContract')}
               </label>
             </DrawerSection>
-            {extensionPreview && (
-              <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] px-4 py-3 text-sm space-y-1.5">
-                <p className="flex justify-between">
+
+            {extensionError ? (
+              <p className="rounded-[var(--admin-radius)] bg-[var(--admin-danger-soft)] px-3 py-2 text-sm text-[var(--admin-danger)]">
+                {extensionError}
+              </p>
+            ) : null}
+
+            {extensionPreview ? (
+              <div className="space-y-2 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] px-4 py-3 text-sm">
+                <p className="flex justify-between gap-2">
+                  <span>{t('admin.bookings.extendAvailability')}</span>
+                  <strong className="text-[var(--admin-success)]">{t('admin.bookings.extendAvailable')}</strong>
+                </p>
+                <p className="flex justify-between gap-2">
                   <span>{t('admin.bookings.extendDeltaDays')}</span>
                   <strong>+{extensionPreview.deltaDays}</strong>
                 </p>
-                <p className="flex justify-between">
+                {partnerDiscounts.map((d, i) => (
+                  <p key={i} className="flex justify-between gap-2 text-[var(--admin-success)]">
+                    <span>{t('admin.bookings.extendPartnerDiscount')}</span>
+                    <strong>−{money(currency, d.amount)}</strong>
+                  </p>
+                ))}
+                <p className="flex justify-between gap-2">
                   <span>{t('admin.bookings.extendDeltaAmount')}</span>
-                  <strong>{currency}{extensionPreview.deltaAmount}</strong>
+                  <strong>{money(currency, extensionPreview.deltaAmount)}</strong>
                 </p>
-                <p className="flex justify-between text-base pt-2 border-t border-[var(--admin-border)]">
+                <p className="flex justify-between gap-2 border-t border-[var(--admin-border)] pt-2 text-base">
                   <span>{t('admin.bookings.extendNewTotal')}</span>
-                  <strong className="text-[var(--admin-primary)]">{currency}{extensionPreview.newPrice}</strong>
+                  <strong className="text-[var(--admin-primary)]">{money(currency, extensionPreview.newPrice)}</strong>
                 </p>
               </div>
+            ) : (
+              <p className="text-sm text-[var(--admin-muted)]">{t('admin.bookings.extendNeedPreview')}</p>
             )}
           </form>
         )}
@@ -1249,20 +1047,20 @@ const ManageBookings = () => {
             <DrawerSection title={t('admin.bookings.status')}>
               <FormField label={t('admin.bookings.status')}>
                 <select className={inputClass} value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="ready_for_pickup">Ready for Pickup</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="pending">{t('admin.bookings.statuses.pending')}</option>
+                  <option value="confirmed">{t('admin.bookings.statuses.confirmed')}</option>
+                  <option value="ready_for_pickup">{t('admin.bookings.statuses.ready_for_pickup')}</option>
+                  <option value="active">{t('admin.bookings.statuses.active')}</option>
+                  <option value="completed">{t('admin.bookings.statuses.completed')}</option>
+                  <option value="cancelled">{t('admin.bookings.statuses.cancelled')}</option>
                 </select>
               </FormField>
               <FormField label={t('admin.bookings.paymentStatus')}>
                 <select className={inputClass} value={editForm.paymentStatus} onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="failed">Failed</option>
-                  <option value="refunded">Refunded</option>
+                  <option value="pending">{t('admin.bookings.paymentLabels.unpaid')}</option>
+                  <option value="paid">{t('admin.bookings.paymentLabels.paid')}</option>
+                  <option value="failed">{t('admin.bookings.paymentLabels.failed')}</option>
+                  <option value="refunded">{t('admin.bookings.paymentLabels.refunded')}</option>
                 </select>
               </FormField>
               <FormField label={t('admin.walkIn.pickup')} required>
@@ -1299,6 +1097,28 @@ const ManageBookings = () => {
           </form>
         )}
       </AdminDrawer>
+
+      <ConfirmDialog
+        isOpen={Boolean(confirmAction)}
+        title={
+          confirmAction?.type === 'delete'
+            ? t('admin.bookings.delete')
+            : confirmAction?.type === 'cancelLink'
+              ? t('admin.bookings.cancelLink')
+              : t('admin.bookings.cancelReservation')
+        }
+        message={
+          confirmAction?.type === 'delete'
+            ? t('admin.bookings.deleteConfirm')
+            : confirmAction?.type === 'cancelLink'
+              ? t('admin.bookings.cancelLinkConfirm')
+              : t('admin.bookings.cancelReservationConfirm')
+        }
+        confirmText={t('admin.bookings.confirm')}
+        cancelText={t('admin.common.cancel')}
+        onConfirm={runConfirm}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }
