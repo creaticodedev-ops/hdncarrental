@@ -224,10 +224,14 @@ const DirectoryCrudPage = ({ config }) => {
     setDrawerOpen(true)
   }
 
-  const setField = (key, value) => {
+  const setField = useCallback((key, value) => {
     setDirty(true)
     setForm((f) => ({ ...f, [key]: value }))
-  }
+  }, [])
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false)
+  }, [])
 
   const onSave = async (e) => {
     e.preventDefault()
@@ -417,7 +421,7 @@ const DirectoryCrudPage = ({ config }) => {
 
       <AdminDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={closeDrawer}
         title={editing ? t(config.editKey) : t(config.createKey)}
         description={editing ? t('admin.directory.editHint') : t('admin.directory.createHint')}
         dirty={dirty}

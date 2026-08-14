@@ -344,9 +344,16 @@ export const AdminDrawer = ({
 }) => {
   const titleId = useId()
   const panelRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  const dirtyRef = useRef(dirty)
+  const askLeaveRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [entered, setEntered] = useState(false)
   const [askLeave, setAskLeave] = useState(false)
+
+  onCloseRef.current = onClose
+  dirtyRef.current = dirty
+  askLeaveRef.current = askLeave
 
   useEffect(() => {
     if (open) {
@@ -363,36 +370,43 @@ export const AdminDrawer = ({
   }, [open])
 
   const requestClose = () => {
-    if (dirty) {
+    if (dirtyRef.current) {
       setAskLeave(true)
       return
     }
-    onClose?.()
+    onCloseRef.current?.()
   }
 
+  // Lock scroll + Escape while open. Do not depend on dirty/onClose — those change
+  // on every keystroke in parent forms and would remount this effect.
   useEffect(() => {
     if (!mounted) return undefined
     const onKey = (e) => {
       if (e.key !== 'Escape') return
-      if (askLeave) {
+      if (askLeaveRef.current) {
         setAskLeave(false)
         return
       }
-      if (dirty) {
+      if (dirtyRef.current) {
         setAskLeave(true)
         return
       }
-      onClose?.()
+      onCloseRef.current?.()
     }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    panelRef.current?.focus?.()
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [mounted, askLeave, dirty, onClose])
+  }, [mounted])
+
+  // Focus the dialog once when it opens — never after form dirty updates.
+  useEffect(() => {
+    if (!mounted) return
+    panelRef.current?.focus?.()
+  }, [mounted])
 
   if (!mounted) return null
 
