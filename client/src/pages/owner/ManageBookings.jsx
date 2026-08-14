@@ -717,7 +717,7 @@ const ManageBookings = () => {
       <div className="res-chrome">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
-          <div className="flex flex-wrap gap-2">
+          <div className="res-chrome-tools">
             <Link to="/owner/walk-in" className="admin-btn admin-btn-primary res-btn">
               {t('admin.walkIn.menu')}
             </Link>
@@ -730,7 +730,7 @@ const ManageBookings = () => {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="res-search-row">
           <input
             className="admin-input flex-1 min-h-9 text-sm"
             value={filters.reservationId || filters.customerName}
@@ -833,7 +833,7 @@ const ManageBookings = () => {
         )}
       </div>
 
-      <div className="res-split mt-5">
+      <div className="res-split">
         <div className="res-list min-w-0">
           <ReservationList
             t={t}

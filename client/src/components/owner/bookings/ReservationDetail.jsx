@@ -1,9 +1,7 @@
 import React, { useRef } from 'react'
-import { EmptyState } from '../../../admin/ui'
 import ActionMenu from './ActionMenu'
 import {
   BookingStatusBadge,
-  ChannelChip,
   ContractBadge,
   PaymentBadge,
   SignatureBadge,
@@ -11,6 +9,7 @@ import {
 import {
   canExtend,
   canRequestSignature,
+  customerInitials,
   entityName,
   formatCompactDate,
   formatDateTime,
@@ -73,25 +72,23 @@ const ActionRow = ({
     {showSignatureCta ? (
       <button type="button" className="admin-btn admin-btn-primary res-btn" onClick={onRequestSignature}>
         <PenIcon />
-        {t('admin.bookings.requestSignature')}
+        <span className="res-btn-label">{t('admin.bookings.requestSignature')}</span>
       </button>
     ) : null}
-    {!bar && extendable ? (
-      <button type="button" className="admin-btn admin-btn-secondary res-btn" onClick={onExtend}>
+    {extendable ? (
+      <button
+        type="button"
+        className={`admin-btn ${showSignatureCta || !bar ? 'admin-btn-secondary' : 'admin-btn-primary'} res-btn`}
+        onClick={onExtend}
+      >
         <CalendarIcon />
-        {t('admin.bookings.extendShort')}
+        <span className="res-btn-label">{t('admin.bookings.extendShort')}</span>
       </button>
     ) : null}
     {!bar ? (
       <button type="button" className="admin-btn admin-btn-secondary res-btn" onClick={onEdit}>
         <PencilIcon />
-        {t('admin.bookings.edit')}
-      </button>
-    ) : null}
-    {bar && !showSignatureCta && extendable ? (
-      <button type="button" className="admin-btn admin-btn-primary res-btn" onClick={onExtend}>
-        <CalendarIcon />
-        {t('admin.bookings.extendShort')}
+        <span className="res-btn-label">{t('admin.bookings.edit')}</span>
       </button>
     ) : null}
     <ActionMenu label={t('admin.bookings.more')} iconOnly items={moreItems} />
@@ -132,9 +129,12 @@ const ReservationDetail = ({
 
   if (!booking) {
     return (
-      <div className="hidden xl:block">
-        <EmptyState title={t('admin.bookings.details')} description={t('admin.bookings.selectHint')} />
-      </div>
+      <aside className="res-inspector res-inspector-empty" aria-label={t('admin.bookings.details')}>
+        <div className="res-inspector-empty-inner">
+          <p className="res-inspector-empty-title">{t('admin.bookings.details')}</p>
+          <p className="res-inspector-empty-copy">{t('admin.bookings.selectHint')}</p>
+        </div>
+      </aside>
     )
   }
 
@@ -145,6 +145,7 @@ const ReservationDetail = ({
   const samsar = entityName(booking.samsar) || t('admin.bookings.notAssigned')
   const chauffeur = entityName(booking.chauffeur) || t('admin.bookings.notAssigned')
   const partner = entityName(booking.partnerCompany) || t('admin.bookings.notAssigned')
+  const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
 
   const focusAssignment = () => {
     assignmentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -178,50 +179,67 @@ const ReservationDetail = ({
   ].filter(Boolean)
 
   const barMoreItems = [
-    extendable ? { key: 'extend', label: t('admin.bookings.extendRental'), onClick: onExtend } : null,
     { key: 'edit', label: t('admin.bookings.edit'), onClick: onEdit },
     { key: 'sep0', separator: true },
     ...moreItems,
-  ].filter(Boolean)
+  ]
 
   return (
-    <div className="res-workspace">
-      <div className="res-summary">
+    <aside className="res-inspector" aria-label={t('admin.bookings.details')}>
+      <header className="res-inspector-head">
         <button type="button" className="res-detail-back" onClick={onBack}>
           ← {t('admin.bookings.backToList')}
         </button>
 
         <div className="res-summary-top">
-          <p className="res-ref">{reservationRef(booking)}</p>
-          <div className="flex flex-wrap items-center gap-1">
-            <BookingStatusBadge status={booking.status} t={t} />
-            <ChannelChip channel={booking.channel} />
+          <div className="min-w-0">
+            <p className="res-ref">{reservationRef(booking)}</p>
+            <p className="res-channel-meta">{walkIn ? 'Walk-in' : 'Online'}</p>
+          </div>
+          <BookingStatusBadge status={booking.status} t={t} />
+        </div>
+
+        <div className="res-kv">
+          <div className="res-kv-row">
+            <span className="res-kv-label">{t('admin.bookings.customer')}</span>
+            <div className="res-kv-value res-kv-person">
+              <span className="res-avatar" aria-hidden>
+                {customerInitials(booking.customerName)}
+              </span>
+              <span className="truncate">{booking.customerName || t('admin.common.guest')}</span>
+            </div>
+          </div>
+          <div className="res-kv-row">
+            <span className="res-kv-label">{t('admin.bookings.vehicle')}</span>
+            <span className="res-kv-value truncate">{vehicleLabel(booking.car)}</span>
+          </div>
+          <div className="res-kv-row">
+            <span className="res-kv-label">{t('admin.bookings.dates')}</span>
+            <span className="res-kv-value">
+              {formatCompactDate(booking.pickupDate, language)}
+              {' → '}
+              {formatCompactDate(booking.returnDate, language)}
+            </span>
+          </div>
+          <div className="res-kv-row">
+            <span className="res-kv-label">{t('admin.bookings.total')}</span>
+            <span className="res-kv-value res-price">{money(currency, booking.price)}</span>
           </div>
         </div>
 
-        <div className="res-who">
-          <p className="res-who-name">{booking.customerName || t('admin.common.guest')}</p>
-          <p className="res-who-car">{vehicleLabel(booking.car)}</p>
-        </div>
-
-        <p className="res-dates">
-          {formatCompactDate(booking.pickupDate, language)} → {formatCompactDate(booking.returnDate, language)}
-        </p>
-
-        <div className="res-money">
-          <span className="res-price">{money(currency, booking.price)}</span>
-        </div>
-
-        <div className="res-flags">
-          <span>
-            {t('admin.bookings.payment')}: <PaymentBadge booking={booking} t={t} />
-          </span>
-          <span>
-            {t('admin.bookings.contract')}: <ContractBadge booking={booking} t={t} />
-          </span>
-          <span>
-            {t('admin.bookings.signature')}: <SignatureBadge booking={booking} t={t} />
-          </span>
+        <div className="res-status-grid">
+          <div className="res-status-cell">
+            <span className="res-status-label">{t('admin.bookings.payment')}</span>
+            <PaymentBadge booking={booking} t={t} />
+          </div>
+          <div className="res-status-cell">
+            <span className="res-status-label">{t('admin.bookings.contract')}</span>
+            <ContractBadge booking={booking} t={t} />
+          </div>
+          <div className="res-status-cell">
+            <span className="res-status-label">{t('admin.bookings.signature')}</span>
+            <SignatureBadge booking={booking} t={t} />
+          </div>
         </div>
 
         <ActionRow
@@ -233,9 +251,9 @@ const ReservationDetail = ({
           onEdit={onEdit}
           moreItems={moreItems}
         />
-      </div>
+      </header>
 
-      <div className="res-secondary">
+      <div className="res-inspector-body">
         <Block className="res-block-rental" title={t('admin.bookings.rentalPeriod')}>
           <Line label={t('admin.bookings.pickup')}>{formatCompactDate(booking.pickupDate, language)}</Line>
           <Line label={t('admin.bookings.dropoff')}>{formatCompactDate(booking.returnDate, language)}</Line>
@@ -244,7 +262,6 @@ const ReservationDetail = ({
         </Block>
 
         <Block className="res-block-customer" title={t('admin.bookings.customer')}>
-          <Line label={t('admin.bookings.customerShort')}>{booking.customerName || t('admin.common.guest')}</Line>
           <Line label={t('admin.bookings.phone')}>{booking.customerPhone || '—'}</Line>
           <Line label={t('admin.bookings.email')}>{booking.customerEmail || '—'}</Line>
         </Block>
@@ -331,7 +348,7 @@ const ReservationDetail = ({
             type="file"
             accept="image/*"
             disabled={uploadingDoc === 'driving_license'}
-            className="block w-full text-xs"
+            className="block w-full text-xs text-[var(--admin-muted)]"
             onChange={(e) => {
               onUpload(e.target.files?.[0], 'driving_license')
               e.target.value = ''
@@ -347,7 +364,7 @@ const ReservationDetail = ({
             type="file"
             accept="image/*"
             disabled={uploadingDoc === 'identity'}
-            className="mt-1 block w-full text-xs"
+            className="mt-1 block w-full text-xs text-[var(--admin-muted)]"
             onChange={(e) => {
               onUpload(e.target.files?.[0], 'identity')
               e.target.value = ''
@@ -384,7 +401,7 @@ const ReservationDetail = ({
         onEdit={onEdit}
         moreItems={barMoreItems}
       />
-    </div>
+    </aside>
   )
 }
 

@@ -1,14 +1,9 @@
 import React from 'react'
 import { EmptyState, SkeletonBlock } from '../../../admin/ui'
 import ActionMenu from './ActionMenu'
+import { BookingStatusBadge } from './ReservationBadges'
 import {
-  BookingStatusBadge,
-  ChannelChip,
-  ContractBadge,
-  PaymentBadge,
-  SignatureBadge,
-} from './ReservationBadges'
-import {
+  contractTone,
   customerInitials,
   dateRangeLabel,
   formatTime,
@@ -16,25 +11,56 @@ import {
   getPaymentDisplay,
   getSignatureStatus,
   money,
+  paymentTone,
   reservationRef,
+  signatureTone,
   vehicleLabel,
 } from './reservationHelpers'
 
-const AttentionDots = ({ booking, t }) => {
+/** Compact ops signals — payment / signature / contract under the reservation ref */
+const OpsSignals = ({ booking, t }) => {
   const pay = getPaymentDisplay(booking)
   const sig = getSignatureStatus(booking)
   const contract = getContractStatus(booking)
-  const items = []
-  if (pay === 'unpaid' || pay === 'partial') items.push({ key: 'pay', tone: 'warn', label: t('admin.bookings.alertsUnpaid') })
-  if (sig === 'pending') items.push({ key: 'sig', tone: 'warn', label: t('admin.bookings.alertsSignaturePending') })
-  if (sig === 'expired') items.push({ key: 'sigx', tone: 'danger', label: t('admin.bookings.alertsSignatureExpired') })
-  if (contract === 'none') items.push({ key: 'c', tone: 'neutral', label: t('admin.bookings.contractLabels.none') })
-  if (!items.length) return null
+  const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
+
+  const signals = [
+    {
+      key: 'ch',
+      tone: walkIn ? 'warn' : 'info',
+      label: walkIn ? 'Walk-in' : 'Online',
+      active: true,
+    },
+    {
+      key: 'pay',
+      tone: paymentTone(pay),
+      label: t(`admin.bookings.paymentLabels.${pay}`),
+      active: pay !== 'paid',
+    },
+    {
+      key: 'sig',
+      tone: signatureTone(sig),
+      label: t(`admin.bookings.requestStatuses.${sig}`),
+      active: sig === 'pending' || sig === 'expired' || sig === 'none',
+    },
+    {
+      key: 'ctr',
+      tone: contractTone(contract),
+      label: t(`admin.bookings.contractLabels.${contract}`),
+      active: contract === 'none',
+    },
+  ]
+
   return (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {items.map((item) => (
-        <span key={item.key} className={`res-attention res-attention-${item.tone}`} title={item.label}>
-          {item.label}
+    <div className="res-signals" aria-label={t('admin.bookings.operational')}>
+      {signals.map((s) => (
+        <span
+          key={s.key}
+          className={`res-signal res-signal-${s.tone}${s.active ? ' is-alert' : ''}`}
+          title={s.label}
+        >
+          <i className="res-dot" aria-hidden />
+          <span className="res-signal-label">{s.label}</span>
         </span>
       ))}
     </div>
@@ -63,9 +89,10 @@ const ReservationList = ({
   if (loading) {
     return (
       <div className="space-y-2.5">
-        <SkeletonBlock className="h-24 lg:hidden" />
-        <SkeletonBlock className="h-24 lg:hidden" />
-        <SkeletonBlock className="hidden lg:block h-56" />
+        <SkeletonBlock className="h-[4.5rem] lg:hidden" />
+        <SkeletonBlock className="h-[4.5rem] lg:hidden" />
+        <SkeletonBlock className="h-[4.5rem] lg:hidden" />
+        <SkeletonBlock className="hidden lg:block h-64" />
       </div>
     )
   }
@@ -78,7 +105,7 @@ const ReservationList = ({
 
   return (
     <div className="min-w-0">
-      <div className="space-y-2.5 lg:hidden">
+      <div className="space-y-2 lg:hidden">
         {bookings.map((booking) => (
           <MobileCard
             key={booking._id}
@@ -86,26 +113,35 @@ const ReservationList = ({
             t={t}
             language={language}
             currency={currency}
+            selected={selectedId === booking._id}
             onSelect={onSelect}
           />
         ))}
       </div>
 
-      <div className="admin-card hidden overflow-hidden lg:block">
+      <div className="res-table-shell hidden lg:block">
         <div className="table-scroll">
           <table className="res-ops-table">
+            <colgroup>
+              <col className="res-col-ref" />
+              <col className="res-col-customer" />
+              <col className="res-col-vehicle" />
+              <col className="res-col-dates" />
+              <col className="res-col-status" />
+              <col className="res-col-total" />
+              <col className="res-col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 <th>{t('admin.bookings.reservation')}</th>
                 <th>{t('admin.bookings.customer')}</th>
-                <th className="max-xl:hidden">{t('admin.bookings.vehicle')}</th>
+                <th>{t('admin.bookings.vehicle')}</th>
                 <th>{t('admin.bookings.dates')}</th>
                 <th>{t('admin.bookings.status')}</th>
-                <th>{t('admin.bookings.payment')}</th>
-                <th>{t('admin.bookings.signature')}</th>
-                <th className="max-xl:hidden">{t('admin.bookings.contract')}</th>
                 <th>{t('admin.bookings.total')}</th>
-                <th className="text-right">{t('admin.bookings.actions')}</th>
+                <th className="text-right">
+                  <span className="sr-only">{t('admin.bookings.actions')}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -118,57 +154,51 @@ const ReservationList = ({
                     onClick={() => onSelect(booking)}
                   >
                     <td>
-                      <p className="font-semibold text-[var(--admin-ink)] leading-tight">{reservationRef(booking)}</p>
-                      <div className="mt-1">
-                        <ChannelChip channel={booking.channel} />
-                      </div>
-                      <AttentionDots booking={booking} t={t} />
+                      <p className="res-ref-cell">{reservationRef(booking)}</p>
+                      <OpsSignals booking={booking} t={t} />
                     </td>
                     <td>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="res-avatar">{customerInitials(booking.customerName)}</span>
+                      <div className="res-identity">
+                        <span className="res-avatar" aria-hidden>
+                          {customerInitials(booking.customerName)}
+                        </span>
                         <div className="min-w-0">
-                          <p className="font-medium text-[var(--admin-ink)] truncate leading-tight">
+                          <p className="res-id-primary">
                             {booking.customerName || t('admin.common.guest')}
                           </p>
-                          <p className="text-[11px] text-[var(--admin-muted)] truncate">
+                          <p className="res-id-secondary">
                             {booking.customerPhone || booking.customerEmail || '—'}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="max-xl:hidden">
-                      <p className="font-medium text-[var(--admin-ink)] leading-tight">{vehicleLabel(booking.car)}</p>
+                    <td>
+                      <p className="res-id-primary">{vehicleLabel(booking.car)}</p>
                       {booking.car?.licensePlate ? (
-                        <p className="text-[11px] text-[var(--admin-muted)]">{booking.car.licensePlate}</p>
+                        <p className="res-id-secondary">{booking.car.licensePlate}</p>
                       ) : null}
                     </td>
                     <td>
-                      <p className="text-[var(--admin-ink)] leading-tight">{dateRangeLabel(booking.pickupDate, booking.returnDate, language)}</p>
-                      <p className="text-[11px] text-[var(--admin-muted)]">
-                        {formatTime(booking.pickupDate, language)} → {formatTime(booking.returnDate, language)}
+                      <p className="res-id-primary">
+                        {dateRangeLabel(booking.pickupDate, booking.returnDate, language)}
+                      </p>
+                      <p className="res-id-secondary">
+                        {formatTime(booking.pickupDate, language)}
+                        {' – '}
+                        {formatTime(booking.returnDate, language)}
                       </p>
                     </td>
                     <td>
                       <BookingStatusBadge status={booking.status} t={t} />
                     </td>
                     <td>
-                      <PaymentBadge booking={booking} t={t} />
-                    </td>
-                    <td>
-                      <SignatureBadge booking={booking} t={t} />
-                    </td>
-                    <td className="max-xl:hidden">
-                      <ContractBadge booking={booking} t={t} />
-                    </td>
-                    <td>
-                      <p className="font-semibold text-[var(--admin-ink)]">{money(currency, booking.price)}</p>
+                      <p className="res-total">{money(currency, booking.price)}</p>
                     </td>
                     <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex items-center gap-1">
+                      <div className="res-row-actions">
                         <button
                           type="button"
-                          className="admin-btn admin-btn-primary res-btn"
+                          className="admin-btn admin-btn-secondary res-btn"
                           onClick={() => onSelect(booking)}
                         >
                           {t('admin.bookings.view')}
@@ -199,7 +229,7 @@ const ReservationList = ({
       </div>
 
       {pagination?.totalPages > 1 ? (
-        <div className="mt-3 flex items-center justify-between text-sm text-[var(--admin-muted)]">
+        <div className="res-pager">
           <button
             type="button"
             disabled={pagination.page <= 1}
@@ -223,30 +253,27 @@ const ReservationList = ({
   )
 }
 
-const MobileCard = ({ booking, t, language, currency, onSelect }) => (
-  <button type="button" className="res-card" onClick={() => onSelect(booking)}>
-    <div className="flex items-start justify-between gap-3">
-      <p className="font-semibold text-[var(--admin-ink)]">{reservationRef(booking)}</p>
+const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => (
+  <button
+    type="button"
+    className={`res-card${selected ? ' is-selected' : ''}`}
+    onClick={() => onSelect(booking)}
+  >
+    <div className="res-card-top">
+      <div className="min-w-0">
+        <p className="res-ref-cell">{reservationRef(booking)}</p>
+        <OpsSignals booking={booking} t={t} />
+      </div>
       <BookingStatusBadge status={booking.status} t={t} />
     </div>
-    <div>
-      <p className="text-sm font-medium text-[var(--admin-ink)]">{booking.customerName || t('admin.common.guest')}</p>
-      <p className="text-sm text-[var(--admin-muted)]">{vehicleLabel(booking.car)}</p>
+    <div className="res-card-body">
+      <p className="res-id-primary">{booking.customerName || t('admin.common.guest')}</p>
+      <p className="res-id-secondary">{vehicleLabel(booking.car)}</p>
     </div>
-    <div className="flex items-center justify-between gap-2 text-sm">
-      <span className="text-[var(--admin-ink-secondary)]">
-        {dateRangeLabel(booking.pickupDate, booking.returnDate, language)}
-      </span>
-      <span className="font-semibold text-[var(--admin-ink)]">{money(currency, booking.price)}</span>
+    <div className="res-card-meta">
+      <span>{dateRangeLabel(booking.pickupDate, booking.returnDate, language)}</span>
+      <span className="res-total">{money(currency, booking.price)}</span>
     </div>
-    <div className="flex flex-wrap gap-1.5">
-      <PaymentBadge booking={booking} t={t} />
-      <SignatureBadge booking={booking} t={t} />
-      <ContractBadge booking={booking} t={t} />
-    </div>
-    <p className="text-sm font-semibold text-[var(--admin-primary)]">
-      {t('admin.bookings.viewReservation')} →
-    </p>
   </button>
 )
 
