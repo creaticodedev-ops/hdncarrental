@@ -1,10 +1,11 @@
 import React from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
+import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_WHATSAPP } from '../../constants/brand'
 
-const CONTACT_PHONE = '+212665330116'
-const CONTACT_EMAIL = 'haddanecar@gmail.com'
-const CONTACT_WHATSAPP = '212665330116'
+const CONTACT_PHONE = SUPPORT_PHONE
+const CONTACT_EMAIL = SUPPORT_EMAIL
+const CONTACT_WHATSAPP = SUPPORT_WHATSAPP
 
 /**
  * Shown when the agency trial has expired.
@@ -23,7 +24,7 @@ const TrialExpired = () => {
   )}`
 
   return (
-    <div className="min-h-[calc(100svh-57px)] flex items-center justify-center px-4 py-12 bg-light">
+    <div className="min-h-[calc(100svh-var(--admin-topbar-h))] flex items-center justify-center px-4 py-12 bg-light">
       <div className="w-full max-w-lg rounded-2xl border border-borderColor bg-white p-8 sm:p-10 shadow-[0_18px_50px_-28px_rgba(22,18,16,0.3)] text-center">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-700 text-2xl font-semibold">
           !

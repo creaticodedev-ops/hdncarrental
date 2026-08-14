@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import GuestCustomer from '../models/GuestCustomer.js';
 import Booking from '../models/Booking.js';
+import { bookingCrmKey, crmIdentityMatch } from '../utils/customerIdentity.js';
 
 const asObjectId = (id) => {
   if (!id) return id;
@@ -16,9 +17,12 @@ const asObjectId = (id) => {
  * Sync guest CRM profile from booking data (admin-only CRM).
  */
 export const upsertGuestFromBooking = async (booking) => {
-  if (!booking?.customerEmail || !booking?.owner) return null;
+  if (!booking?.owner) return null;
 
-  const email = booking.customerEmail.trim().toLowerCase();
+  // Desk bookings may have no email; crmKey carries their identity instead.
+  const email = bookingCrmKey(booking);
+  if (!email) return null;
+
   const ownerId = asObjectId(booking.owner);
   const city = (booking.pickupLocation || '').split(',')[0]?.trim()
     || (booking.pickupLocation || '').split('-')[0]?.trim()
@@ -27,7 +31,7 @@ export const upsertGuestFromBooking = async (booking) => {
   let guest = await GuestCustomer.findOne({ owner: ownerId, email });
 
   const stats = await Booking.aggregate([
-    { $match: { owner: ownerId, customerEmail: email } },
+    { $match: { owner: ownerId, ...crmIdentityMatch(email) } },
     {
       $group: {
         _id: null,
@@ -101,7 +105,7 @@ export const refreshGuestStats = async (ownerId, email) => {
   const oid = asObjectId(ownerId);
   const bookings = await Booking.find({
     owner: oid,
-    customerEmail: normalized,
+    ...crmIdentityMatch(normalized),
   }).sort({ createdAt: -1 });
 
   const guest = await GuestCustomer.findOne({ owner: oid, email: normalized });

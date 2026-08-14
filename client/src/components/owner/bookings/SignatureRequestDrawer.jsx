@@ -2,6 +2,7 @@ import React from 'react'
 import { AdminDrawer, DrawerSection, FormField } from '../../../admin/ui'
 import { SignatureBadge } from './ReservationBadges'
 import {
+  customerEmail,
   formatDateTime,
   getSignatureStatus,
   reservationRef,
@@ -74,7 +75,7 @@ const SignatureRequestDrawer = ({
             <p className="text-sm text-[var(--admin-ink)]">{booking.customerPhone || '—'}</p>
           </FormField>
           <FormField label={t('admin.bookings.email')}>
-            <p className="text-sm text-[var(--admin-ink)] break-all">{booking.customerEmail || '—'}</p>
+            <p className="text-sm text-[var(--admin-ink)] break-all">{customerEmail(booking) || '—'}</p>
           </FormField>
         </DrawerSection>
 

@@ -432,7 +432,13 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.email')}</label>
-              <input type="email" className={input} value={form.email} onChange={(e) => setField('email', e.target.value)} />
+              <input
+                type="email"
+                className={input}
+                value={form.email}
+                placeholder={t('admin.bookings.emailPlaceholder')}
+                onChange={(e) => setField('email', e.target.value)}
+              />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.address')}</label>

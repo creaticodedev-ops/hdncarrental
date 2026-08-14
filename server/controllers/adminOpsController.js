@@ -8,6 +8,7 @@ import { logAudit } from '../utils/adminOps.js';
 import { refreshGuestStats, upsertGuestFromBooking } from '../services/guestCrm.js';
 import mongoose from 'mongoose';
 import { isOnlineChannel } from '../utils/bookingChannel.js';
+import { crmIdentityMatch, crmIdentityStage } from '../utils/customerIdentity.js';
 
 const asObjectId = (id) => {
   if (id instanceof mongoose.Types.ObjectId) return id;
@@ -286,12 +287,14 @@ export const getCrmCustomers = async (req, res) => {
   try {
     const ownerId = req.user._id;
 
-    // Ensure CRM profiles exist for booking emails
-    const bookingEmails = await Booking.aggregate([
-      { $match: { owner: asObjectId(ownerId), customerEmail: { $ne: '' } } },
+    // Ensure a CRM profile exists per booking identity (email, or phone-derived at the desk)
+    const bookingIdentities = await Booking.aggregate([
+      { $match: { owner: asObjectId(ownerId) } },
+      crmIdentityStage(),
+      { $match: { crmIdentity: { $nin: [null, ''] } } },
       {
         $group: {
-          _id: { $toLower: '$customerEmail' },
+          _id: '$crmIdentity',
           name: { $last: '$customerName' },
           phone: { $last: '$customerPhone' },
           pickupLocation: { $last: '$pickupLocation' },
@@ -300,12 +303,12 @@ export const getCrmCustomers = async (req, res) => {
       },
     ]);
 
-    for (const row of bookingEmails) {
+    for (const row of bookingIdentities) {
       const existing = await GuestCustomer.findOne({ owner: ownerId, email: row._id });
       if (!existing) {
         await upsertGuestFromBooking({
           owner: ownerId,
-          customerEmail: row._id,
+          crmKey: row._id,
           customerName: row.name,
           customerPhone: row.phone,
           pickupLocation: row.pickupLocation,
@@ -380,7 +383,7 @@ export const getCrmCustomerDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
-    const bookings = await Booking.find({ owner: ownerId, customerEmail: normalized })
+    const bookings = await Booking.find({ owner: ownerId, ...crmIdentityMatch(normalized) })
       .populate('car', 'brand model image')
       .sort({ createdAt: -1 })
       .lean();
@@ -405,7 +408,7 @@ export const rateCustomer = async (req, res) => {
     const normalized = email.trim().toLowerCase();
     let guest = await GuestCustomer.findOne({ owner: ownerId, email: normalized });
     if (!guest) {
-      const last = await Booking.findOne({ owner: ownerId, customerEmail: normalized }).sort({ createdAt: -1 });
+      const last = await Booking.findOne({ owner: ownerId, ...crmIdentityMatch(normalized) }).sort({ createdAt: -1 });
       if (!last) return res.status(404).json({ success: false, message: 'Customer not found' });
       guest = await upsertGuestFromBooking(last);
     }

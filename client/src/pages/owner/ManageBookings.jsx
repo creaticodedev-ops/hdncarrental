@@ -6,6 +6,7 @@ import ReservationList from '../../components/owner/bookings/ReservationList'
 import ReservationDetail from '../../components/owner/bookings/ReservationDetail'
 import SignatureRequestDrawer from '../../components/owner/bookings/SignatureRequestDrawer'
 import {
+  customerEmail,
   extraCalendarDays,
   formatDateTime as formatDt,
   money,
@@ -513,7 +514,7 @@ const ManageBookings = () => {
     setEditing(booking)
     setEditForm({
       customerName: booking.customerName || '',
-      customerEmail: booking.customerEmail || '',
+      customerEmail: customerEmail(booking),
       customerPhone: booking.customerPhone || '',
       pickupDate: toInputDateTime(booking.pickupDate),
       returnDate: toInputDateTime(booking.returnDate),
@@ -711,7 +712,7 @@ const ManageBookings = () => {
           <table>
             <tr><td>Customer</td><td>${escapeHtml(booking.customerName || '-')}</td></tr>
             <tr><td>Phone</td><td>${escapeHtml(booking.customerPhone || '-')}</td></tr>
-            <tr><td>Email</td><td>${escapeHtml(booking.customerEmail || '-')}</td></tr>
+            <tr><td>Email</td><td>${escapeHtml(customerEmail(booking) || '-')}</td></tr>
             <tr><td>Vehicle</td><td>${escapeHtml(vehicle)}</td></tr>
             <tr><td>Pickup Location</td><td>${escapeHtml(booking.pickupLocation || '-')}</td></tr>
             <tr><td>Drop-off Location</td><td>${escapeHtml(booking.returnLocation || '-')}</td></tr>
@@ -1145,8 +1146,18 @@ const ManageBookings = () => {
               <FormField label={t('admin.bookings.phone')} required>
                 <PhoneInput value={editForm.customerPhone} onChange={(customerPhone) => setEditForm({ ...editForm, customerPhone })} required inputClassName="admin-input min-h-11 h-auto" />
               </FormField>
-              <FormField label={t('admin.bookings.email')} required className="sm:col-span-2">
-                <input type="email" className={inputClass} value={editForm.customerEmail} onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })} required />
+              <FormField
+                label={t('admin.bookings.email')}
+                hint={t('admin.bookings.emailOptionalHint')}
+                className="sm:col-span-2"
+              >
+                <input
+                  type="email"
+                  className={inputClass}
+                  value={editForm.customerEmail}
+                  onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
+                  placeholder={t('admin.bookings.emailPlaceholder')}
+                />
               </FormField>
             </DrawerSection>
             <DrawerSection title={t('admin.bookings.status')}>

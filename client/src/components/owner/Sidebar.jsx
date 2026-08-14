@@ -3,9 +3,8 @@ import { assets, ownerNavGroups } from '../../assets/assets'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
-import toast from 'react-hot-toast'
-import { getErrorMessage } from '../../utils/apiError'
 import { NavIcon } from '../../admin/navIcons'
+import { initialsOf as initials } from './topbar/AccountMenu'
 
 const STORAGE_KEY = 'hdn.owner.sidebar.groups'
 const MOBILE_MQ = '(max-width: 767px)'
@@ -70,10 +69,9 @@ const NavItem = ({ link, active, railCollapsed, label, onNavigate }) => (
  * Desktop: sticky rail (optionally icon-collapsed). Mobile: drawer.
  */
 const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
-  const { user, axios, fetchUser, hasPermission } = useAppContext()
+  const { user, hasPermission } = useAppContext()
   const { t } = useI18n()
   const location = useLocation()
-  const [image, setImage] = useState('')
   const [navQuery, setNavQuery] = useState('')
   const baseId = useId()
   const [isMobile, setIsMobile] = useState(() =>
@@ -157,14 +155,6 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
     return () => window.removeEventListener('keydown', onKey)
   }, [mobileOpen, onMobileClose])
 
-  const previewUrl = useMemo(() => (image ? URL.createObjectURL(image) : ''), [image])
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
-
   const persistOpenGroups = useCallback((next) => {
     setOpenGroups(next)
     try {
@@ -180,23 +170,6 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
     },
     [openGroups, persistOpenGroups],
   )
-
-  const updateImage = async () => {
-    try {
-      const formData = new FormData()
-      formData.append('image', image)
-      const { data } = await axios.post('/api/owner/update-image', formData)
-      if (data.success) {
-        fetchUser()
-        toast.success(data.message)
-        setImage('')
-      } else {
-        toast.error(data.message)
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error))
-    }
-  }
 
   const railCollapsed = collapsed && !isMobile
   const searching = Boolean(navQuery.trim())
@@ -248,7 +221,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
   return (
     <>
       <div
-        className={`fixed inset-x-0 bottom-0 top-[57px] z-30 bg-[var(--admin-overlay)] backdrop-blur-[2px] transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-x-0 bottom-0 top-[var(--admin-topbar-h)] z-30 bg-[var(--admin-overlay)] backdrop-blur-[2px] transition-opacity duration-200 md:hidden ${
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         aria-hidden={!mobileOpen}
@@ -261,8 +234,8 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
         aria-hidden={isMobile && !mobileOpen ? true : undefined}
         className={[
           'admin-sidebar flex flex-col',
-          'fixed md:sticky top-[57px] md:top-0 left-0 z-40 md:z-auto',
-          'h-[calc(100svh-57px)] shrink-0',
+          'fixed md:sticky top-[var(--admin-topbar-h)] left-0 z-40 md:z-auto',
+          'h-[calc(100svh-var(--admin-topbar-h))] shrink-0',
           railCollapsed ? 'md:w-[4.25rem]' : 'w-[min(17.5rem,88vw)] md:w-[15.5rem] xl:w-64',
           'transition-[width,transform] duration-200 ease-out md:translate-x-0',
           mobileOpen ? 'translate-x-0 shadow-[var(--admin-shadow-lg)]' : '-translate-x-full md:translate-x-0',
@@ -271,44 +244,41 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
       >
         <div className={`admin-sidebar-head ${railCollapsed ? 'is-collapsed' : ''}`}>
           <div className={`flex items-center ${railCollapsed ? 'justify-center' : 'gap-2.5'}`}>
-            <label htmlFor={`${baseId}-avatar`} className="block cursor-pointer shrink-0" title={user?.name || 'Admin'}>
-              <img
-                src={previewUrl || user?.image || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=300'}
-                alt=""
-                className="h-9 w-9 rounded-full object-cover ring-1 ring-[var(--admin-border)]"
-              />
-              <input
-                type="file"
-                id={`${baseId}-avatar`}
-                accept="image/*"
-                hidden
-                onChange={(e) => setImage(e.target.files?.[0] || '')}
-              />
-            </label>
-            {!railCollapsed && (
-              <>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-semibold leading-tight text-[var(--admin-ink)]">
+            <NavLink
+              to="/owner/account"
+              onClick={() => onMobileClose?.()}
+              title={t('admin.account.title')}
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 -m-1 hover:bg-[var(--admin-hover)] focus-visible:outline-none focus-visible:shadow-[var(--admin-focus)]"
+            >
+              {user?.image ? (
+                <img src={user.image} alt="" className="admin-user-avatar is-md" />
+              ) : (
+                <span className="admin-user-avatar is-md" aria-hidden>
+                  {initials(user?.name)}
+                </span>
+              )}
+              {!railCollapsed && (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold leading-tight text-[var(--admin-ink)]">
                     {user?.name || 'Admin'}
-                  </p>
-                  <p className="truncate text-[11px] text-[var(--admin-muted)] mt-0.5">{t('admin.shell.roleOwner')}</p>
-                </div>
-                <button
-                  type="button"
-                  className="md:hidden -mr-1 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
-                  onClick={onMobileClose}
-                  aria-label={t('admin.shell.closeMenu')}
-                >
-                  <img src={assets.close_icon} alt="" className="h-3.5 w-3.5 opacity-70" />
-                </button>
-              </>
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11px] text-[var(--admin-muted)]">
+                    {t('admin.account.viewProfile')}
+                  </span>
+                </span>
+              )}
+            </NavLink>
+            {!railCollapsed && (
+              <button
+                type="button"
+                className="md:hidden -mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
+                onClick={onMobileClose}
+                aria-label={t('admin.shell.closeMenu')}
+              >
+                <img src={assets.close_icon} alt="" className="h-3.5 w-3.5 opacity-70" />
+              </button>
             )}
           </div>
-          {image && !railCollapsed && (
-            <button type="button" className="admin-btn admin-btn-primary mt-3 min-h-8 text-xs w-full" onClick={updateImage}>
-              {t('admin.shell.save')}
-            </button>
-          )}
           {!railCollapsed && (
             <div className="admin-nav-search mt-3">
               <input

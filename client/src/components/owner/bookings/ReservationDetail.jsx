@@ -9,6 +9,7 @@ import {
 import {
   canExtend,
   canRequestSignature,
+  customerEmail,
   customerInitials,
   entityName,
   formatCompactDate,
@@ -289,7 +290,7 @@ const ReservationDetail = ({
 
       <div className="res-inspector-body">
         <Fold title={t('admin.bookings.customerDetails')} defaultOpen>
-          <Line label={t('admin.bookings.email')}>{booking.customerEmail || '—'}</Line>
+          <Line label={t('admin.bookings.email')}>{customerEmail(booking) || '—'}</Line>
           <Line label={t('admin.bookings.phone')}>{booking.customerPhone || '—'}</Line>
           <Line label={t('admin.bookings.updateStatus')}>
             <select

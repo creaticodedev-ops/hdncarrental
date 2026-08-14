@@ -49,6 +49,11 @@ import {
   updateAgencySettings,
 } from "../controllers/agencySettingsController.js";
 import {
+  changeAccountPassword,
+  signOutOtherSessions,
+  updateAccountProfile,
+} from "../controllers/accountController.js";
+import {
   listPromotions,
   getPromotion,
   createPromotion,
@@ -121,6 +126,10 @@ ownerRouter.get('/audit-logs', ...gate('audit'), getAuditLogs);
 ownerRouter.get('/search', protect, requireOwner, globalSearch);
 ownerRouter.get('/reports/export', ...gate('reports'), exportReport);
 ownerRouter.post('/update-image', protect, requireOwner, upload.single("image"), handleMulterError, updateUserImage);
+
+ownerRouter.put('/account/profile', protect, requireOwner, updateAccountProfile);
+ownerRouter.put('/account/password', protect, requireOwner, changeAccountPassword);
+ownerRouter.post('/account/sign-out-others', protect, requireOwner, signOutOtherSessions);
 
 ownerRouter.get('/settings', protect, requireOwner, getAgencySettings);
 ownerRouter.put('/settings', protect, requireOwner, updateAgencySettings);

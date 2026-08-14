@@ -4,6 +4,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/apiError';
+import { customerEmail } from '../../utils/customerEmail';
 
 const statusStyles = {
   new: 'bg-blue-100 text-blue-700',
@@ -210,7 +211,7 @@ const Customers = () => {
                   <tr key={c._id} className="border-t border-gray-100 hover:bg-gray-50/80 cursor-pointer" onClick={() => openDetail(c)}>
                     <td className="p-3">
                       <p className="font-medium text-gray-800">{c.name}</p>
-                      <p className="text-xs text-gray-500">{c.email}</p>
+                      <p className="text-xs text-gray-500">{customerEmail(c)}</p>
                       <p className="text-xs text-gray-400">{c.phone}{c.city ? ` · ${c.city}` : ''}</p>
                     </td>
                     <td className="p-3">
@@ -243,7 +244,7 @@ const Customers = () => {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">{detail.customer.name}</h2>
-                  <p className="text-sm text-gray-500">{detail.customer.email}</p>
+                  <p className="text-sm text-gray-500">{customerEmail(detail.customer)}</p>
                   <p className="text-xs text-gray-400">{detail.customer.phone}</p>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-xs capitalize ${statusStyles[detail.customer.status]}`}>{detail.customer.status}</span>

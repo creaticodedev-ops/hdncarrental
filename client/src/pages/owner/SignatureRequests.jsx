@@ -6,7 +6,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { EmptyState, SkeletonBlock, StatusBadge } from '../../admin/ui'
-import { signatureTone } from '../../components/owner/bookings/reservationHelpers'
+import { customerEmail, signatureTone } from '../../components/owner/bookings/reservationHelpers'
 
 const formatDt = (v, language) => {
   if (!v) return '—'
@@ -282,7 +282,9 @@ const SignatureRequests = () => {
                       </td>
                       <td>
                         <p className="font-medium text-[var(--admin-ink)]">{row.customerName || '—'}</p>
-                        <p className="text-[11px] text-[var(--admin-muted)]">{row.customerEmail || ''}</p>
+                        <p className="text-[11px] text-[var(--admin-muted)]">
+                          {customerEmail(row) || row.customerPhone || ''}
+                        </p>
                       </td>
                       <td>{carLabel(row.car)}</td>
                       <td>

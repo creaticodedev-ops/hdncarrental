@@ -9,6 +9,7 @@ import {
   SignatureBadge,
 } from './ReservationBadges'
 import {
+  customerEmail,
   customerInitials,
   formatCompactDate,
   formatDay,
@@ -63,10 +64,10 @@ const ReservationList = ({
 
   if (loading) {
     return (
-      <div className="space-y-2.5">
+      <div className="space-y-2.5 lg:flex lg:flex-col">
         <SkeletonBlock className="h-[4.75rem] lg:hidden" />
         <SkeletonBlock className="h-[4.75rem] lg:hidden" />
-        <SkeletonBlock className="hidden lg:block h-72" />
+        <SkeletonBlock className="hidden lg:block lg:flex-1 h-72" />
       </div>
     )
   }
@@ -85,7 +86,7 @@ const ReservationList = ({
     : 0
 
   return (
-    <div className="min-w-0">
+    <div className="res-list-body min-w-0">
       <div className="space-y-2 lg:hidden">
         {bookings.map((booking) => (
           <MobileCard
@@ -143,7 +144,7 @@ const ReservationList = ({
                             {booking.customerName || t('admin.common.guest')}
                           </p>
                           <p className="res-id-secondary">
-                            {booking.customerPhone || booking.customerEmail || '—'}
+                            {booking.customerPhone || customerEmail(booking) || '—'}
                           </p>
                         </div>
                       </div>

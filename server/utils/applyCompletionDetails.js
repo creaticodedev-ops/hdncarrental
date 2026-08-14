@@ -1,3 +1,5 @@
+import { isPlaceholderEmail } from './customerIdentity.js';
+
 /**
  * Persist customer / desk contract fields onto a Booking document.
  * Shared by online completion, walk-in create, and admin booking updates
@@ -79,12 +81,11 @@ export const applyCompletionDetailsToBooking = (booking, body = {}, options = {}
   return booking;
 };
 
-/** True for synthetic walk-in placeholder emails that must not print on contracts. */
-export const isSyntheticWalkInEmail = (email) => {
-  const value = String(email || '').trim().toLowerCase();
-  if (!value) return false;
-  return value.endsWith('@local.americonfort') || value.startsWith('walkin+');
-};
+/**
+ * True for legacy placeholder emails that must not print on contracts.
+ * Kept as a re-export so existing importers keep working.
+ */
+export const isSyntheticWalkInEmail = isPlaceholderEmail;
 
 /** Required fields before signature / contract generation */
 export const validateCompletionDetails = (booking) => {
@@ -95,7 +96,7 @@ export const validateCompletionDetails = (booking) => {
   };
 
   req('customerName', 'customer name');
-  req('customerEmail', 'customer email');
+  // Email is optional: desk customers are identified by phone and contracts print "—".
   req('customerPhone', 'customer phone');
   req('customerAddress', 'address');
   req('dateOfBirth', 'date of birth');

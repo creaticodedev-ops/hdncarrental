@@ -43,6 +43,7 @@ import { normalizeToE164 } from "../utils/phoneValidation.js";
 import { groupCarsForCatalog, resolveAvailableCarUnit, withCatalogDisplayOrders } from "../utils/carCatalog.js";
 import { channelQuery } from "../utils/bookingChannel.js";
 import { applyCompletionDetailsToBooking } from "../utils/applyCompletionDetails.js";
+import { bookingCrmKey, deskCrmKey, isPlaceholderEmail } from "../utils/customerIdentity.js";
 import {
   isModelAvailableForDates,
   publicUnavailablePayload,
@@ -802,11 +803,9 @@ export const createWalkInBooking = async (req, res) => {
       }
     }
 
-    // Synthetic email keeps CRM upsert working when desk omits email;
-    // templateEngine strips @local.americonfort from printed contracts.
-    const guestEmail =
-      normalizedEmail ||
-      `walkin+${phoneCheck.e164.replace(/\D/g, '').slice(-9) || Date.now()}@local.americonfort`;
+    // The email field stays exactly as the desk typed it (possibly empty). CRM and
+    // promotion limits use the internal identity instead.
+    const guestEmail = normalizedEmail || deskCrmKey(phoneCheck.e164);
 
     const quote = await buildAuthoritativeQuote({
       ownerId,
@@ -890,7 +889,8 @@ export const createWalkInBooking = async (req, res) => {
       pricingSnapshot,
       pendingExpiresAt: status === 'pending' ? pendingExpiresAtFromSettings(quote.settings) : null,
       customerName: fullName.trim(),
-      customerEmail: guestEmail,
+      customerEmail: normalizedEmail,
+      crmKey: guestEmail,
       customerPhone: phoneCheck.e164,
       pickupLocation: pickupLabel,
       returnLocation: returnLabel,
@@ -940,7 +940,7 @@ export const createWalkInBooking = async (req, res) => {
     await attachRedemptions({
       ownerId,
       bookingId: booking._id,
-      customerEmail: booking.customerEmail,
+      customerEmail: guestEmail,
       customerPhone: booking.customerPhone,
       applied: quote.applied,
     });
@@ -1114,8 +1114,9 @@ export const changeBookingStatus = async (req, res) => {
     let completionMeta = null;
     if (status === 'confirmed') {
       try {
-        if (booking.customerEmail) {
-          await refreshGuestStats(booking.owner, booking.customerEmail);
+        const crmKey = bookingCrmKey(booking);
+        if (crmKey) {
+          await refreshGuestStats(booking.owner, crmKey);
         }
         await logAudit({
           owner: _id,
@@ -1182,8 +1183,9 @@ export const changeBookingStatus = async (req, res) => {
     }
 
     try {
-      if (booking.customerEmail) {
-        await refreshGuestStats(booking.owner, booking.customerEmail);
+      const crmKey = bookingCrmKey(booking);
+      if (crmKey) {
+        await refreshGuestStats(booking.owner, crmKey);
       }
       await logAudit({
         owner: _id,
@@ -1468,11 +1470,13 @@ export const updateBooking = async (req, res) => {
     }
 
     if (customerName) booking.customerName = customerName.trim();
-    if (customerEmail) {
-      if (!isValidEmail(customerEmail)) {
+    if (customerEmail !== undefined) {
+      // An emptied field clears the email — desk reservations may legitimately have none.
+      const nextEmail = String(customerEmail).trim().toLowerCase();
+      if (nextEmail && !isValidEmail(nextEmail)) {
         return res.status(400).json({ success: false, message: 'Invalid email address' });
       }
-      booking.customerEmail = customerEmail.trim().toLowerCase();
+      booking.customerEmail = nextEmail;
     }
     if (customerPhone) {
       const phoneCheck = normalizeToE164(customerPhone);
@@ -1480,6 +1484,14 @@ export const updateBooking = async (req, res) => {
         return res.status(400).json({ success: false, message: phoneCheck.message });
       }
       booking.customerPhone = phoneCheck.e164;
+    }
+    if (!booking.crmKey) {
+      // Backfill the CRM identity for documents created before it existed.
+      booking.crmKey = booking.customerEmail || deskCrmKey(booking.customerPhone);
+    }
+    if (isPlaceholderEmail(booking.customerEmail)) {
+      // Drop legacy placeholder addresses now that crmKey carries the identity.
+      booking.customerEmail = '';
     }
     applyCompletionDetailsToBooking(booking, {
       dateOfBirth,

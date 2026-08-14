@@ -1,4 +1,8 @@
+import { customerEmail } from '../../../utils/customerEmail'
+
 const LOCALE = { en: 'en-GB', fr: 'fr-FR', es: 'es-ES' }
+
+export { customerEmail }
 
 export const EXTENDABLE_STATUSES = ['confirmed', 'ready_for_pickup', 'active']
 

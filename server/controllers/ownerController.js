@@ -18,6 +18,7 @@ import {
   getCarLocations,
   normalizeLocations,
 } from "../utils/carLocations.js";
+import { bookingCrmKey, crmIdentityStage } from "../utils/customerIdentity.js";
 
 const uploadToImageKit = async (imageFile, folder, width = '1280') => {
   const imagekit = getImageKit();
@@ -725,8 +726,10 @@ export const getAdminOverview = async (req, res) => {
     const bookings = await Booking.find({ owner: ownerId }).populate('car').sort({ createdAt: -1 }).lean();
 
     const customers = await Booking.aggregate([
-      { $match: { owner: ownerId, customerEmail: { $ne: '' } } },
-      { $group: { _id: { $toLower: '$customerEmail' } } },
+      { $match: { owner: ownerId } },
+      crmIdentityStage(),
+      { $match: { crmIdentity: { $nin: [null, ''] } } },
+      { $group: { _id: '$crmIdentity' } },
     ]);
 
     const revenue = bookings
@@ -754,20 +757,20 @@ export const getAdminOverview = async (req, res) => {
 export const getCustomers = async (req, res) => {
   try {
     const bookings = await Booking.find({ owner: req.user._id })
-      .select('customerName customerEmail customerPhone createdAt status price')
+      .select('customerName customerEmail crmKey customerPhone createdAt status price')
       .sort({ createdAt: -1 })
       .lean();
 
     const byEmail = new Map();
     for (const booking of bookings) {
-      const email = (booking.customerEmail || '').toLowerCase().trim();
+      const email = bookingCrmKey(booking);
       if (!email) continue;
       const existing = byEmail.get(email);
       if (!existing) {
         byEmail.set(email, {
           _id: email,
           name: booking.customerName || 'Guest',
-          email: booking.customerEmail,
+          email: booking.customerEmail || '',
           phone: booking.customerPhone || '',
           bookingsCount: 1,
           lastBookingAt: booking.createdAt,

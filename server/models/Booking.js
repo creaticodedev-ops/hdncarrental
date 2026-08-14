@@ -102,6 +102,12 @@ const bookingSchema = new mongoose.Schema({
   pendingExpiresAt: { type: Date, default: null, index: true },
   customerName: { type: String, default: "" },
   customerEmail: { type: String, default: "" },
+  /**
+   * Internal CRM/promotion identity. Equals customerEmail when the customer gave
+   * one; for desk bookings without an email it is derived from the phone number so
+   * the guest still gets a single CRM profile. Never shown to users or printed.
+   */
+  crmKey: { type: String, default: "" },
   customerPhone: { type: String, default: "" },
   pickupLocation: { type: String, default: "" },
   returnLocation: { type: String, default: "" },
@@ -248,6 +254,7 @@ const bookingSchema = new mongoose.Schema({
 bookingSchema.index({ car: 1, status: 1, pickupDate: 1, returnDate: 1 });
 bookingSchema.index({ owner: 1, createdAt: -1 });
 bookingSchema.index({ owner: 1, customerEmail: 1 });
+bookingSchema.index({ owner: 1, crmKey: 1 });
 bookingSchema.index({ owner: 1, channel: 1, createdAt: -1 });
 bookingSchema.index({ "completion.tokenHash": 1 });
 bookingSchema.index({ owner: 1, "completion.requestStatus": 1, updatedAt: -1 });

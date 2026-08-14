@@ -81,7 +81,7 @@ const OwnerShell = () => {
           collapsed={sidebarCollapsed}
           onToggleCollapse={toggleCollapsed}
         />
-        <main className="flex-1 min-w-0 admin-page pb-8 bg-[var(--admin-bg)]">
+        <main className="admin-page flex-1 min-w-0 bg-[var(--admin-bg)]">
           <Outlet />
         </main>
       </div>

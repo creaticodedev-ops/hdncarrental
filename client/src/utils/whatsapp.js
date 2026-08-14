@@ -1,6 +1,7 @@
 /** wa.me deep links — no Meta API. Agency: +212 665 330 116 */
 
 import { BRAND_NAME } from '../constants/brand'
+import { customerEmail } from './customerEmail'
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116'
 
@@ -95,7 +96,7 @@ export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD', dial
     `Reservation: ${reservation.reservationId || '—'}`,
     `Name: ${reservation.customerName || '—'}`,
     `Phone: ${reservation.phone || reservation.customerPhone || '—'}`,
-    `Email: ${reservation.email || reservation.customerEmail || '—'}`,
+    `Email: ${customerEmail(reservation.email || reservation.customerEmail) || '—'}`,
     `Vehicle: ${reservation.carName || reservation.vehicle || '—'}`,
     `Pickup: ${formatDateTime(reservation.pickupDate)} — ${reservation.pickupLocation || '—'}`,
     `Return: ${formatDateTime(reservation.returnDate)} — ${reservation.returnLocation || '—'}`,
