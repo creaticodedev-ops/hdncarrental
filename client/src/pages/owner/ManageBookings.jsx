@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import Title from '../../components/owner/Title'
 import ChannelBadge from '../../components/owner/ChannelBadge'
 import BookingRowActions from '../../components/owner/BookingRowActions'
@@ -9,6 +9,7 @@ import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import { Link } from 'react-router-dom'
 import { buildOwnerCompletionWaUrl, buildWaMeUrl } from '../../utils/whatsapp'
+import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 
 const emptyFilters = {
   customerName: '',
@@ -330,7 +331,7 @@ const ManageBookings = () => {
       }
       toast.success(t('admin.bookings.extensionApplied'))
       if (data.contract?.reason === 'content_locked') {
-        toast(t('admin.bookings.extensionContractLocked'), { icon: 'ℹ️' })
+        toast(t('admin.bookings.extensionContractLocked'), { icon: 'â„¹ï¸' })
       }
       setExtensionOpen(false)
       setSelectedBooking(data.booking)
@@ -557,15 +558,15 @@ const ManageBookings = () => {
   const openWhatsApp = (booking) => {
     const vehicle = booking.car
       ? `${booking.car.brand} ${booking.car.model}`
-      : '—'
+      : 'â€”'
     const text = [
       'Hello, regarding this reservation:',
       '',
-      `ID: ${booking.reservationId || '—'}`,
-      `Customer: ${booking.customerName || '—'}`,
-      `Phone: ${booking.customerPhone || '—'}`,
+      `ID: ${booking.reservationId || 'â€”'}`,
+      `Customer: ${booking.customerName || 'â€”'}`,
+      `Phone: ${booking.customerPhone || 'â€”'}`,
       `Vehicle: ${vehicle}`,
-      `Status: ${booking.status || '—'}`,
+      `Status: ${booking.status || 'â€”'}`,
     ].join('\n')
     window.open(
       buildWaMeUrl(text, whatsappDials.confirmationDial || whatsappDials.reservationDial),
@@ -881,7 +882,7 @@ const ManageBookings = () => {
                   >
                     {compatibleVehicles.map((c) => (
                       <option key={c._id} value={c._id}>
-                        {c.licensePlate || c.fleetId || c._id.slice(-6)} — {c.brand} {c.model}
+                        {c.licensePlate || c.fleetId || c._id.slice(-6)} â€” {c.brand} {c.model}
                       </option>
                     ))}
                   </select>
@@ -900,7 +901,7 @@ const ManageBookings = () => {
                   <p className='flex justify-between gap-2'><span>{t('admin.bookings.pickupFee')}</span><span>{(selectedBooking.priceBreakdown.pickupDeliveryFee || 0) <= 0 ? t('admin.bookings.free') : `${currency}${selectedBooking.priceBreakdown.pickupDeliveryFee}`}</span></p>
                   <p className='flex justify-between gap-2'><span>{t('admin.bookings.dropoffFee')}</span><span>{(selectedBooking.priceBreakdown.dropoffDeliveryFee || 0) <= 0 ? t('admin.bookings.free') : `${currency}${selectedBooking.priceBreakdown.dropoffDeliveryFee}`}</span></p>
                   {(selectedBooking.priceBreakdown.discountTotal || 0) > 0 && (
-                    <p className='flex justify-between gap-2 text-green-700'><span>{t('admin.bookings.discounts')}</span><span>−{currency}{selectedBooking.priceBreakdown.discountTotal}</span></p>
+                    <p className='flex justify-between gap-2 text-green-700'><span>{t('admin.bookings.discounts')}</span><span>âˆ’{currency}{selectedBooking.priceBreakdown.discountTotal}</span></p>
                   )}
                   <p className='flex justify-between gap-2 font-semibold border-t border-borderColor pt-1'><span>{t('admin.bookings.total')}</span><span>{currency}{selectedBooking.price}</span></p>
                 </div>
@@ -948,7 +949,7 @@ const ManageBookings = () => {
                   onClick={() => confirmViaWhatsApp(selectedBooking)}
                   className='col-span-2 px-3 py-2 rounded-lg bg-green-50 text-green-800 text-xs font-medium cursor-pointer disabled:opacity-50'
                 >
-                  {openingWhatsApp ? '…' : t('admin.bookings.confirmViaWhatsApp')}
+                  {openingWhatsApp ? 'â€¦' : t('admin.bookings.confirmViaWhatsApp')}
                 </button>
               )}
               {['confirmed', 'ready_for_pickup', 'active'].includes(selectedBooking.status) && (
@@ -988,9 +989,9 @@ const ManageBookings = () => {
                     {t(`admin.bookings.requestStatuses.${selectedBooking.completion.requestStatus}`)}
                   </p>
                 ) : null}
-                <p>{t('admin.bookings.docs')}: {selectedBooking.completion.documentsComplete ? '✓' : '—'}</p>
-                <p>{t('admin.bookings.pay')}: {selectedBooking.completion.paymentComplete ? '✓' : '—'}</p>
-                <p>{t('admin.bookings.sign')}: {selectedBooking.completion.signatureComplete ? '✓' : '—'}</p>
+                <p>{t('admin.bookings.docs')}: {selectedBooking.completion.documentsComplete ? 'âœ“' : 'â€”'}</p>
+                <p>{t('admin.bookings.pay')}: {selectedBooking.completion.paymentComplete ? 'âœ“' : 'â€”'}</p>
+                <p>{t('admin.bookings.sign')}: {selectedBooking.completion.signatureComplete ? 'âœ“' : 'â€”'}</p>
               </div>
             )}
 
@@ -1000,11 +1001,11 @@ const ManageBookings = () => {
                 {[...selectedBooking.extensionHistory].reverse().map((ext, idx) => (
                   <div key={idx} className='border-t border-borderColor/60 pt-2 first:border-0 first:pt-0'>
                     <p>
-                      {formatDateTime(ext.previousReturnDate)} → {formatDateTime(ext.newReturnDate)}
+                      {formatDateTime(ext.previousReturnDate)} â†’ {formatDateTime(ext.newReturnDate)}
                       {' '}(+{ext.deltaDays}d)
                     </p>
                     <p>
-                      {currency}{ext.previousPrice} → {currency}{ext.newPrice}
+                      {currency}{ext.previousPrice} â†’ {currency}{ext.newPrice}
                       {' '}(+{currency}{ext.deltaAmount})
                     </p>
                     {ext.notes ? <p className='text-muted'>{ext.notes}</p> : null}
@@ -1021,21 +1022,21 @@ const ManageBookings = () => {
                   onClick={() => downloadDocument(selectedBooking._id, 'driving_license')}
                   className='px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50'
                 >
-                  ↓ {t('admin.bookings.downloadLicense')}
+                  â†“ {t('admin.bookings.downloadLicense')}
                 </button>
                 <button
                   type="button"
                   onClick={() => downloadDocument(selectedBooking._id, 'identity')}
                   className='px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50'
                 >
-                  ↓ {t('admin.bookings.downloadId')}
+                  â†“ {t('admin.bookings.downloadId')}
                 </button>
                 <button
                   type="button"
                   onClick={() => downloadDocument(selectedBooking._id, 'passport')}
                   className='px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50'
                 >
-                  ↓ {t('admin.bookings.downloadPassport')}
+                  â†“ {t('admin.bookings.downloadPassport')}
                 </button>
               </div>
               <div className='grid gap-2 pt-1'>
@@ -1113,138 +1114,140 @@ const ManageBookings = () => {
         )}
       </div>
 
-      {extensionOpen && selectedBooking && (
-        <div
-          className='fixed inset-0 z-50 bg-[var(--admin-overlay)] flex items-end sm:items-center justify-center p-0 sm:p-4'
-          onClick={() => !extensionBusy && setExtensionOpen(false)}
-        >
-          <form
-            onSubmit={applyExtension}
-            onClick={(e) => e.stopPropagation()}
-            className='admin-card rounded-t-2xl sm:rounded-[var(--admin-radius-xl)] w-full max-w-lg max-h-[92svh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-[var(--admin-shadow-lg)]'
-          >
-            <div className='flex items-start justify-between gap-3'>
-              <div>
-                <h3 className='text-lg font-semibold text-[var(--admin-ink)]'>{t('admin.bookings.extendTitle')}</h3>
-                <p className='text-xs text-[var(--admin-muted)] mt-1'>
-                  {selectedBooking.reservationId} · {t('admin.bookings.extendCurrentReturn')}:{' '}
-                  {formatDateTime(selectedBooking.returnDate)}
-                </p>
-              </div>
-              <button type="button" disabled={extensionBusy} onClick={() => setExtensionOpen(false)} className='admin-btn admin-btn-ghost min-h-9 w-9 px-0'>
-                ×
-              </button>
-            </div>
-
-            <ol className='flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--admin-muted)]'>
+      <AdminDrawer
+        open={Boolean(extensionOpen && selectedBooking)}
+        onClose={() => !extensionBusy && setExtensionOpen(false)}
+        title={t('admin.bookings.extendTitle')}
+        description={selectedBooking ? `${selectedBooking.reservationId} · ${t('admin.bookings.extendCurrentReturn')}: ${formatDateTime(selectedBooking.returnDate)}` : ''}
+        size="lg"
+        dirty={Boolean(extensionForm.newReturnDate) && !extensionBusy}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={extensionBusy || !extensionForm.newReturnDate}
+              onClick={previewExtension}
+              className="admin-btn admin-btn-secondary"
+            >
+              {t('admin.bookings.extendPreview')}
+            </button>
+            <button
+              type="submit"
+              form="booking-extend-form"
+              disabled={extensionBusy || !extensionPreview}
+              className="admin-btn admin-btn-primary"
+            >
+              {extensionBusy ? t('admin.bookings.extendSaving') : t('admin.bookings.extendConfirm')}
+            </button>
+          </>
+        }
+      >
+        {selectedBooking && (
+          <form id="booking-extend-form" onSubmit={applyExtension} className="space-y-6">
+            <ol className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--admin-muted)]">
               <li className={`rounded-full px-2.5 py-1 border ${!extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>1 · {t('admin.bookings.extendNewReturn')}</li>
               <li className={`rounded-full px-2.5 py-1 border ${extensionPreview ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : 'border-[var(--admin-border)]'}`}>2 · {t('admin.bookings.extendPreview')}</li>
-              <li className='rounded-full px-2.5 py-1 border border-[var(--admin-border)]'>3 · {t('admin.bookings.extendConfirm')}</li>
+              <li className="rounded-full px-2.5 py-1 border border-[var(--admin-border)]">3 · {t('admin.bookings.extendConfirm')}</li>
             </ol>
-
-            <div className='admin-card bg-[var(--admin-surface-2)] p-3 text-sm'>
-              <p className='admin-label mb-1'>{t('admin.bookings.extendCurrentReturn')}</p>
-              <p className='text-[var(--admin-ink)] font-medium'>
+            <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] p-3 text-sm">
+              <p className="admin-label mb-1">{t('admin.bookings.extendCurrentReturn')}</p>
+              <p className="font-medium text-[var(--admin-ink)]">
                 {currency}{selectedBooking.price} · {formatDateTime(selectedBooking.pickupDate)} → {formatDateTime(selectedBooking.returnDate)}
               </p>
             </div>
-
-            <label className='block text-sm'>
-              <span className={labelClass}>{t('admin.bookings.extendNewReturn')}</span>
-              <input
-                type="datetime-local"
-                required
-                value={extensionForm.newReturnDate}
-                onChange={(e) => {
-                  setExtensionPreview(null)
-                  setExtensionForm((f) => ({ ...f, newReturnDate: e.target.value }))
-                }}
-                className={inputClass}
-              />
-            </label>
-
-            <label className='block text-sm'>
-              <span className={labelClass}>{t('admin.bookings.extendNotes')}</span>
-              <textarea
-                rows={2}
-                value={extensionForm.notes}
-                onChange={(e) => setExtensionForm((f) => ({ ...f, notes: e.target.value }))}
-                className={inputClass}
-              />
-            </label>
-
-            <label className='flex items-center gap-2 text-sm text-[var(--admin-ink)]'>
-              <input
-                type="checkbox"
-                checked={extensionForm.regenerateContract}
-                onChange={(e) => setExtensionForm((f) => ({ ...f, regenerateContract: e.target.checked }))}
-              />
-              {t('admin.bookings.extendRegenContract')}
-            </label>
-
+            <DrawerSection title={t('admin.bookings.extendNewReturn')}>
+              <FormField label={t('admin.bookings.extendNewReturn')} required className="sm:col-span-2">
+                <input
+                  type="datetime-local"
+                  required
+                  value={extensionForm.newReturnDate}
+                  onChange={(e) => {
+                    setExtensionPreview(null)
+                    setExtensionForm((f) => ({ ...f, newReturnDate: e.target.value }))
+                  }}
+                  className={inputClass}
+                />
+              </FormField>
+              <FormField label={t('admin.bookings.extendNotes')} className="sm:col-span-2">
+                <textarea
+                  rows={2}
+                  value={extensionForm.notes}
+                  onChange={(e) => setExtensionForm((f) => ({ ...f, notes: e.target.value }))}
+                  className={inputClass}
+                />
+              </FormField>
+              <label className="sm:col-span-2 flex items-center gap-2 text-sm text-[var(--admin-ink)]">
+                <input
+                  type="checkbox"
+                  checked={extensionForm.regenerateContract}
+                  onChange={(e) => setExtensionForm((f) => ({ ...f, regenerateContract: e.target.checked }))}
+                />
+                {t('admin.bookings.extendRegenContract')}
+              </label>
+            </DrawerSection>
             {extensionPreview && (
-              <div className='rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] px-4 py-3 text-sm space-y-1.5'>
-                <p className='flex justify-between'>
+              <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface-2)] px-4 py-3 text-sm space-y-1.5">
+                <p className="flex justify-between">
                   <span>{t('admin.bookings.extendDeltaDays')}</span>
                   <strong>+{extensionPreview.deltaDays}</strong>
                 </p>
-                <p className='flex justify-between'>
+                <p className="flex justify-between">
                   <span>{t('admin.bookings.extendDeltaAmount')}</span>
                   <strong>{currency}{extensionPreview.deltaAmount}</strong>
                 </p>
-                <p className='flex justify-between text-base pt-2 border-t border-[var(--admin-border)]'>
+                <p className="flex justify-between text-base pt-2 border-t border-[var(--admin-border)]">
                   <span>{t('admin.bookings.extendNewTotal')}</span>
-                  <strong className='text-[var(--admin-primary)]'>{currency}{extensionPreview.newPrice}</strong>
+                  <strong className="text-[var(--admin-primary)]">{currency}{extensionPreview.newPrice}</strong>
                 </p>
               </div>
             )}
-
-            <div className='flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1'>
-              <button
-                type="button"
-                disabled={extensionBusy || !extensionForm.newReturnDate}
-                onClick={previewExtension}
-                className='admin-btn admin-btn-secondary'
-              >
-                {t('admin.bookings.extendPreview')}
-              </button>
-              <button
-                type="submit"
-                disabled={extensionBusy || !extensionPreview}
-                className='admin-btn admin-btn-primary'
-              >
-                {extensionBusy ? t('admin.bookings.extendSaving') : t('admin.bookings.extendConfirm')}
-              </button>
-            </div>
           </form>
-        </div>
-      )}
+        )}
+      </AdminDrawer>
 
-      {editing && (
-        <div className='fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4' onClick={() => setEditing(null)}>
-          <form
-            onSubmit={saveEdit}
-            onClick={(e) => e.stopPropagation()}
-            className='bg-white rounded-t-2xl sm:rounded-xl w-full max-w-2xl max-h-[92svh] overflow-y-auto p-5 sm:p-6 space-y-3'
-          >
-            <h3 className='text-lg font-semibold text-gray-800'>{t('admin.bookings.edit')} {t('admin.bookings.reservation')}</h3>
-            <p className='text-sm text-primary'>{editing.reservationId}</p>
-
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-              <div>
-                <label className={labelClass}>{t('admin.bookings.customerName')}</label>
+      <AdminDrawer
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title={`${t('admin.bookings.edit')} ${t('admin.bookings.reservation')}`}
+        description={editing?.reservationId}
+        size="lg"
+        dirty={Boolean(editing)}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" onClick={() => setEditing(null)} className="admin-btn admin-btn-secondary">
+              {t('admin.common.cancel')}
+            </button>
+            <button type="submit" form="booking-edit-form" className="admin-btn admin-btn-primary">
+              {t('admin.common.save')}
+            </button>
+          </>
+        }
+      >
+        {editing && (
+          <form id="booking-edit-form" onSubmit={saveEdit} className="space-y-6">
+            <DrawerSection title={t('admin.bookings.customer')}>
+              <FormField label={t('admin.bookings.customerName')} required>
                 <input className={inputClass} value={editForm.customerName} onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })} required />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.bookings.phone')}</label>
-                <PhoneInput value={editForm.customerPhone} onChange={(customerPhone) => setEditForm({ ...editForm, customerPhone })} required />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.bookings.email')}</label>
+              </FormField>
+              <FormField label={t('admin.bookings.phone')} required>
+                <PhoneInput value={editForm.customerPhone} onChange={(customerPhone) => setEditForm({ ...editForm, customerPhone })} required inputClassName="admin-input min-h-11 h-auto" />
+              </FormField>
+              <FormField label={t('admin.bookings.email')} required className="sm:col-span-2">
                 <input type="email" className={inputClass} value={editForm.customerEmail} onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })} required />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.bookings.status')}</label>
+              </FormField>
+            </DrawerSection>
+            <DrawerSection title={t('admin.bookings.status')}>
+              <FormField label={t('admin.bookings.status')}>
                 <select className={inputClass} value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
                   <option value="pending">Pending</option>
                   <option value="confirmed">Confirmed</option>
@@ -1253,59 +1256,49 @@ const ManageBookings = () => {
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-              </div>
-              <div>
-                <label className={labelClass}>Pickup Date & Time</label>
-                <input type="datetime-local" className={inputClass} value={editForm.pickupDate} onChange={(e) => setEditForm({ ...editForm, pickupDate: e.target.value })} required />
-              </div>
-              <div>
-                <label className={labelClass}>Return Date & Time</label>
-                <input type="datetime-local" className={inputClass} value={editForm.returnDate} onChange={(e) => setEditForm({ ...editForm, returnDate: e.target.value })} required />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.bookings.pickupLocation')}</label>
-                <input className={inputClass} value={editForm.pickupLocation} onChange={(e) => setEditForm({ ...editForm, pickupLocation: e.target.value })} required />
-              </div>
-              <div>
-                <label className={labelClass}>Drop-off Location</label>
-                <input className={inputClass} value={editForm.returnLocation} onChange={(e) => setEditForm({ ...editForm, returnLocation: e.target.value })} required />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.bookings.paymentStatus')}</label>
+              </FormField>
+              <FormField label={t('admin.bookings.paymentStatus')}>
                 <select className={inputClass} value={editForm.paymentStatus} onChange={(e) => setEditForm({ ...editForm, paymentStatus: e.target.value })}>
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
                   <option value="failed">Failed</option>
                   <option value="refunded">Refunded</option>
                 </select>
-              </div>
-              <div className='sm:col-span-2'>
-                <label className={labelClass}>{t('admin.bookings.assignVehicle')}</label>
-                <select className={inputClass} value={editForm.carId} onChange={(e) => setEditForm({ ...editForm, carId: e.target.value })}>
-                  {editVehicleOptions.length === 0 ? (
-                    <option value="">No compatible vehicle available</option>
-                  ) : (
-                    editVehicleOptions.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.licensePlate || c.fleetId || c._id.slice(-6)} — {c.brand} {c.model}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              <div className='sm:col-span-2'>
-                <label className={labelClass}>Notes</label>
+              </FormField>
+              <FormField label={t('admin.walkIn.pickup')} required>
+                <input type="datetime-local" className={inputClass} value={editForm.pickupDate} onChange={(e) => setEditForm({ ...editForm, pickupDate: e.target.value })} required />
+              </FormField>
+              <FormField label={t('admin.walkIn.return')} required>
+                <input type="datetime-local" className={inputClass} value={editForm.returnDate} onChange={(e) => setEditForm({ ...editForm, returnDate: e.target.value })} required />
+              </FormField>
+              <FormField label={t('admin.bookings.pickupLocation')}>
+                <input className={inputClass} value={editForm.pickupLocation} onChange={(e) => setEditForm({ ...editForm, pickupLocation: e.target.value })} required />
+              </FormField>
+              <FormField label={t('admin.walkIn.returnLoc')}>
+                <input className={inputClass} value={editForm.returnLocation} onChange={(e) => setEditForm({ ...editForm, returnLocation: e.target.value })} required />
+              </FormField>
+            </DrawerSection>
+            <DrawerSection title={t('admin.bookings.assignVehicle')}>
+              <FormField label={t('admin.bookings.assignVehicle')} className="sm:col-span-2">
+                <SearchSelect
+                  value={editForm.carId}
+                  onChange={(carId) => setEditForm({ ...editForm, carId })}
+                  placeholder={t('admin.accounting.searchVehicle')}
+                  emptyLabel={t('admin.ui.noResults')}
+                  options={editVehicleOptions.map((c) => ({
+                    value: c._id,
+                    label: `${c.brand} ${c.model}`,
+                    hint: [c.licensePlate, c.fleetId].filter(Boolean).join(' · '),
+                  }))}
+                />
+              </FormField>
+              <FormField label={t('admin.walkIn.notes')} className="sm:col-span-2">
                 <textarea className={inputClass} rows="3" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
-              </div>
-            </div>
-
-            <div className='flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2'>
-              <button type="button" onClick={() => setEditing(null)} className='px-4 py-2.5 text-sm border rounded-lg cursor-pointer'>{t('admin.common.cancel')}</button>
-              <button type="submit" className='px-4 py-2.5 text-sm bg-primary text-white rounded-lg cursor-pointer'>{t('admin.common.save')}</button>
-            </div>
+              </FormField>
+            </DrawerSection>
           </form>
-        </div>
-      )}
+        )}
+      </AdminDrawer>
     </div>
   )
 }

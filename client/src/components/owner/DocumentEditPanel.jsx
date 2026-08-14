@@ -1,9 +1,10 @@
 import React from 'react'
 import DocumentGenerationOverlay from '../DocumentGenerationOverlay'
+import { AdminDrawer } from '../../admin/ui'
 
-const inputClass = 'border border-borderColor px-3 py-2 rounded-lg w-full text-sm'
-const labelClass = 'text-xs font-medium text-gray-600'
-const textareaClass = 'border border-borderColor px-3 py-2 rounded-lg w-full text-sm font-mono min-h-[120px]'
+const inputClass = 'admin-input'
+const labelClass = 'admin-label'
+const textareaClass = 'admin-input font-mono min-h-[7rem] resize-y'
 
 /**
  * Shared editor for persistent document instances (contracts / invoices).
@@ -30,43 +31,54 @@ const DocumentEditPanel = ({
   t,
   generation = null,
 }) => {
-  if (!open) return null
-
   const busy = Boolean(saving || generation?.running)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative max-h-[94vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-borderColor bg-white shadow-xl flex flex-col">
-        {generation?.open && (
-          <DocumentGenerationOverlay
-            open={generation.open}
-            status={generation.status}
-            mode={generation.mode}
-            error={generation.error}
-            pdfUrl={generation.pdfUrl}
-            onRetry={generation.onRetry}
-            onDismiss={generation.onDismiss}
-            autoDismissMs={generation.status === 'success' ? 850 : 0}
-            embedPdf={generation.status === 'success' && Boolean(generation.pdfUrl)}
-          />
-        )}
+    <>
+      {generation?.open && (
+        <DocumentGenerationOverlay
+          open={generation.open}
+          status={generation.status}
+          mode={generation.mode}
+          error={generation.error}
+          pdfUrl={generation.pdfUrl}
+          onRetry={generation.onRetry}
+          onDismiss={generation.onDismiss}
+          autoDismissMs={generation.status === 'success' ? 850 : 0}
+          embedPdf={generation.status === 'success' && Boolean(generation.pdfUrl)}
+        />
+      )}
+      <AdminDrawer
+        open={open}
+        onClose={() => !busy && onClose?.()}
+        title={title}
+        description={t('admin.documents.editHint')}
+        size="xl"
+        closeLabel={t('admin.common.cancel')}
+        footer={
+          <>
+            <button type="button" disabled={busy} onClick={onClose} className="admin-btn admin-btn-secondary">
+              {t('admin.common.cancel')}
+            </button>
+            <button type="button" disabled={busy} onClick={onRegenerate} className="admin-btn admin-btn-ghost">
+              {t('admin.documents.regeneratePdf')}
+            </button>
+            {onRefreshFromSource && (
+              <button type="button" disabled={busy} onClick={onRefreshFromSource} className="admin-btn admin-btn-ghost">
+                {t('admin.documents.refreshFromBooking')}
+              </button>
+            )}
+            <button type="button" disabled={busy} onClick={onSave} className="admin-btn admin-btn-secondary">
+              {busy ? t('admin.invoices.saving') : t('admin.common.save')}
+            </button>
+            <button type="button" disabled={busy} onClick={onSaveAndRegenerate} className="admin-btn admin-btn-primary">
+              {busy ? t('admin.invoices.saving') : t('admin.documents.saveAndRegenerate')}
+            </button>
+          </>
+        }
+      >
 
-        <div className="flex items-start justify-between gap-4 border-b border-borderColor px-5 py-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{t('admin.documents.editHint')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="text-sm text-gray-500 disabled:opacity-40"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex gap-2 border-b border-borderColor px-5 pt-3">
+        <div className="flex gap-2 border-b border-[var(--admin-border)] -mx-1 mb-4">
           {['fields', 'sections', 'history'].map((tab) => (
             <button
               key={tab}
@@ -85,7 +97,7 @@ const DocumentEditPanel = ({
         </div>
 
         {/* Keep current document visible under the generation overlay */}
-        <div className={`flex-1 overflow-y-auto px-5 py-4 ${busy ? 'pointer-events-none select-none' : ''}`}>
+        <div className={`${busy ? 'pointer-events-none select-none' : ''}`}>
           {activeTab === 'fields' && fieldsContent}
 
           {activeTab === 'sections' && (
@@ -171,48 +183,8 @@ const DocumentEditPanel = ({
             </div>
           )}
         </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-borderColor px-5 py-3 bg-light/40">
-          <button type="button" disabled={busy} onClick={onClose} className="px-4 py-2 rounded-xl border border-borderColor text-sm disabled:opacity-60">
-            {t('admin.common.cancel')}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onRegenerate}
-            className="px-4 py-2 rounded-xl border border-borderColor text-sm disabled:opacity-60"
-          >
-            {t('admin.documents.regeneratePdf')}
-          </button>
-          {onRefreshFromSource && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onRefreshFromSource}
-              className="px-4 py-2 rounded-xl border border-amber-300 text-amber-800 text-sm disabled:opacity-60"
-            >
-              {t('admin.documents.refreshFromBooking')}
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onSave}
-            className="px-4 py-2 rounded-xl border border-primary text-primary text-sm disabled:opacity-60"
-          >
-            {busy ? t('admin.invoices.saving') : t('admin.common.save')}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onSaveAndRegenerate}
-            className="px-4 py-2 rounded-xl bg-primary text-white text-sm disabled:opacity-60"
-          >
-            {busy ? t('admin.invoices.saving') : t('admin.documents.saveAndRegenerate')}
-          </button>
-        </div>
-      </div>
-    </div>
+      </AdminDrawer>
+    </>
   )
 }
 

@@ -4,6 +4,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
+import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 
 const toInputDate = (v) => {
   if (!v) return ''
@@ -245,7 +246,7 @@ const Maintenance = () => {
     return map
   }, [events, calMonth, calYear])
 
-  const inputClass = 'border border-borderColor rounded-md px-3 py-2 text-sm w-full outline-none focus:border-primary'
+  const inputClass = 'admin-input'
   const tabs = [
     { id: 'fleet', label: t('admin.maintenance.tabFleet') },
     { id: 'schedule', label: t('admin.maintenance.tabSchedule') },
@@ -261,7 +262,7 @@ const Maintenance = () => {
         <button
           type="button"
           onClick={() => { setRecordForm(emptyRecord); setShowRecord(true) }}
-          className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-dull"
+          className="admin-btn admin-btn-primary"
         >
           {t('admin.maintenance.scheduleWork')}
         </button>
@@ -602,24 +603,34 @@ const Maintenance = () => {
         </div>
       )}
 
-      {/* Edit vehicle profile modal */}
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-          <form onSubmit={saveProfile} className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-2xl max-h-[90svh] overflow-y-auto p-5 sm:p-6 space-y-4">
-            <h3 className="text-lg font-semibold">
-              {editing.fleetId ? `[${editing.fleetId}] ` : ''}{editing.brand} {editing.model}
-              {editing.licensePlate ? ` · ${editing.licensePlate}` : ''}
-            </h3>
-            <p className="text-xs text-gray-500 -mt-2">
-              {editing.vin ? `VIN ${editing.vin}` : 'No VIN'} · {editing.branch || editing.location || 'No branch'}
-            </p>
-            <div className="grid sm:grid-cols-2 gap-3">
+      <AdminDrawer
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title={editing ? `${editing.fleetId ? `[${editing.fleetId}] ` : ''}${editing.brand} ${editing.model}` : ''}
+        description={editing ? `${editing.vin ? `VIN ${editing.vin}` : ''} ${editing.licensePlate || ''} · ${editing.branch || editing.location || ''}`.trim() : ''}
+        size="lg"
+        dirty={Boolean(editing)}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" onClick={() => setEditing(null)} className="admin-btn admin-btn-secondary">{t('admin.common.cancel')}</button>
+            <button type="submit" form="maintenance-profile-form" className="admin-btn admin-btn-primary">{t('admin.common.save')}</button>
+          </>
+        }
+      >
+        {editing && (
+          <form id="maintenance-profile-form" onSubmit={saveProfile} className="space-y-6">
+            <DrawerSection title={t('admin.maintenance.tabFleet')}>
               {[
-                ['licensePlate', 'Plate'],
-                ['mileage', 'Mileage (km)'],
-                ['status', 'Status'],
-                ['nextServiceMileage', 'Next service km'],
-                ['nextServiceDate', 'Next service date', 'date'],
+                ['licensePlate', t('admin.fleet.plate')],
+                ['mileage', t('admin.maintenance.mileage')],
+                ['status', t('admin.bookings.status')],
+                ['nextServiceMileage', t('admin.maintenance.nextService')],
+                ['nextServiceDate', t('admin.maintenance.nextService'), 'date'],
                 ['lastServiceDate', 'Last service', 'date'],
                 ['oilNextDueAt', 'Oil due date', 'date'],
                 ['oilNextDueMileage', 'Oil due km'],
@@ -629,8 +640,7 @@ const Maintenance = () => {
                 ['registrationExpiry', 'Registration expiry', 'date'],
                 ['inspectionExpiry', 'Inspection expiry', 'date'],
               ].map(([key, label, type]) => (
-                <div key={key}>
-                  <label className="text-xs text-gray-500">{label}</label>
+                <FormField key={key} label={label}>
                   {key === 'status' ? (
                     <select className={inputClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                       <option value="available">Available</option>
@@ -645,92 +655,87 @@ const Maintenance = () => {
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                     />
                   )}
-                </div>
+                </FormField>
               ))}
-              <div className="sm:col-span-2">
-                <label className="text-xs text-gray-500">Notes</label>
+              <FormField label={t('admin.walkIn.notes')} className="sm:col-span-2">
                 <textarea className={inputClass} rows={2} value={form.maintenanceNotes} onChange={(e) => setForm({ ...form, maintenanceNotes: e.target.value })} />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg text-sm">Save</button>
-            </div>
+              </FormField>
+            </DrawerSection>
           </form>
-        </div>
-      )}
+        )}
+      </AdminDrawer>
 
-      {/* Schedule / log work modal */}
-      {showRecord && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-          <form onSubmit={saveRecord} className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg max-h-[90svh] overflow-y-auto p-5 sm:p-6 space-y-3">
-            <h3 className="text-lg font-semibold">{t('admin.maintenance.scheduleWork')}</h3>
-            <div>
-              <label className="text-xs text-gray-500">Vehicle *</label>
-              <select required className={inputClass} value={recordForm.carId} onChange={(e) => setRecordForm({ ...recordForm, carId: e.target.value })}>
-                <option value="">Select…</option>
-                {cars.map((c) => (
-                  <option key={c._id} value={c._id}>{formatUnit(c)}</option>
-                ))}
+      <AdminDrawer
+        open={showRecord}
+        onClose={() => setShowRecord(false)}
+        title={t('admin.maintenance.scheduleWork')}
+        size="lg"
+        dirty={showRecord}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" onClick={() => setShowRecord(false)} className="admin-btn admin-btn-secondary">{t('admin.common.cancel')}</button>
+            <button type="submit" form="maintenance-record-form" className="admin-btn admin-btn-primary">{t('admin.common.save')}</button>
+          </>
+        }
+      >
+        <form id="maintenance-record-form" onSubmit={saveRecord} className="space-y-6">
+          <DrawerSection title={t('admin.accounting.sectionDetails')}>
+            <FormField label={t('admin.accounting.vehicle')} required className="sm:col-span-2">
+              <SearchSelect
+                required
+                value={recordForm.carId}
+                onChange={(carId) => setRecordForm({ ...recordForm, carId })}
+                placeholder={t('admin.accounting.searchVehicle')}
+                emptyLabel={t('admin.ui.noResults')}
+                options={cars.map((c) => ({ value: c._id, label: formatUnit(c) }))}
+              />
+            </FormField>
+            <FormField label={t('admin.accounting.category')}>
+              <select className={inputClass} value={recordForm.type} onChange={(e) => setRecordForm({ ...recordForm, type: e.target.value })}>
+                {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-500">Type</label>
-                <select className={inputClass} value={recordForm.type} onChange={(e) => setRecordForm({ ...recordForm, type: e.target.value })}>
-                  {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Status</label>
-                <select className={inputClass} value={recordForm.status} onChange={(e) => setRecordForm({ ...recordForm, status: e.target.value })}>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500">Title *</label>
-              <input required className={inputClass} value={recordForm.title} onChange={(e) => setRecordForm({ ...recordForm, title: e.target.value })} placeholder="e.g. 10,000 km service" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-500">Scheduled</label>
-                <input type="date" className={inputClass} value={recordForm.scheduledDate} onChange={(e) => setRecordForm({ ...recordForm, scheduledDate: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Cost</label>
-                <input type="number" min="0" step="0.01" className={inputClass} value={recordForm.cost} onChange={(e) => setRecordForm({ ...recordForm, cost: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Mileage</label>
-                <input type="number" className={inputClass} value={recordForm.mileageAtService} onChange={(e) => setRecordForm({ ...recordForm, mileageAtService: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Vendor</label>
-                <input className={inputClass} value={recordForm.vendor} onChange={(e) => setRecordForm({ ...recordForm, vendor: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Next due date</label>
-                <input type="date" className={inputClass} value={recordForm.nextDueDate} onChange={(e) => setRecordForm({ ...recordForm, nextDueDate: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Next due km</label>
-                <input type="number" className={inputClass} value={recordForm.nextDueMileage} onChange={(e) => setRecordForm({ ...recordForm, nextDueMileage: e.target.value })} />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={recordForm.setCarInMaintenance} onChange={(e) => setRecordForm({ ...recordForm, setCarInMaintenance: e.target.checked })} />
-              Mark vehicle In Maintenance while work is open
-            </label>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowRecord(false)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg text-sm">Save</button>
-            </div>
-          </form>
-        </div>
-      )}
+            </FormField>
+            <FormField label={t('admin.bookings.status')}>
+              <select className={inputClass} value={recordForm.status} onChange={(e) => setRecordForm({ ...recordForm, status: e.target.value })}>
+                <option value="scheduled">Scheduled</option>
+                <option value="in_progress">In progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </FormField>
+            <FormField label={t('admin.templates.name')} required className="sm:col-span-2">
+              <input required className={inputClass} value={recordForm.title} onChange={(e) => setRecordForm({ ...recordForm, title: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.accounting.date')}>
+              <input type="date" className={inputClass} value={recordForm.scheduledDate} onChange={(e) => setRecordForm({ ...recordForm, scheduledDate: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.accounting.amount')}>
+              <CurrencyInput currency={currency} value={recordForm.cost} onChange={(cost) => setRecordForm({ ...recordForm, cost })} />
+            </FormField>
+            <FormField label={t('admin.maintenance.mileage')}>
+              <input type="number" className={inputClass} value={recordForm.mileageAtService} onChange={(e) => setRecordForm({ ...recordForm, mileageAtService: e.target.value })} />
+            </FormField>
+            <FormField label="Vendor">
+              <input className={inputClass} value={recordForm.vendor} onChange={(e) => setRecordForm({ ...recordForm, vendor: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.maintenance.nextService')}>
+              <input type="date" className={inputClass} value={recordForm.nextDueDate} onChange={(e) => setRecordForm({ ...recordForm, nextDueDate: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.maintenance.nextService')}>
+              <input type="number" className={inputClass} value={recordForm.nextDueMileage} onChange={(e) => setRecordForm({ ...recordForm, nextDueMileage: e.target.value })} />
+            </FormField>
+            <AdminSwitch
+              checked={recordForm.setCarInMaintenance}
+              onChange={(setCarInMaintenance) => setRecordForm({ ...recordForm, setCarInMaintenance })}
+              label="Mark vehicle In Maintenance while work is open"
+            />
+          </DrawerSection>
+        </form>
+      </AdminDrawer>
     </div>
   )
 }

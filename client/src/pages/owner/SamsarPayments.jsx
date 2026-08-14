@@ -1,18 +1,6 @@
 import React from 'react'
-import AccountingLedgerPage, {
-  toInputDate,
-  inputClass,
-  labelClass,
-} from './AccountingLedgerPage'
-
-const FieldSelect = ({ label, value, onChange, options, inputClass: ic, labelClass: lc }) => (
-  <label className="block text-sm">
-    <span className={lc}>{label}</span>
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={ic} required>
-      {options}
-    </select>
-  </label>
-)
+import AccountingLedgerPage, { toInputDate } from './AccountingLedgerPage'
+import { CurrencyInput, DrawerSection, FormField, SearchSelect, SegmentedControl } from '../../admin/ui'
 
 const config = {
   listPath: '/api/owner/accounting/samsar-payments',
@@ -76,89 +64,55 @@ const config = {
       render: (row, { t }) => t(`admin.accounting.paymentStatuses.${row.paymentStatus}`),
     },
   ],
-  renderFields: ({ form, setField, t, samsars }) => (
+  renderFields: ({ form, setField, t, samsars, currency }) => (
     <>
-      <FieldSelect
-        label={t('admin.accounting.samsar')}
-        value={form.samsar}
-        onChange={(v) => setField('samsar', v)}
-        inputClass={inputClass}
-        labelClass={labelClass}
-        options={[
-          <option key="" value="">
-            {t('admin.accounting.selectSamsar')}
-          </option>,
-          ...samsars.map((s) => (
-            <option key={s._id} value={s._id}>
-              {s.fullName}
-            </option>
-          )),
-        ]}
-      />
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.bookingIdOptional')}</span>
-        <input
-          value={form.booking}
-          onChange={(e) => setField('booking', e.target.value)}
-          placeholder="Mongo ObjectId"
-          className={inputClass}
-        />
-      </label>
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.amount')}</span>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          required
-          value={form.amount}
-          onChange={(e) => setField('amount', e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.date')}</span>
-        <input
-          type="date"
-          required
-          value={form.paymentDate}
-          onChange={(e) => setField('paymentDate', e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <FieldSelect
-        label={t('admin.accounting.paymentStatus')}
-        value={form.paymentStatus}
-        onChange={(v) => setField('paymentStatus', v)}
-        inputClass={inputClass}
-        labelClass={labelClass}
-        options={['pending', 'paid', 'cancelled'].map((s) => (
-          <option key={s} value={s}>
-            {t(`admin.accounting.paymentStatuses.${s}`)}
-          </option>
-        ))}
-      />
-      <FieldSelect
-        label={t('admin.accounting.paymentMethod')}
-        value={form.paymentMethod}
-        onChange={(v) => setField('paymentMethod', v)}
-        inputClass={inputClass}
-        labelClass={labelClass}
-        options={['cash', 'bank_transfer', 'check', 'card', 'other'].map((s) => (
-          <option key={s} value={s}>
-            {t(`admin.accounting.paymentMethods.${s}`)}
-          </option>
-        ))}
-      />
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.notes')}</span>
-        <textarea
-          rows={3}
-          value={form.notes}
-          onChange={(e) => setField('notes', e.target.value)}
-          className={inputClass}
-        />
-      </label>
+      <DrawerSection title={t('admin.accounting.sectionDetails')}>
+        <FormField label={t('admin.accounting.samsar')} required className="sm:col-span-2">
+          <SearchSelect
+            required
+            value={form.samsar}
+            onChange={(v) => setField('samsar', v)}
+            placeholder={t('admin.accounting.searchSamsar')}
+            emptyLabel={t('admin.ui.noResults')}
+            options={samsars.map((s) => ({
+              value: s._id,
+              label: s.fullName,
+              hint: s.phone || s.email || '',
+            }))}
+          />
+        </FormField>
+        <FormField label={t('admin.accounting.amount')} required>
+          <CurrencyInput currency={currency} value={form.amount} onChange={(v) => setField('amount', v)} required />
+        </FormField>
+        <FormField label={t('admin.accounting.date')} required>
+          <input type="date" required className="admin-input" value={form.paymentDate} onChange={(e) => setField('paymentDate', e.target.value)} />
+        </FormField>
+        <FormField label={t('admin.accounting.bookingIdOptional')} className="sm:col-span-2" hint={t('admin.accounting.bookingIdOptional')}>
+          <input className="admin-input" value={form.booking} onChange={(e) => setField('booking', e.target.value)} />
+        </FormField>
+      </DrawerSection>
+      <DrawerSection title={t('admin.accounting.sectionPayment')}>
+        <FormField label={t('admin.accounting.paymentStatus')} className="sm:col-span-2">
+          <SegmentedControl
+            value={form.paymentStatus}
+            onChange={(v) => setField('paymentStatus', v)}
+            options={['pending', 'paid', 'cancelled'].map((s) => ({
+              value: s,
+              label: t(`admin.accounting.paymentStatuses.${s}`),
+            }))}
+          />
+        </FormField>
+        <FormField label={t('admin.accounting.paymentMethod')} className="sm:col-span-2">
+          <select className="admin-input" value={form.paymentMethod} onChange={(e) => setField('paymentMethod', e.target.value)}>
+            {['cash', 'bank_transfer', 'check', 'card', 'other'].map((s) => (
+              <option key={s} value={s}>{t(`admin.accounting.paymentMethods.${s}`)}</option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label={t('admin.accounting.notes')} className="sm:col-span-2">
+          <textarea rows={3} className="admin-input" value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
+        </FormField>
+      </DrawerSection>
     </>
   ),
 }

@@ -1,10 +1,8 @@
 import React from 'react'
 import AccountingLedgerPage, {
   toInputDate,
-  inputClass,
-  labelClass,
-  carLabel,
 } from './AccountingLedgerPage'
+import { CurrencyInput, DrawerSection, FormField, SegmentedControl } from '../../admin/ui'
 
 const AGENCY_CATEGORIES = [
   'rent',
@@ -17,15 +15,6 @@ const AGENCY_CATEGORIES = [
   'software',
   'other',
 ]
-
-const FieldSelect = ({ label, value, onChange, options, inputClass: ic, labelClass: lc }) => (
-  <label className="block text-sm">
-    <span className={lc}>{label}</span>
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={ic} required>
-      {options}
-    </select>
-  </label>
-)
 
 const config = {
   listPath: '/api/owner/accounting/agency-expenses',
@@ -90,83 +79,48 @@ const config = {
       render: (row) => row.description || '—',
     },
   ],
-  renderFields: ({ form, setField, t }) => (
+  renderFields: ({ form, setField, t, currency }) => (
     <>
-      <FieldSelect
-        label={t('admin.accounting.category')}
-        value={form.category}
-        onChange={(v) => setField('category', v)}
-        inputClass={inputClass}
-        labelClass={labelClass}
-        options={AGENCY_CATEGORIES.map((c) => (
-          <option key={c} value={c}>
-            {t(`admin.accounting.agencyCategories.${c}`)}
-          </option>
-        ))}
-      />
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.amount')}</span>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          required
-          value={form.amount}
-          onChange={(e) => setField('amount', e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.date')}</span>
-        <input
-          type="date"
-          required
-          value={form.expenseDate}
-          onChange={(e) => setField('expenseDate', e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.description')}</span>
-        <input
-          value={form.description}
-          onChange={(e) => setField('description', e.target.value)}
-          className={inputClass}
-        />
-      </label>
-      <FieldSelect
-        label={t('admin.accounting.paymentStatus')}
-        value={form.paymentStatus}
-        onChange={(v) => setField('paymentStatus', v)}
-        inputClass={inputClass}
-        labelClass={labelClass}
-        options={['pending', 'paid', 'cancelled'].map((s) => (
-          <option key={s} value={s}>
-            {t(`admin.accounting.paymentStatuses.${s}`)}
-          </option>
-        ))}
-      />
-      <FieldSelect
-        label={t('admin.accounting.paymentMethod')}
-        value={form.paymentMethod}
-        onChange={(v) => setField('paymentMethod', v)}
-        inputClass={inputClass}
-        labelClass={labelClass}
-        options={['cash', 'bank_transfer', 'check', 'card', 'other'].map((s) => (
-          <option key={s} value={s}>
-            {t(`admin.accounting.paymentMethods.${s}`)}
-          </option>
-        ))}
-      />
-      <label className="block text-sm">
-        <span className={labelClass}>{t('admin.accounting.notes')}</span>
-        <textarea
-          rows={3}
-          value={form.notes}
-          onChange={(e) => setField('notes', e.target.value)}
-          className={inputClass}
-        />
-      </label>
+      <DrawerSection title={t('admin.accounting.sectionDetails')}>
+        <FormField label={t('admin.accounting.category')} className="sm:col-span-2">
+          <select className="admin-input" value={form.category} onChange={(e) => setField('category', e.target.value)} required>
+            {AGENCY_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{t(`admin.accounting.agencyCategories.${c}`)}</option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label={t('admin.accounting.amount')} required>
+          <CurrencyInput currency={currency} value={form.amount} onChange={(v) => setField('amount', v)} required />
+        </FormField>
+        <FormField label={t('admin.accounting.date')} required>
+          <input type="date" required className="admin-input" value={form.expenseDate} onChange={(e) => setField('expenseDate', e.target.value)} />
+        </FormField>
+        <FormField label={t('admin.accounting.description')} className="sm:col-span-2">
+          <input className="admin-input" value={form.description} onChange={(e) => setField('description', e.target.value)} />
+        </FormField>
+      </DrawerSection>
+      <DrawerSection title={t('admin.accounting.sectionPayment')}>
+        <FormField label={t('admin.accounting.paymentStatus')} className="sm:col-span-2">
+          <SegmentedControl
+            value={form.paymentStatus}
+            onChange={(v) => setField('paymentStatus', v)}
+            options={['pending', 'paid', 'cancelled'].map((s) => ({
+              value: s,
+              label: t(`admin.accounting.paymentStatuses.${s}`),
+            }))}
+          />
+        </FormField>
+        <FormField label={t('admin.accounting.paymentMethod')} className="sm:col-span-2">
+          <select className="admin-input" value={form.paymentMethod} onChange={(e) => setField('paymentMethod', e.target.value)}>
+            {['cash', 'bank_transfer', 'check', 'card', 'other'].map((s) => (
+              <option key={s} value={s}>{t(`admin.accounting.paymentMethods.${s}`)}</option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label={t('admin.accounting.notes')} className="sm:col-span-2">
+          <textarea rows={3} className="admin-input" value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
+        </FormField>
+      </DrawerSection>
     </>
   ),
 }

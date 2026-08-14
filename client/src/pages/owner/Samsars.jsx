@@ -33,14 +33,15 @@ const config = {
     commissionValue: Number(form.commissionValue),
   }),
   fields: [
-    { name: 'fullName', labelKey: 'admin.directory.fullName', required: true },
-    { name: 'phone', labelKey: 'admin.directory.phone', type: 'tel' },
+    { name: 'fullName', labelKey: 'admin.directory.fullName', required: true, span: 2 },
+    { name: 'status', labelKey: 'admin.directory.status', control: 'switch', type: 'select' },
+    { name: 'phone', labelKey: 'admin.directory.phone', control: 'phone' },
     { name: 'email', labelKey: 'admin.directory.email', type: 'email' },
-    { name: 'address', labelKey: 'admin.directory.address', type: 'textarea' },
+    { name: 'address', labelKey: 'admin.directory.address', type: 'textarea', span: 2 },
     {
       name: 'commissionType',
       labelKey: 'admin.directory.commissionType',
-      type: 'select',
+      control: 'segmented',
       options: [
         { value: 'percent', labelKey: 'admin.directory.commissionPercent' },
         { value: 'fixed', labelKey: 'admin.directory.commissionFixed' },
@@ -49,20 +50,18 @@ const config = {
     {
       name: 'commissionValue',
       labelKey: 'admin.directory.commissionValue',
+      control: 'commission',
       type: 'number',
       min: 0,
       step: '0.01',
     },
-    {
-      name: 'status',
-      labelKey: 'admin.directory.status',
-      type: 'select',
-      options: [
-        { value: 'active', labelKey: 'admin.directory.statusActive' },
-        { value: 'inactive', labelKey: 'admin.directory.statusInactive' },
-      ],
-    },
-    { name: 'notes', labelKey: 'admin.directory.notes', type: 'textarea' },
+    { name: 'notes', labelKey: 'admin.directory.notes', type: 'textarea', span: 2, hintKey: 'admin.directory.notesHint' },
+  ],
+  sections: [
+    { titleKey: 'admin.directory.sectionIdentity', fields: ['fullName', 'status'] },
+    { titleKey: 'admin.directory.sectionContact', fields: ['phone', 'email', 'address'] },
+    { titleKey: 'admin.directory.sectionCommission', fields: ['commissionType', 'commissionValue'] },
+    { titleKey: 'admin.directory.sectionNotes', fields: ['notes'] },
   ],
   columns: (t) => [
     { key: 'fullName', label: t('admin.directory.fullName') },

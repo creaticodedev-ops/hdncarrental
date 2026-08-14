@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/apiError';
+import { AdminDrawer } from '../../admin/ui';
 
 const views = ['month', 'week', 'day'];
 
@@ -234,22 +235,28 @@ const BookingCalendar = () => {
         )}
       </div>
 
-      {selected && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800">{selected.reservationId}</h3>
-            <ChannelBadge channel={selected.channel || 'online'} className="mt-2" />
-            <div className="mt-3 space-y-1 text-sm text-gray-600">
-              <p><span className="font-medium">{t('admin.bookings.customer')}:</span> {selected.customerName}</p>
-              <p><span className="font-medium">{t('admin.bookings.vehicle')}:</span> {selected.car?.brand} {selected.car?.model}</p>
-              <p><span className="font-medium">Pickup:</span> {new Date(selected.pickupDate).toLocaleString()}</p>
-              <p><span className="font-medium">Return:</span> {new Date(selected.returnDate).toLocaleString()}</p>
-              <p><span className="font-medium">{t('admin.bookings.status')}:</span> <span className="capitalize">{selected.status}</span></p>
-            </div>
-            <button type="button" onClick={() => setSelected(null)} className="mt-4 px-4 py-2 border rounded-lg text-sm cursor-pointer">{t('admin.calendar.close')}</button>
+      <AdminDrawer
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        title={selected?.reservationId || t('admin.bookings.reservation')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <button type="button" onClick={() => setSelected(null)} className="admin-btn admin-btn-secondary">
+            {t('admin.calendar.close')}
+          </button>
+        }
+      >
+        {selected && (
+          <div className="space-y-3 text-sm">
+            <ChannelBadge channel={selected.channel || 'online'} />
+            <p><span className="font-medium">{t('admin.bookings.customer')}:</span> {selected.customerName}</p>
+            <p><span className="font-medium">{t('admin.bookings.vehicle')}:</span> {selected.car?.brand} {selected.car?.model}</p>
+            <p><span className="font-medium">{t('admin.walkIn.pickup')}:</span> {new Date(selected.pickupDate).toLocaleString()}</p>
+            <p><span className="font-medium">{t('admin.walkIn.return')}:</span> {new Date(selected.returnDate).toLocaleString()}</p>
+            <p><span className="font-medium">{t('admin.bookings.status')}:</span> <span className="capitalize">{selected.status}</span></p>
           </div>
-        </div>
-      )}
+        )}
+      </AdminDrawer>
     </div>
   );
 };

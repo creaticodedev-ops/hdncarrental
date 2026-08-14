@@ -2,13 +2,24 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import Title from '../../components/owner/Title'
 import ConfirmDialog from '../../components/owner/ConfirmDialog'
+import PhoneInput from '../../components/PhoneInput'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
-import { AdminDrawer, EmptyState, SkeletonBlock, StatusBadge as ToneBadge } from '../../admin/ui'
+import {
+  AdminDrawer,
+  AdminSwitch,
+  CurrencyInput,
+  DrawerSection,
+  EmptyState,
+  FormField,
+  PercentInput,
+  SegmentedControl,
+  SkeletonBlock,
+  StatusBadge as ToneBadge,
+} from '../../admin/ui'
 
 const inputClass = 'admin-input'
-const labelClass = 'admin-label'
 
 const StatusBadge = ({ status, t }) => (
   <ToneBadge tone={status === 'active' ? 'success' : 'neutral'}>
@@ -16,12 +27,146 @@ const StatusBadge = ({ status, t }) => (
   </ToneBadge>
 )
 
+const FieldControl = ({ field, form, setField, t, currency }) => {
+  const id = `dir-${field.name}`
+  const value = form[field.name] ?? ''
+  const span = field.span === 2 ? 'sm:col-span-2' : ''
+
+  if (field.control === 'switch') {
+    return (
+      <AdminSwitch
+        checked={value === 'active' || value === true}
+        onChange={(on) => setField(field.name, field.type === 'select' ? (on ? 'active' : 'inactive') : on)}
+        label={t(field.labelKey)}
+        description={field.hintKey ? t(field.hintKey) : undefined}
+      />
+    )
+  }
+
+  if (field.control === 'segmented') {
+    return (
+      <FormField label={t(field.labelKey)} htmlFor={id} className={span} required={field.required}>
+        <SegmentedControl
+          ariaLabel={t(field.labelKey)}
+          value={value}
+          onChange={(v) => setField(field.name, v)}
+          options={(field.options || []).map((opt) => ({ value: opt.value, label: t(opt.labelKey) }))}
+        />
+      </FormField>
+    )
+  }
+
+  if (field.control === 'phone' || field.type === 'tel') {
+    return (
+      <FormField label={t(field.labelKey)} htmlFor={id} className={span} required={field.required}>
+        <PhoneInput
+          id={id}
+          value={value}
+          onChange={(phone) => setField(field.name, phone)}
+          required={field.required}
+          inputClassName="admin-input min-h-11 h-auto"
+        />
+      </FormField>
+    )
+  }
+
+  if (field.control === 'commission') {
+    const percent = form.commissionType === 'percent'
+    return (
+      <FormField
+        label={t(field.labelKey)}
+        htmlFor={id}
+        className={span}
+        required={field.required}
+        hint={t(percent ? 'admin.directory.commissionHintPercent' : 'admin.directory.commissionHintFixed')}
+      >
+        {percent ? (
+          <PercentInput id={id} value={value} onChange={(v) => setField(field.name, v)} required={field.required} />
+        ) : (
+          <CurrencyInput
+            id={id}
+            currency={currency}
+            value={value}
+            onChange={(v) => setField(field.name, v)}
+            required={field.required}
+          />
+        )}
+      </FormField>
+    )
+  }
+
+  if (field.control === 'currency') {
+    return (
+      <FormField
+        label={t(field.labelKey)}
+        htmlFor={id}
+        className={span}
+        required={field.required}
+        hint={field.hintKey ? t(field.hintKey) : undefined}
+      >
+        <CurrencyInput
+          id={id}
+          currency={currency}
+          value={value}
+          onChange={(v) => setField(field.name, v)}
+          required={field.required}
+        />
+      </FormField>
+    )
+  }
+
+  return (
+    <FormField
+      label={t(field.labelKey)}
+      htmlFor={id}
+      className={span}
+      required={field.required}
+      hint={field.hintKey ? t(field.hintKey) : undefined}
+    >
+      {field.type === 'textarea' ? (
+        <textarea
+          id={id}
+          rows={3}
+          className={inputClass}
+          value={value}
+          onChange={(e) => setField(field.name, e.target.value)}
+          required={field.required}
+        />
+      ) : field.type === 'select' ? (
+        <select
+          id={id}
+          className={inputClass}
+          value={value}
+          onChange={(e) => setField(field.name, e.target.value)}
+        >
+          {(field.options || []).map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {t(opt.labelKey)}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          id={id}
+          type={field.type || 'text'}
+          className={inputClass}
+          value={value}
+          onChange={(e) => setField(field.name, e.target.value)}
+          required={field.required}
+          min={field.min}
+          step={field.step}
+        />
+      )}
+    </FormField>
+  )
+}
+
 /**
  * Shared list + create/edit drawer for Chauffeur / Samsar / PartnerCompany.
  * Configured via `config` from thin page wrappers.
  */
 const DirectoryCrudPage = ({ config }) => {
-  const { axios } = useAppContext()
+  const { axios, currency } = useAppContext()
   const { t } = useI18n()
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 })
@@ -34,6 +179,7 @@ const DirectoryCrudPage = ({ config }) => {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(() => config.emptyForm())
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
 
   const load = useCallback(async () => {
@@ -67,16 +213,21 @@ const DirectoryCrudPage = ({ config }) => {
   const openCreate = () => {
     setEditing(null)
     setForm(config.emptyForm())
+    setDirty(false)
     setDrawerOpen(true)
   }
 
   const openEdit = (row) => {
     setEditing(row)
     setForm(config.toForm(row))
+    setDirty(false)
     setDrawerOpen(true)
   }
 
-  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const setField = (key, value) => {
+    setDirty(true)
+    setForm((f) => ({ ...f, [key]: value }))
+  }
 
   const onSave = async (e) => {
     e.preventDefault()
@@ -91,6 +242,7 @@ const DirectoryCrudPage = ({ config }) => {
         return
       }
       toast.success(editing ? t('admin.directory.updated') : t('admin.directory.created'))
+      setDirty(false)
       setDrawerOpen(false)
       setEditing(null)
       await load()
@@ -267,60 +419,44 @@ const DirectoryCrudPage = ({ config }) => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title={editing ? t(config.editKey) : t(config.createKey)}
+        description={editing ? t('admin.directory.editHint') : t('admin.directory.createHint')}
+        dirty={dirty}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
         footer={
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setDrawerOpen(false)} className="admin-btn admin-btn-secondary flex-1">
+          <>
+            <button type="button" onClick={() => setDrawerOpen(false)} className="admin-btn admin-btn-secondary">
               {t('admin.directory.cancel')}
             </button>
-            <button type="submit" form="directory-crud-form" disabled={saving} className="admin-btn admin-btn-primary flex-1">
+            <button type="submit" form="directory-crud-form" disabled={saving} className="admin-btn admin-btn-primary">
               {saving ? t('admin.directory.saving') : t('admin.directory.save')}
             </button>
-          </div>
+          </>
         }
       >
-        <form id="directory-crud-form" onSubmit={onSave} className="space-y-4">
-          {config.fields.map((field) => (
-            <div key={field.name}>
-              <label htmlFor={`dir-${field.name}`} className={labelClass}>
-                {t(field.labelKey)}
-                {field.required ? ' *' : ''}
-              </label>
-              {field.type === 'textarea' ? (
-                <textarea
-                  id={`dir-${field.name}`}
-                  rows={3}
-                  className={inputClass}
-                  value={form[field.name] ?? ''}
-                  onChange={(e) => setField(field.name, e.target.value)}
-                  required={field.required}
-                />
-              ) : field.type === 'select' ? (
-                <select
-                  id={`dir-${field.name}`}
-                  className={inputClass}
-                  value={form[field.name] ?? ''}
-                  onChange={(e) => setField(field.name, e.target.value)}
-                >
-                  {field.options.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {t(opt.labelKey)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id={`dir-${field.name}`}
-                  type={field.type || 'text'}
-                  className={inputClass}
-                  value={form[field.name] ?? ''}
-                  onChange={(e) => setField(field.name, e.target.value)}
-                  required={field.required}
-                  min={field.min}
-                  step={field.step}
-                />
-              )}
-            </div>
-          ))}
+        <form id="directory-crud-form" onSubmit={onSave} className="space-y-6">
+          {(config.sections || [{ titleKey: null, fields: config.fields.map((f) => f.name) }]).map((section, idx) => {
+            const fields = (section.fields || [])
+              .map((name) => config.fields.find((f) => f.name === name))
+              .filter(Boolean)
+            return (
+              <DrawerSection key={section.titleKey || idx} title={section.titleKey ? t(section.titleKey) : undefined} description={section.hintKey ? t(section.hintKey) : undefined}>
+                {fields.map((field) => (
+                  <FieldControl
+                    key={field.name}
+                    field={field}
+                    form={form}
+                    setField={setField}
+                    t={t}
+                    currency={currency}
+                  />
+                ))}
+              </DrawerSection>
+            )
+          })}
         </form>
       </AdminDrawer>
 

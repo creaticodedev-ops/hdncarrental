@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../../utils/apiError'
 import { VEHICLE_CATEGORIES } from '../../../utils/vehicleCategories'
 import ConfirmDialog from '../../../components/owner/ConfirmDialog'
+import { AdminDrawer } from '../../../admin/ui'
 import {
   EmptyState,
   Field,
@@ -427,38 +428,31 @@ const PromotionsPanel = ({ axios, t, currency }) => {
         </div>
       )}
 
-      {editing && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-ink/40 p-0 sm:p-4">
-          <div
-            className="absolute inset-0"
-            onClick={() => !saving && setEditing(null)}
-            aria-hidden
-          />
-          <form
-            onSubmit={onSave}
-            className="relative z-[1] flex h-[min(92svh,100%)] max-h-[92svh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-t-[1.5rem] border border-borderColor bg-white shadow-2xl sm:h-auto sm:max-h-[90svh] sm:rounded-[1.5rem]"
-          >
-            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-borderColor sm:hidden" aria-hidden />
-            <div className="flex items-start justify-between gap-3 border-b border-borderColor/70 px-4 py-4 sm:px-6 shrink-0">
-              <div className="min-w-0">
-                <p className={`${settingsUi.sectionLabel} text-primary`}>
-                  {editing === 'new' ? t('admin.settings.promoCreate') : t('admin.settings.promoEdit')}
-                </p>
-                <h3 className="mt-1 font-display text-xl text-ink truncate" title={form.name || undefined}>
-                  {form.name || t('admin.settings.promoName')}
-                </h3>
-              </div>
-              <button
-                type="button"
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-borderColor text-muted"
-                onClick={() => !saving && setEditing(null)}
-                aria-label={t('admin.settings.cancel')}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 space-y-5">
+      <AdminDrawer
+        open={Boolean(editing)}
+        onClose={() => !saving && setEditing(null)}
+        title={editing === 'new' ? t('admin.settings.promoCreate') : t('admin.settings.promoEdit')}
+        description={form.name || t('admin.settings.promoName')}
+        size="xl"
+        dirty={Boolean(editing) && !saving}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" disabled={saving} className="admin-btn admin-btn-secondary" onClick={() => setEditing(null)}>
+              {t('admin.settings.cancel')}
+            </button>
+            <button type="submit" form="promo-form" disabled={saving} className="admin-btn admin-btn-primary">
+              {saving ? t('admin.settings.saving') : t('admin.settings.save')}
+            </button>
+          </>
+        }
+      >
+        {editing && (
+          <form id="promo-form" onSubmit={onSave} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label={t('admin.settings.promoName')}>
                   <input className={settingsUi.input} value={form.name} onChange={(e) => set('name', e.target.value)} required />
@@ -609,19 +603,9 @@ const PromotionsPanel = ({ axios, t, currency }) => {
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted">{t('admin.settings.pricingPreviewHint')}</p>
               </div>
-            </div>
-
-            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-borderColor/70 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-6 booking-safe-bottom">
-              <button type="button" disabled={saving} className={`${settingsUi.btnSecondary} w-full sm:w-auto`} onClick={() => setEditing(null)}>
-                {t('admin.settings.cancel')}
-              </button>
-              <button type="submit" disabled={saving} className={`${settingsUi.btnPrimary} w-full sm:w-auto`}>
-                {saving ? t('admin.settings.saving') : t('admin.settings.save')}
-              </button>
-            </div>
           </form>
-        </div>
-      )}
+        )}
+      </AdminDrawer>
 
       <ConfirmDialog
         isOpen={Boolean(pendingDelete)}

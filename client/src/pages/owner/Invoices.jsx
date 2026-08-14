@@ -8,6 +8,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
+import { AdminDrawer } from '../../admin/ui'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -657,18 +658,28 @@ const Invoices = () => {
         </div>
       )}
 
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-borderColor bg-white p-5 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">{t('admin.invoices.createManual')}</h3>
-                <p className="text-sm text-gray-500">{t('admin.invoices.createManualHint')}</p>
-              </div>
-              <button type="button" onClick={() => setShowCreateModal(false)} className="text-sm text-gray-500">✕</button>
-            </div>
-
-            <form onSubmit={handleCreateInvoice} className="mt-5 space-y-6">
+      <AdminDrawer
+        open={showCreateModal}
+        onClose={() => !creating && setShowCreateModal(false)}
+        title={t('admin.invoices.createManual')}
+        description={t('admin.invoices.createManualHint')}
+        size="xl"
+        dirty={showCreateModal && !creating}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" onClick={() => setShowCreateModal(false)} className="admin-btn admin-btn-secondary">{t('admin.common.cancel')}</button>
+            <button type="submit" form="invoice-create-form" disabled={creating} className="admin-btn admin-btn-primary">
+              {creating ? t('admin.invoices.saving') : t('admin.invoices.create')}
+            </button>
+          </>
+        }
+      >
+            <form id="invoice-create-form" onSubmit={handleCreateInvoice} className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.invoiceNumber')}</label>
@@ -778,28 +789,19 @@ const Invoices = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-borderColor bg-white p-4">
-                <div className="text-sm text-gray-600">
+              <div className="flex flex-wrap items-center justify-between gap-3 admin-card p-4">
+                <div className="text-sm text-[var(--admin-ink-secondary)]">
                   <div>{t('admin.invoices.subtotal')}: {currency}{Number(lineTotals.subtotal).toFixed(2)}</div>
                   <div>{t('admin.invoices.tax')}: {currency}{Number(lineTotals.taxAmount).toFixed(2)}</div>
-                  <div className="font-semibold">{t('admin.invoices.total')}: {currency}{Number(lineTotals.totalAmount).toFixed(2)}</div>
+                  <div className="font-semibold text-[var(--admin-ink)]">{t('admin.invoices.total')}: {currency}{Number(lineTotals.totalAmount).toFixed(2)}</div>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-600">
+                <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={form.includeCompanyStamp} onChange={(e) => updateForm({ includeCompanyStamp: e.target.checked })} />
                   {t('admin.invoices.includeStamp')}
                 </label>
               </div>
-
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="rounded-lg border border-borderColor px-4 py-2 text-sm">{t('admin.common.cancel')}</button>
-                <button type="submit" disabled={creating} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-                  {creating ? t('admin.invoices.saving') : t('admin.invoices.create')}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AdminDrawer>
 
       <DocumentEditPanel
         open={editOpen}

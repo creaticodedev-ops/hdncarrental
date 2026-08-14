@@ -369,6 +369,12 @@
   z-index: 50;
   background: var(--admin-overlay);
   backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.admin-drawer-backdrop.is-open,
+.admin-modal-backdrop.is-open {
+  opacity: 1;
 }
 
 .admin-drawer {
@@ -378,16 +384,131 @@
   z-index: 51;
   display: flex;
   flex-direction: column;
-  width: min(28rem, 100vw);
+  width: min(32rem, 100vw);
   height: 100%;
+  max-height: 100svh;
   background: var(--admin-surface);
+  color: var(--admin-ink);
   border-left: 1px solid var(--admin-border);
   box-shadow: var(--admin-shadow-lg);
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.admin-drawer.is-open {
+  transform: translateX(0);
+}
+.admin-drawer[data-size='sm'] {
+  width: min(26rem, 100vw);
+}
+.admin-drawer[data-size='md'] {
+  width: min(32rem, 100vw);
+}
+.admin-drawer[data-size='lg'] {
+  width: min(40rem, 100vw);
+}
+.admin-drawer[data-size='xl'] {
+  width: min(48rem, 100vw);
 }
 @media (max-width: 639px) {
-  .admin-drawer {
+  .admin-drawer,
+  .admin-drawer[data-size='sm'],
+  .admin-drawer[data-size='md'],
+  .admin-drawer[data-size='lg'],
+  .admin-drawer[data-size='xl'] {
     width: 100vw;
   }
+}
+
+.admin-switch {
+  position: relative;
+  width: 2.75rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.admin-switch[aria-checked='true'] {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+}
+.admin-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--admin-shadow-sm);
+  transition: transform 0.15s ease;
+}
+.admin-switch[aria-checked='true']::after {
+  transform: translateX(1.15rem);
+}
+
+.admin-affix {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-input-bg);
+  overflow: hidden;
+}
+.admin-affix span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--admin-muted);
+  background: var(--admin-surface-2);
+  border-right: 1px solid var(--admin-border);
+}
+.admin-affix span.suffix {
+  border-right: 0;
+  border-left: 1px solid var(--admin-border);
+}
+.admin-affix input {
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  min-height: 2.75rem;
+}
+
+.admin-combobox {
+  position: relative;
+}
+.admin-combobox-panel {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 16rem;
+  overflow-y: auto;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow);
+}
+.admin-combobox-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  background: transparent;
+  border: 0;
+  color: var(--admin-ink);
+  cursor: pointer;
+}
+.admin-combobox-option:hover,
+.admin-combobox-option[aria-selected='true'] {
+  background: var(--admin-hover);
 }
 
 .admin-modal {

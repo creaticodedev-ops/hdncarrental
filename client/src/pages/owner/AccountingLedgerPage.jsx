@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import Title from '../../components/owner/Title'
+import ConfirmDialog from '../../components/owner/ConfirmDialog'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
+import { AdminDrawer } from '../../admin/ui'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -44,6 +46,8 @@ const AccountingLedgerPage = ({ config }) => {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(() => config.emptyForm())
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [cars, setCars] = useState([])
   const [samsars, setSamsars] = useState([])
 
@@ -115,16 +119,21 @@ const AccountingLedgerPage = ({ config }) => {
   const openCreate = () => {
     setEditing(null)
     setForm(config.emptyForm())
+    setDirty(false)
     setDrawerOpen(true)
   }
 
   const openEdit = (row) => {
     setEditing(row)
     setForm(config.toForm(row))
+    setDirty(false)
     setDrawerOpen(true)
   }
 
-  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const setField = (key, value) => {
+    setDirty(true)
+    setForm((f) => ({ ...f, [key]: value }))
+  }
 
   const onSave = async (e) => {
     e.preventDefault()
@@ -139,6 +148,7 @@ const AccountingLedgerPage = ({ config }) => {
         return
       }
       toast.success(editing ? t('admin.accounting.updated') : t('admin.accounting.created'))
+      setDirty(false)
       setDrawerOpen(false)
       load()
     } catch (error) {
@@ -148,8 +158,12 @@ const AccountingLedgerPage = ({ config }) => {
     }
   }
 
-  const onDelete = async (row) => {
-    if (!window.confirm(t('admin.accounting.deleteConfirm'))) return
+  const onDelete = (row) => setPendingDelete(row)
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    const row = pendingDelete
+    setPendingDelete(null)
     try {
       const { data } = await axios.delete(`${config.listPath}/${row._id}`)
       if (!data.success) {
@@ -323,44 +337,53 @@ const AccountingLedgerPage = ({ config }) => {
         </div>
       ) : null}
 
-      {drawerOpen ? (
-        <div className="fixed inset-0 z-40 flex justify-end bg-ink/40">
-          <form
-            onSubmit={onSave}
-            className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-white shadow-xl"
-          >
-            <div className="flex items-center justify-between border-b border-borderColor px-5 py-4">
-              <h2 className="text-lg font-semibold text-ink">
-                {editing ? t(config.editKey) : t(config.createKey)}
-              </h2>
-              <button type="button" onClick={() => setDrawerOpen(false)} className="text-muted">
-                ✕
-              </button>
-            </div>
-            <div className="flex-1 space-y-4 px-5 py-5">
-              {config.renderFields({
-                form,
-                setField,
-                t,
-                cars,
-                samsars,
-                inputClass,
-                labelClass,
-                carLabel,
-              })}
-            </div>
-            <div className="border-t border-borderColor px-5 py-4">
-              <button
-                type="submit"
-                disabled={saving}
-                className="min-h-11 w-full rounded-xl bg-primary text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {saving ? t('admin.accounting.saving') : t('admin.accounting.save')}
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : null}
+      <AdminDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title={editing ? t(config.editKey) : t(config.createKey)}
+        description={editing ? t('admin.accounting.drawerEditHint') : t('admin.accounting.drawerCreateHint')}
+        dirty={dirty}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" onClick={() => setDrawerOpen(false)} className="admin-btn admin-btn-secondary">
+              {t('admin.directory.cancel')}
+            </button>
+            <button type="submit" form="accounting-ledger-form" disabled={saving} className="admin-btn admin-btn-primary">
+              {saving ? t('admin.accounting.saving') : t('admin.accounting.save')}
+            </button>
+          </>
+        }
+      >
+        <form id="accounting-ledger-form" onSubmit={onSave} className="space-y-6">
+          {config.renderFields({
+            form,
+            setField,
+            t,
+            cars,
+            samsars,
+            inputClass,
+            labelClass,
+            carLabel,
+            currency,
+          })}
+        </form>
+      </AdminDrawer>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDelete)}
+        title={t('admin.accounting.delete')}
+        message={t('admin.accounting.deleteConfirm')}
+        confirmText={t('admin.accounting.delete')}
+        cancelText={t('admin.directory.cancel')}
+        variant="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

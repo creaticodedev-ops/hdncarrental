@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Title from '../../components/owner/Title'
 import { assets } from '../../assets/assets'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
+import ConfirmDialog from '../../components/owner/ConfirmDialog'
+import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField } from '../../admin/ui'
 
 const emptyForm = {
   name: '',
@@ -21,12 +23,14 @@ const emptyForm = {
 const ManageLocations = () => {
   const { isOwner, axios, fetchPickupLocations, currency } = useAppContext()
   const { t } = useI18n()
-  const formRef = useRef(null)
 
   const [locations, setLocations] = useState([])
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   const fetchLocations = async () => {
     try {
@@ -40,6 +44,12 @@ const ManageLocations = () => {
   const resetForm = () => {
     setForm(emptyForm)
     setEditingId(null)
+    setDirty(false)
+  }
+
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+    resetForm()
   }
 
   const handleSubmit = async (e) => {
@@ -84,7 +94,7 @@ const ManageLocations = () => {
 
       if (data.success) {
         toast.success(data.message)
-        resetForm()
+        closeDrawer()
         fetchLocations()
         fetchPickupLocations()
       } else {
@@ -110,9 +120,8 @@ const ManageLocations = () => {
       longitude: location.longitude != null && location.longitude !== '' ? String(location.longitude) : '',
       isActive: location.isActive !== false,
     })
-    requestAnimationFrame(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
+    setDirty(false)
+    setDrawerOpen(true)
   }
 
   const toggleLocation = async (locationId) => {
@@ -133,14 +142,18 @@ const ManageLocations = () => {
     }
   }
 
-  const deleteLocation = async (locationId) => {
-    if (!window.confirm(t('admin.locations.deleteConfirm'))) return
+  const deleteLocation = (locationId) => setPendingDelete(locationId)
+
+  const confirmDelete = async () => {
+    const locationId = pendingDelete
+    setPendingDelete(null)
+    if (!locationId) return
 
     try {
       const { data } = await axios.post('/api/pickup-locations/delete', { locationId })
       if (data.success) {
         toast.success(data.message)
-        if (editingId === locationId) resetForm()
+        if (editingId === locationId) closeDrawer()
         fetchLocations()
         fetchPickupLocations()
       } else {
@@ -157,144 +170,91 @@ const ManageLocations = () => {
 
   const money = currency || 'MAD '
 
+  const setLoc = (patch) => {
+    setDirty(true)
+    setForm((f) => ({ ...f, ...patch }))
+  }
+
   return (
     <div className='admin-page-pad w-full pb-12'>
       <Title
         title={t('admin.locations.title')}
         subTitle={t('admin.locations.subtitle')}
+        primaryAction={
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            onClick={() => {
+              resetForm()
+              setDrawerOpen(true)
+            }}
+          >
+            {t('admin.locations.add')}
+          </button>
+        }
       />
 
-      <form
-        ref={formRef}
-        onSubmit={handleSubmit}
-        className='mt-6 max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500'
-      >
-        {editingId && (
-          <p className='md:col-span-2 text-sm text-primary font-medium'>
-            {t('admin.locations.editing')}
-          </p>
-        )}
-        <div className='flex flex-col'>
-          <label>{t('admin.locations.name')}</label>
-          <input
-            type="text"
-            required
-            placeholder="Casablanca Airport"
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </div>
-        <div className='flex flex-col'>
-          <label>{t('admin.locations.city')}</label>
-          <input
-            type="text"
-            required
-            placeholder="Casablanca"
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-          />
-        </div>
-        <div className='flex flex-col md:col-span-2'>
-          <label>{t('admin.locations.address')}</label>
-          <input
-            type="text"
-            required
-            placeholder="Mohammed V International Airport, Casablanca"
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-        </div>
-        <div className='flex flex-col'>
-          <label>{t('admin.locations.mapsLink')}</label>
-          <input
-            type="url"
-            placeholder="https://maps.google.com/..."
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.googleMapsLink}
-            onChange={(e) => setForm({ ...form, googleMapsLink: e.target.value })}
-          />
-        </div>
-        <div className='flex flex-col'>
-          <label>{t('admin.locations.type')}</label>
-          <select
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.locationType}
-            onChange={(e) => setForm({ ...form, locationType: e.target.value })}
-          >
-            <option value="airport">{t('admin.locations.typeAirport')}</option>
-            <option value="hotel">{t('admin.locations.typeHotel')}</option>
-            <option value="office">{t('admin.locations.typeOffice')}</option>
-            <option value="custom">{t('admin.locations.typeCustom')}</option>
-          </select>
-        </div>
-        <div className='flex flex-col'>
-          <label>{t('admin.locations.latitude')}</label>
-          <input
-            type="number"
-            step="any"
-            min="-90"
-            max="90"
-            placeholder="33.3675"
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.latitude}
-            onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-          />
-        </div>
-        <div className='flex flex-col'>
-          <label>{t('admin.locations.longitude')}</label>
-          <input
-            type="number"
-            step="any"
-            min="-180"
-            max="180"
-            placeholder="-7.5898"
-            className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'
-            value={form.longitude}
-            onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-          />
-        </div>
-        <div className='flex flex-col md:col-span-2'>
-          <label>{t('admin.locations.deliveryFee')}</label>
-          <div className='flex items-center gap-2 mt-1'>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              className='px-3 py-2 border border-borderColor rounded-md outline-none w-40'
-              value={form.deliveryFee}
-              onChange={(e) => setForm({ ...form, deliveryFee: e.target.value })}
-            />
-            <span className='text-gray-600 text-sm'>{t('admin.locations.deliveryFeeHint')}</span>
-          </div>
-        </div>
-        <div className='md:col-span-2 flex items-center gap-2'>
-          <input
-            id="location-is-active"
-            type="checkbox"
-            className='h-4 w-4 rounded border-borderColor'
-            checked={form.isActive}
-            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-          />
-          <label htmlFor="location-is-active" className='cursor-pointer text-gray-700'>
-            {t('admin.locations.available')}
-          </label>
-        </div>
-        <div className='md:col-span-2 flex items-center gap-3'>
-          <button type="submit" className='flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-md font-medium cursor-pointer'>
-            <img src={assets.tick_icon} alt="" />
-            {isLoading ? t('admin.locations.saving') : editingId ? t('admin.locations.update') : t('admin.locations.add')}
-          </button>
-          {editingId && (
-            <button type="button" onClick={resetForm} className='px-4 py-2.5 border border-borderColor rounded-md cursor-pointer'>
-              {t('admin.common.cancel')}
+      <AdminDrawer
+        open={drawerOpen}
+        onClose={closeDrawer}
+        title={editingId ? t('admin.locations.update') : t('admin.locations.add')}
+        description={editingId ? t('admin.locations.editing') : t('admin.locations.subtitle')}
+        dirty={dirty}
+        unsavedTitle={t('admin.ui.unsavedTitle')}
+        unsavedMessage={t('admin.ui.unsavedMessage')}
+        discardLabel={t('admin.ui.discard')}
+        keepEditingLabel={t('admin.ui.keepEditing')}
+        closeLabel={t('admin.ui.close')}
+        footer={
+          <>
+            <button type="button" onClick={closeDrawer} className="admin-btn admin-btn-secondary">{t('admin.common.cancel')}</button>
+            <button type="submit" form="location-form" disabled={isLoading} className="admin-btn admin-btn-primary">
+              {isLoading ? t('admin.locations.saving') : editingId ? t('admin.locations.update') : t('admin.locations.add')}
             </button>
-          )}
-        </div>
-      </form>
+          </>
+        }
+      >
+        <form id="location-form" onSubmit={handleSubmit} className="space-y-6">
+          <DrawerSection title={t('admin.locations.name')}>
+            <FormField label={t('admin.locations.name')} required>
+              <input type="text" required className="admin-input" value={form.name} onChange={(e) => setLoc({ name: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.locations.city')} required>
+              <input type="text" required className="admin-input" value={form.city} onChange={(e) => setLoc({ city: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.locations.address')} required className="sm:col-span-2">
+              <input type="text" required className="admin-input" value={form.address} onChange={(e) => setLoc({ address: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.locations.type')}>
+              <select className="admin-input" value={form.locationType} onChange={(e) => setLoc({ locationType: e.target.value })}>
+                <option value="airport">{t('admin.locations.typeAirport')}</option>
+                <option value="hotel">{t('admin.locations.typeHotel')}</option>
+                <option value="office">{t('admin.locations.typeOffice')}</option>
+                <option value="custom">{t('admin.locations.typeCustom')}</option>
+              </select>
+            </FormField>
+            <FormField label={t('admin.locations.deliveryFee')} hint={t('admin.locations.deliveryFeeHint')}>
+              <CurrencyInput currency={money} value={form.deliveryFee} onChange={(deliveryFee) => setLoc({ deliveryFee })} required />
+            </FormField>
+          </DrawerSection>
+          <DrawerSection title={t('admin.locations.mapsLink')}>
+            <FormField label={t('admin.locations.mapsLink')} className="sm:col-span-2">
+              <input type="url" className="admin-input" value={form.googleMapsLink} onChange={(e) => setLoc({ googleMapsLink: e.target.value })} placeholder="https://maps.google.com/..." />
+            </FormField>
+            <FormField label={t('admin.locations.latitude')}>
+              <input type="number" step="any" min="-90" max="90" className="admin-input" value={form.latitude} onChange={(e) => setLoc({ latitude: e.target.value })} />
+            </FormField>
+            <FormField label={t('admin.locations.longitude')}>
+              <input type="number" step="any" min="-180" max="180" className="admin-input" value={form.longitude} onChange={(e) => setLoc({ longitude: e.target.value })} />
+            </FormField>
+            <AdminSwitch
+              checked={form.isActive}
+              onChange={(isActive) => setLoc({ isActive })}
+              label={t('admin.locations.available')}
+            />
+          </DrawerSection>
+        </form>
+      </AdminDrawer>
 
       <div className="max-w-5xl w-full rounded-md overflow-hidden border border-borderColor mt-8 bg-white">
         <div className="table-scroll">
@@ -372,6 +332,16 @@ const ManageLocations = () => {
         </table>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={Boolean(pendingDelete)}
+        title={t('admin.common.delete')}
+        message={t('admin.locations.deleteConfirm')}
+        confirmText={t('admin.common.delete')}
+        cancelText={t('admin.common.cancel')}
+        variant="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
