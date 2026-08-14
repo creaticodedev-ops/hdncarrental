@@ -86,6 +86,16 @@ export const dateRangeLabel = (pickup, ret, language = 'en') => {
   return `${a} → ${b}`
 }
 
+/** Inclusive calendar span used for ops display (matches rental day count UX). */
+export const rentalDayCount = (pickup, ret) => {
+  const a = new Date(pickup)
+  const b = new Date(ret)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0
+  const start = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
+  const end = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+  return Math.max(1, Math.round((end - start) / 86400000) || 1)
+}
+
 export const extraCalendarDays = (from, to) => {
   const a = new Date(from)
   const b = new Date(to)
@@ -135,7 +145,7 @@ export const signatureTone = (status) => {
 export const paymentTone = (status) => {
   if (status === 'paid') return 'success'
   if (status === 'partial') return 'warn'
-  if (status === 'failed' || status === 'refunded') return 'danger'
+  if (status === 'failed' || status === 'refunded' || status === 'unpaid') return 'danger'
   return 'neutral'
 }
 

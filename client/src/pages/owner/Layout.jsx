@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import '../../admin/adminTheme.css'
+import '../../admin/reservationsTheme.css'
 import { AdminThemeProvider, useAdminTheme } from '../../admin/AdminThemeContext'
 import NavbarOwner from '../../components/owner/NavbarOwner'
 import Sidebar from '../../components/owner/Sidebar'

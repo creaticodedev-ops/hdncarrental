@@ -20,6 +20,7 @@ import { buildOwnerCompletionWaUrl, buildWaMeUrl } from '../../utils/whatsapp'
 import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 
 const emptyFilters = {
+  search: '',
   customerName: '',
   phone: '',
   email: '',
@@ -88,6 +89,8 @@ const ManageBookings = () => {
   const [signatureOpen, setSignatureOpen] = useState(false)
   const [signatureBusy, setSignatureBusy] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
+  const [sigFilter, setSigFilter] = useState('')
+  const [contractFilter, setContractFilter] = useState('')
   const selectedIdRef = useRef(null)
   selectedIdRef.current = selectedBooking?._id
 
@@ -218,8 +221,43 @@ const ManageBookings = () => {
   const clearFilters = () => {
     setFilters(emptyFilters)
     setAppliedFilters(emptyFilters)
+    setSigFilter('')
+    setContractFilter('')
     setPagination((prev) => ({ ...prev, page: 1 }))
   }
+
+  const setQuickFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
+    setAppliedFilters((prev) => ({ ...prev, [key]: value }))
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }
+
+  const applySearch = () => {
+    setPagination((prev) => ({ ...prev, page: 1 }))
+    setAppliedFilters((prev) => ({ ...prev, search: filters.search || '' }))
+  }
+
+  const visibleBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      if (sigFilter) {
+        const status = booking?.completion?.signatureComplete
+          ? 'signed'
+          : (booking?.completion?.requestStatus && booking.completion.requestStatus !== 'none'
+            ? booking.completion.requestStatus
+            : 'none')
+        if (status !== sigFilter) return false
+      }
+      if (contractFilter) {
+        const status = booking?.completion?.contractPdfUrl
+          ? 'ready'
+          : booking?.completion?.documentsComplete
+            ? 'in_progress'
+            : 'none'
+        if (status !== contractFilter) return false
+      }
+      return true
+    })
+  }, [bookings, sigFilter, contractFilter])
 
   const changeBookingStatus = async (bookingId, status) => {
     try {
@@ -719,10 +757,10 @@ const ManageBookings = () => {
           <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
           <div className="res-chrome-tools">
             <Link to="/owner/walk-in" className="admin-btn admin-btn-primary res-btn">
-              {t('admin.walkIn.menu')}
+              + {t('admin.bookings.newReservation')}
             </Link>
             <button type="button" onClick={() => setShowFilters((v) => !v)} className="admin-btn admin-btn-secondary res-btn">
-              {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.showFilters')}
+              {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.moreFilters')}
             </button>
             <button type="button" onClick={exportCsv} className="admin-btn admin-btn-secondary res-btn">
               {t('admin.bookings.exportCsv')}
@@ -730,24 +768,67 @@ const ManageBookings = () => {
           </div>
         </div>
 
-        <div className="res-search-row">
+        <div className="res-filter-bar">
           <input
-            className="admin-input flex-1 min-h-9 text-sm"
-            value={filters.reservationId || filters.customerName}
-            onChange={(e) => {
-              const v = e.target.value
-              setFilters((f) => ({
-                ...f,
-                reservationId: v.toUpperCase().startsWith('RES') ? v : '',
-                customerName: v.toUpperCase().startsWith('RES') ? '' : v,
-              }))
-            }}
+            className="admin-input res-filter-search"
+            value={filters.search}
+            onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') applyFilters(e)
+              if (e.key === 'Enter') applySearch()
             }}
             placeholder={t('admin.bookings.quickSearchPlaceholder')}
           />
-          <button type="button" onClick={applyFilters} className="admin-btn admin-btn-secondary res-btn shrink-0">
+          <select
+            className="res-filter-chip"
+            value={filters.status}
+            onChange={(e) => setQuickFilter('status', e.target.value)}
+            aria-label={t('admin.bookings.status')}
+          >
+            <option value="">{t('admin.bookings.status')}: {t('admin.bookings.filterAll')}</option>
+            <option value="pending">{t('admin.bookings.statuses.pending')}</option>
+            <option value="confirmed">{t('admin.bookings.statuses.confirmed')}</option>
+            <option value="ready_for_pickup">{t('admin.bookings.statuses.ready_for_pickup')}</option>
+            <option value="active">{t('admin.bookings.statuses.active')}</option>
+            <option value="completed">{t('admin.bookings.statuses.completed')}</option>
+            <option value="cancelled">{t('admin.bookings.statuses.cancelled')}</option>
+          </select>
+          <select
+            className="res-filter-chip"
+            value={filters.paymentStatus}
+            onChange={(e) => setQuickFilter('paymentStatus', e.target.value)}
+            aria-label={t('admin.bookings.payment')}
+          >
+            <option value="">{t('admin.bookings.payment')}: {t('admin.bookings.filterAll')}</option>
+            <option value="pending">{t('admin.bookings.paymentLabels.unpaid')}</option>
+            <option value="paid">{t('admin.bookings.paymentLabels.paid')}</option>
+            <option value="failed">{t('admin.bookings.paymentLabels.failed')}</option>
+            <option value="refunded">{t('admin.bookings.paymentLabels.refunded')}</option>
+          </select>
+          <select
+            className="res-filter-chip"
+            value={sigFilter}
+            onChange={(e) => setSigFilter(e.target.value)}
+            aria-label={t('admin.bookings.signature')}
+          >
+            <option value="">{t('admin.bookings.signature')}: {t('admin.bookings.filterAll')}</option>
+            <option value="none">{t('admin.bookings.requestStatuses.none')}</option>
+            <option value="pending">{t('admin.bookings.requestStatuses.pending')}</option>
+            <option value="signed">{t('admin.bookings.requestStatuses.signed')}</option>
+            <option value="expired">{t('admin.bookings.requestStatuses.expired')}</option>
+            <option value="cancelled">{t('admin.bookings.requestStatuses.cancelled')}</option>
+          </select>
+          <select
+            className="res-filter-chip"
+            value={contractFilter}
+            onChange={(e) => setContractFilter(e.target.value)}
+            aria-label={t('admin.bookings.contract')}
+          >
+            <option value="">{t('admin.bookings.contract')}: {t('admin.bookings.filterAll')}</option>
+            <option value="none">{t('admin.bookings.contractLabels.none')}</option>
+            <option value="in_progress">{t('admin.bookings.contractLabels.in_progress')}</option>
+            <option value="ready">{t('admin.bookings.contractLabels.ready')}</option>
+          </select>
+          <button type="button" className="admin-btn admin-btn-secondary res-btn shrink-0" onClick={applySearch}>
             {t('admin.bookings.applyFilters')}
           </button>
         </div>
@@ -839,7 +920,7 @@ const ManageBookings = () => {
             t={t}
             language={language}
             currency={currency}
-            bookings={bookings}
+            bookings={visibleBookings}
             loading={loading}
             selectedId={selectedBooking?._id}
             onSelect={selectBooking}
@@ -853,6 +934,7 @@ const ManageBookings = () => {
             pagination={pagination}
             onPrev={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
             onNext={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+            onPageSize={(limit) => setPagination((p) => ({ ...p, page: 1, limit }))}
           />
         </div>
 
