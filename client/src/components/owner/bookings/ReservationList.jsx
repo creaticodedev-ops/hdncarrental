@@ -1,17 +1,45 @@
 import React from 'react'
 import { EmptyState, SkeletonBlock } from '../../../admin/ui'
 import ActionMenu from './ActionMenu'
-import { BookingStatusBadge, ChannelChip, PaymentBadge, SignatureBadge } from './ReservationBadges'
+import {
+  BookingStatusBadge,
+  ChannelChip,
+  ContractBadge,
+  PaymentBadge,
+  SignatureBadge,
+} from './ReservationBadges'
 import {
   customerInitials,
   dateRangeLabel,
   formatTime,
+  getContractStatus,
   getPaymentDisplay,
   getSignatureStatus,
   money,
   reservationRef,
   vehicleLabel,
 } from './reservationHelpers'
+
+const AttentionDots = ({ booking, t }) => {
+  const pay = getPaymentDisplay(booking)
+  const sig = getSignatureStatus(booking)
+  const contract = getContractStatus(booking)
+  const items = []
+  if (pay === 'unpaid' || pay === 'partial') items.push({ key: 'pay', tone: 'warn', label: t('admin.bookings.alertsUnpaid') })
+  if (sig === 'pending') items.push({ key: 'sig', tone: 'warn', label: t('admin.bookings.alertsSignaturePending') })
+  if (sig === 'expired') items.push({ key: 'sigx', tone: 'danger', label: t('admin.bookings.alertsSignatureExpired') })
+  if (contract === 'none') items.push({ key: 'c', tone: 'neutral', label: t('admin.bookings.contractLabels.none') })
+  if (!items.length) return null
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {items.map((item) => (
+        <span key={item.key} className={`res-attention res-attention-${item.tone}`} title={item.label}>
+          {item.label}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 const ReservationList = ({
   t,
@@ -34,10 +62,10 @@ const ReservationList = ({
 }) => {
   if (loading) {
     return (
-      <div className="space-y-3">
-        <SkeletonBlock className="h-28 lg:hidden" />
-        <SkeletonBlock className="h-28 lg:hidden" />
-        <SkeletonBlock className="hidden lg:block h-64" />
+      <div className="space-y-2.5">
+        <SkeletonBlock className="h-24 lg:hidden" />
+        <SkeletonBlock className="h-24 lg:hidden" />
+        <SkeletonBlock className="hidden lg:block h-56" />
       </div>
     )
   }
@@ -50,7 +78,7 @@ const ReservationList = ({
 
   return (
     <div className="min-w-0">
-      <div className="space-y-3 lg:hidden">
+      <div className="space-y-2.5 lg:hidden">
         {bookings.map((booking) => (
           <MobileCard
             key={booking._id}
@@ -73,8 +101,9 @@ const ReservationList = ({
                 <th className="max-xl:hidden">{t('admin.bookings.vehicle')}</th>
                 <th>{t('admin.bookings.dates')}</th>
                 <th>{t('admin.bookings.status')}</th>
-                <th className="max-xl:hidden">{t('admin.bookings.payment')}</th>
+                <th>{t('admin.bookings.payment')}</th>
                 <th>{t('admin.bookings.signature')}</th>
+                <th className="max-xl:hidden">{t('admin.bookings.contract')}</th>
                 <th>{t('admin.bookings.total')}</th>
                 <th className="text-right">{t('admin.bookings.actions')}</th>
               </tr>
@@ -82,8 +111,6 @@ const ReservationList = ({
             <tbody>
               {bookings.map((booking) => {
                 const selected = selectedId === booking._id
-                const sig = getSignatureStatus(booking)
-                const pay = getPaymentDisplay(booking)
                 return (
                   <tr
                     key={booking._id}
@@ -91,21 +118,17 @@ const ReservationList = ({
                     onClick={() => onSelect(booking)}
                   >
                     <td>
-                      <p className="font-semibold text-[var(--admin-ink)]">{reservationRef(booking)}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                      <p className="font-semibold text-[var(--admin-ink)] leading-tight">{reservationRef(booking)}</p>
+                      <div className="mt-1">
                         <ChannelChip channel={booking.channel} />
-                        {pay === 'unpaid' || pay === 'partial' ? (
-                          <span className="text-[10px] text-[var(--admin-warn)]">
-                            {t('admin.bookings.alertsUnpaid')}
-                          </span>
-                        ) : null}
                       </div>
+                      <AttentionDots booking={booking} t={t} />
                     </td>
                     <td>
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="res-avatar">{customerInitials(booking.customerName)}</span>
                         <div className="min-w-0">
-                          <p className="font-medium text-[var(--admin-ink)] truncate">
+                          <p className="font-medium text-[var(--admin-ink)] truncate leading-tight">
                             {booking.customerName || t('admin.common.guest')}
                           </p>
                           <p className="text-[11px] text-[var(--admin-muted)] truncate">
@@ -115,13 +138,13 @@ const ReservationList = ({
                       </div>
                     </td>
                     <td className="max-xl:hidden">
-                      <p className="font-medium text-[var(--admin-ink)]">{vehicleLabel(booking.car)}</p>
+                      <p className="font-medium text-[var(--admin-ink)] leading-tight">{vehicleLabel(booking.car)}</p>
                       {booking.car?.licensePlate ? (
                         <p className="text-[11px] text-[var(--admin-muted)]">{booking.car.licensePlate}</p>
                       ) : null}
                     </td>
                     <td>
-                      <p className="text-[var(--admin-ink)]">{dateRangeLabel(booking.pickupDate, booking.returnDate, language)}</p>
+                      <p className="text-[var(--admin-ink)] leading-tight">{dateRangeLabel(booking.pickupDate, booking.returnDate, language)}</p>
                       <p className="text-[11px] text-[var(--admin-muted)]">
                         {formatTime(booking.pickupDate, language)} → {formatTime(booking.returnDate, language)}
                       </p>
@@ -129,16 +152,14 @@ const ReservationList = ({
                     <td>
                       <BookingStatusBadge status={booking.status} t={t} />
                     </td>
-                    <td className="max-xl:hidden">
+                    <td>
                       <PaymentBadge booking={booking} t={t} />
                     </td>
                     <td>
                       <SignatureBadge booking={booking} t={t} />
-                      {sig === 'pending' ? (
-                        <p className="mt-1 text-[10px] text-[var(--admin-warn)]">
-                          {t('admin.bookings.alertsSignaturePending')}
-                        </p>
-                      ) : null}
+                    </td>
+                    <td className="max-xl:hidden">
+                      <ContractBadge booking={booking} t={t} />
                     </td>
                     <td>
                       <p className="font-semibold text-[var(--admin-ink)]">{money(currency, booking.price)}</p>
@@ -147,13 +168,14 @@ const ReservationList = ({
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          className="admin-btn admin-btn-primary admin-btn-sm"
+                          className="admin-btn admin-btn-primary res-btn"
                           onClick={() => onSelect(booking)}
                         >
                           {t('admin.bookings.view')}
                         </button>
                         <ActionMenu
                           label={t('admin.bookings.more')}
+                          iconOnly
                           items={[
                             { key: 'edit', label: t('admin.bookings.edit'), onClick: () => onEdit(booking) },
                             { key: 'wa', label: t('admin.bookings.whatsapp'), onClick: () => onWhatsApp(booking) },
@@ -182,7 +204,7 @@ const ReservationList = ({
             type="button"
             disabled={pagination.page <= 1}
             onClick={onPrev}
-            className="admin-btn admin-btn-secondary admin-btn-sm disabled:opacity-40"
+            className="admin-btn admin-btn-secondary res-btn disabled:opacity-40"
           >
             {t('admin.bookings.previous')}
           </button>
@@ -191,7 +213,7 @@ const ReservationList = ({
             type="button"
             disabled={pagination.page >= pagination.totalPages}
             onClick={onNext}
-            className="admin-btn admin-btn-secondary admin-btn-sm disabled:opacity-40"
+            className="admin-btn admin-btn-secondary res-btn disabled:opacity-40"
           >
             {t('admin.bookings.next')}
           </button>
@@ -218,8 +240,9 @@ const MobileCard = ({ booking, t, language, currency, onSelect }) => (
       <span className="font-semibold text-[var(--admin-ink)]">{money(currency, booking.price)}</span>
     </div>
     <div className="flex flex-wrap gap-1.5">
-      <SignatureBadge booking={booking} t={t} />
       <PaymentBadge booking={booking} t={t} />
+      <SignatureBadge booking={booking} t={t} />
+      <ContractBadge booking={booking} t={t} />
     </div>
     <p className="text-sm font-semibold text-[var(--admin-primary)]">
       {t('admin.bookings.viewReservation')} →

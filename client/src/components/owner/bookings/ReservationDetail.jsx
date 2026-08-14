@@ -210,15 +210,17 @@ const ReservationDetail = ({
 
         <div className="res-money">
           <span className="res-price">{money(currency, booking.price)}</span>
-          <PaymentBadge booking={booking} t={t} />
         </div>
 
         <div className="res-flags">
           <span>
-            {t('admin.bookings.signature')}: <SignatureBadge booking={booking} t={t} />
+            {t('admin.bookings.payment')}: <PaymentBadge booking={booking} t={t} />
           </span>
           <span>
             {t('admin.bookings.contract')}: <ContractBadge booking={booking} t={t} />
+          </span>
+          <span>
+            {t('admin.bookings.signature')}: <SignatureBadge booking={booking} t={t} />
           </span>
         </div>
 

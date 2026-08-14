@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
+import { NavIcon } from '../../admin/navIcons'
 
 const STORAGE_KEY = 'hdn.owner.sidebar.groups'
 const MOBILE_MQ = '(max-width: 767px)'
@@ -27,19 +28,45 @@ const readStoredGroups = () => {
 
 const Chevron = ({ open }) => (
   <svg
-    width="14"
-    height="14"
+    width="12"
+    height="12"
     viewBox="0 0 24 24"
     fill="none"
     aria-hidden="true"
-    className={`shrink-0 text-[var(--admin-muted)] transition-transform duration-200 ease-out ${open ? 'rotate-0' : '-rotate-90'}`}
+    className={`shrink-0 text-[var(--admin-muted)] transition-transform duration-150 ${open ? 'rotate-0' : '-rotate-90'}`}
   >
     <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
+const NavItem = ({ link, active, railCollapsed, label, onNavigate }) => (
+  <li className="relative">
+    <NavLink
+      to={link.path}
+      end={link.path === '/owner'}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      aria-label={label}
+      className={[
+        'admin-nav-link',
+        railCollapsed ? 'is-collapsed' : '',
+        active ? 'is-active' : '',
+      ].join(' ')}
+    >
+      {!railCollapsed && <span className="admin-nav-rail" aria-hidden="true" />}
+      <NavIcon id={link.iconId} className="admin-nav-icon" />
+      {!railCollapsed && <span className="admin-nav-label">{label}</span>}
+    </NavLink>
+    {railCollapsed ? (
+      <span className="admin-nav-tooltip" role="tooltip">
+        {label}
+      </span>
+    ) : null}
+  </li>
+)
+
 /**
- * Admin sidebar — grouped, collapsible, permission-aware navigation.
+ * Admin sidebar — grouped SaaS navigation.
  * Desktop: sticky rail (optionally icon-collapsed). Mobile: drawer.
  */
 const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
@@ -47,6 +74,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
   const { t } = useI18n()
   const location = useLocation()
   const [image, setImage] = useState('')
+  const [navQuery, setNavQuery] = useState('')
   const baseId = useId()
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(MOBILE_MQ).matches : false,
@@ -65,11 +93,25 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
       ownerNavGroups
         .map((group) => ({
           ...group,
-          items: group.items.filter((link) => hasPermission(link.permission)),
+          items: group.items.filter((link) => !link.permission || hasPermission(link.permission)),
         }))
         .filter((group) => group.items.length > 0),
     [hasPermission],
   )
+
+  const filteredGroups = useMemo(() => {
+    const q = navQuery.trim().toLowerCase()
+    if (!q) return visibleGroups
+    return visibleGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((link) => t(link.nameKey).toLowerCase().includes(q)),
+      }))
+      .filter((group) => group.items.length > 0)
+  }, [visibleGroups, navQuery, t])
+
+  const mainGroups = useMemo(() => filteredGroups.filter((g) => !g.pinBottom), [filteredGroups])
+  const bottomGroups = useMemo(() => filteredGroups.filter((g) => g.pinBottom), [filteredGroups])
 
   const activeGroupId = useMemo(() => {
     for (const group of visibleGroups) {
@@ -157,6 +199,51 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
   }
 
   const railCollapsed = collapsed && !isMobile
+  const searching = Boolean(navQuery.trim())
+
+  const renderGroup = (group, groupIndex) => {
+    const open = railCollapsed || searching ? true : openGroups[group.id] !== false
+    const panelId = `${baseId}-panel-${group.id}`
+    const headerId = `${baseId}-header-${group.id}`
+    const groupHasActive = group.items.some((link) => isLinkActive(location.pathname, link.path))
+
+    return (
+      <li key={group.id} className={groupIndex > 0 ? 'pt-2' : ''}>
+        {!railCollapsed && (
+          <button
+            type="button"
+            id={headerId}
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => !searching && toggleGroup(group.id)}
+            className={[
+              'admin-nav-group',
+              groupHasActive ? 'has-active' : '',
+              searching ? 'pointer-events-none' : '',
+            ].join(' ')}
+          >
+            <span>{t(group.labelKey)}</span>
+            {!searching ? <Chevron open={open} /> : null}
+          </button>
+        )}
+
+        <div id={panelId} role="region" aria-labelledby={railCollapsed ? undefined : headerId} hidden={!open}>
+          <ul className="admin-nav-list">
+            {group.items.map((link) => (
+              <NavItem
+                key={link.path}
+                link={link}
+                active={isLinkActive(location.pathname, link.path)}
+                railCollapsed={railCollapsed}
+                label={t(link.nameKey)}
+                onNavigate={() => onMobileClose?.()}
+              />
+            ))}
+          </ul>
+        </div>
+      </li>
+    )
+  }
 
   return (
     <>
@@ -173,43 +260,42 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
         aria-label={t('admin.shell.navigation')}
         aria-hidden={isMobile && !mobileOpen ? true : undefined}
         className={[
-          'flex flex-col border-r text-[13px]',
-          'bg-[var(--admin-sidebar)] border-[var(--admin-border)] text-[var(--admin-ink)]',
+          'admin-sidebar flex flex-col',
           'fixed md:sticky top-[57px] md:top-0 left-0 z-40 md:z-auto',
           'h-[calc(100svh-57px)] shrink-0',
-          railCollapsed ? 'md:w-[4.25rem]' : 'w-[min(18.5rem,88vw)] md:w-60 xl:w-64',
+          railCollapsed ? 'md:w-[4.25rem]' : 'w-[min(17.5rem,88vw)] md:w-[15.5rem] xl:w-64',
           'transition-[width,transform] duration-200 ease-out md:translate-x-0',
           mobileOpen ? 'translate-x-0 shadow-[var(--admin-shadow-lg)]' : '-translate-x-full md:translate-x-0',
           isMobile && !mobileOpen ? 'pointer-events-none' : '',
         ].join(' ')}
       >
-        <div className={`relative shrink-0 border-b border-[var(--admin-border)] ${railCollapsed ? 'px-2 pt-4 pb-3' : 'px-4 pt-5 pb-4'}`}>
-          <div className={`flex items-center ${railCollapsed ? 'justify-center' : 'gap-3'}`}>
-            <div className="group relative shrink-0">
-              <label htmlFor={`${baseId}-avatar`} className="block cursor-pointer" title={user?.name || 'Admin'}>
-                <img
-                  src={previewUrl || user?.image || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=300'}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover ring-1 ring-[var(--admin-border)]"
-                />
-                <input
-                  type="file"
-                  id={`${baseId}-avatar`}
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => setImage(e.target.files?.[0] || '')}
-                />
-              </label>
-            </div>
+        <div className={`admin-sidebar-head ${railCollapsed ? 'is-collapsed' : ''}`}>
+          <div className={`flex items-center ${railCollapsed ? 'justify-center' : 'gap-2.5'}`}>
+            <label htmlFor={`${baseId}-avatar`} className="block cursor-pointer shrink-0" title={user?.name || 'Admin'}>
+              <img
+                src={previewUrl || user?.image || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=300'}
+                alt=""
+                className="h-9 w-9 rounded-full object-cover ring-1 ring-[var(--admin-border)]"
+              />
+              <input
+                type="file"
+                id={`${baseId}-avatar`}
+                accept="image/*"
+                hidden
+                onChange={(e) => setImage(e.target.files?.[0] || '')}
+              />
+            </label>
             {!railCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold leading-tight">{user?.name || 'Admin'}</p>
+                  <p className="truncate text-[13px] font-semibold leading-tight text-[var(--admin-ink)]">
+                    {user?.name || 'Admin'}
+                  </p>
                   <p className="truncate text-[11px] text-[var(--admin-muted)] mt-0.5">{t('admin.shell.roleOwner')}</p>
                 </div>
                 <button
                   type="button"
-                  className="md:hidden -mr-1 inline-flex h-9 w-9 items-center justify-center rounded-[var(--admin-radius)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
+                  className="md:hidden -mr-1 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
                   onClick={onMobileClose}
                   aria-label={t('admin.shell.closeMenu')}
                 >
@@ -219,99 +305,38 @@ const Sidebar = ({ mobileOpen = false, onMobileClose, collapsed = false }) => {
             )}
           </div>
           {image && !railCollapsed && (
-            <button
-              type="button"
-              className="admin-btn admin-btn-primary mt-3 min-h-9 text-xs w-full"
-              onClick={updateImage}
-            >
+            <button type="button" className="admin-btn admin-btn-primary mt-3 min-h-8 text-xs w-full" onClick={updateImage}>
               {t('admin.shell.save')}
             </button>
           )}
+          {!railCollapsed && (
+            <div className="admin-nav-search mt-3">
+              <input
+                type="search"
+                value={navQuery}
+                onChange={(e) => setNavQuery(e.target.value)}
+                placeholder={t('admin.shell.navSearch')}
+                className="admin-nav-search-input"
+                aria-label={t('admin.shell.navSearch')}
+              />
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-3" aria-label={t('admin.shell.navigation')}>
-          <ul className="space-y-1">
-            {visibleGroups.map((group, groupIndex) => {
-              const open = railCollapsed ? true : openGroups[group.id] !== false
-              const panelId = `${baseId}-panel-${group.id}`
-              const headerId = `${baseId}-header-${group.id}`
-              const groupHasActive = group.items.some((link) => isLinkActive(location.pathname, link.path))
-
-              return (
-                <li key={group.id} className={groupIndex > 0 ? 'pt-1' : ''}>
-                  {groupIndex > 0 && !railCollapsed && (
-                    <div className="mx-2 mb-2 border-t border-[var(--admin-border)]" aria-hidden="true" />
-                  )}
-
-                  {!railCollapsed && (
-                    <button
-                      type="button"
-                      id={headerId}
-                      aria-expanded={open}
-                      aria-controls={panelId}
-                      onClick={() => toggleGroup(group.id)}
-                      className={[
-                        'flex w-full items-center justify-between gap-2 rounded-[var(--admin-radius)] px-2.5 py-1.5',
-                        'text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]',
-                        'hover:bg-[var(--admin-hover)] transition-colors',
-                        groupHasActive ? 'text-[var(--admin-ink)]' : 'text-[var(--admin-muted)]',
-                      ].join(' ')}
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
-                        {t(group.labelKey)}
-                      </span>
-                      <Chevron open={open} />
-                    </button>
-                  )}
-
-                  <div id={panelId} role="region" aria-labelledby={railCollapsed ? undefined : headerId} hidden={!open}>
-                    <ul className="space-y-0.5 mt-0.5">
-                      {group.items.map((link) => {
-                        const active = isLinkActive(location.pathname, link.path)
-                        return (
-                          <li key={link.path}>
-                            <NavLink
-                              to={link.path}
-                              end={link.path === '/owner'}
-                              title={t(link.nameKey)}
-                              onClick={() => onMobileClose?.()}
-                              aria-current={active ? 'page' : undefined}
-                              className={[
-                                'group relative flex items-center rounded-[var(--admin-radius)] transition-colors',
-                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]',
-                                railCollapsed ? 'justify-center py-2.5 px-2' : 'gap-2.5 py-2 pl-2.5 pr-2',
-                                active
-                                  ? 'bg-[var(--admin-primary-soft)] text-[var(--admin-primary)] font-semibold'
-                                  : 'text-[var(--admin-ink-secondary)] hover:bg-[var(--admin-hover)] hover:text-[var(--admin-ink)]',
-                              ].join(' ')}
-                            >
-                              {!railCollapsed && (
-                                <span
-                                  className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full ${
-                                    active ? 'bg-[var(--admin-primary)] opacity-100' : 'opacity-0'
-                                  }`}
-                                  aria-hidden="true"
-                                />
-                              )}
-                              <img
-                                src={active ? link.coloredIcon : link.icon}
-                                alt=""
-                                className="h-[17px] w-[17px] shrink-0 opacity-90"
-                              />
-                              {!railCollapsed && (
-                                <span className="min-w-0 truncate leading-snug">{t(link.nameKey)}</span>
-                              )}
-                            </NavLink>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                </li>
-              )
-            })}
+        <nav className="admin-sidebar-nav" aria-label={t('admin.shell.navigation')}>
+          <ul className="space-y-0.5">
+            {mainGroups.map((group, i) => renderGroup(group, i))}
+            {mainGroups.length === 0 && searching ? (
+              <li className="px-3 py-4 text-xs text-[var(--admin-muted)]">{t('admin.shell.noResults')}</li>
+            ) : null}
           </ul>
         </nav>
+
+        {bottomGroups.length > 0 ? (
+          <div className="admin-sidebar-foot">
+            <ul>{bottomGroups.map((group, i) => renderGroup(group, i))}</ul>
+          </div>
+        ) : null}
       </aside>
     </>
   )

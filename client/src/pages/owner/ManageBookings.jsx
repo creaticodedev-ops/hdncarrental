@@ -715,23 +715,45 @@ const ManageBookings = () => {
   return (
     <div className={`res-module admin-page-pad w-full min-w-0 ${selectedBooking ? 'has-selection' : ''}`}>
       <div className="res-chrome">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
           <div className="flex flex-wrap gap-2">
-            <Link to="/owner/walk-in" className="admin-btn admin-btn-secondary admin-btn-sm">
+            <Link to="/owner/walk-in" className="admin-btn admin-btn-primary res-btn">
               {t('admin.walkIn.menu')}
             </Link>
-            <button type="button" onClick={() => setShowFilters((v) => !v)} className="admin-btn admin-btn-secondary admin-btn-sm">
+            <button type="button" onClick={() => setShowFilters((v) => !v)} className="admin-btn admin-btn-secondary res-btn">
               {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.showFilters')}
             </button>
-            <button type="button" onClick={exportCsv} className="admin-btn admin-btn-primary admin-btn-sm">
+            <button type="button" onClick={exportCsv} className="admin-btn admin-btn-secondary res-btn">
               {t('admin.bookings.exportCsv')}
             </button>
           </div>
         </div>
 
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            className="admin-input flex-1 min-h-9 text-sm"
+            value={filters.reservationId || filters.customerName}
+            onChange={(e) => {
+              const v = e.target.value
+              setFilters((f) => ({
+                ...f,
+                reservationId: v.toUpperCase().startsWith('RES') ? v : '',
+                customerName: v.toUpperCase().startsWith('RES') ? '' : v,
+              }))
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') applyFilters(e)
+            }}
+            placeholder={t('admin.bookings.quickSearchPlaceholder')}
+          />
+          <button type="button" onClick={applyFilters} className="admin-btn admin-btn-secondary res-btn shrink-0">
+            {t('admin.bookings.applyFilters')}
+          </button>
+        </div>
+
         {showFilters && (
-          <form onSubmit={applyFilters} className="admin-card mt-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <form onSubmit={applyFilters} className="admin-card mt-3 grid grid-cols-1 gap-2.5 p-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <div>
               <label className="admin-label">{t('admin.bookings.customerName')}</label>
               <input className={inputClass} value={filters.customerName} onChange={(e) => setFilters({ ...filters, customerName: e.target.value })} />
