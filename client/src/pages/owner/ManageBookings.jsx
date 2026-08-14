@@ -839,7 +839,6 @@ const ManageBookings = () => {
           language={language}
           currency={currency}
           booking={selectedBooking}
-          completionUrl={resolveCompletionUrl(selectedBooking)}
           compatibleVehicles={compatibleVehicles}
           assigningVehicle={assigningVehicle}
           uploadingDoc={uploadingDoc}
@@ -850,6 +849,8 @@ const ManageBookings = () => {
           onRequestSignature={() => setSignatureOpen(true)}
           onExtend={() => openExtensionModal(selectedBooking)}
           onEdit={() => startEdit(selectedBooking)}
+          onResendSignature={() => resendCompletionLink(selectedBooking._id)}
+          onCancelSignature={() => setConfirmAction({ type: 'cancelLink', bookingId: selectedBooking._id })}
           onChangeStatus={(status) => changeBookingStatus(selectedBooking._id, status)}
           onChangePayment={(status) => changePaymentStatus(selectedBooking._id, status)}
           onAssignVehicle={(carId) => assignVehicle(selectedBooking._id, carId)}

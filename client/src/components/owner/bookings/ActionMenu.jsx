@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 
 const MoreIcon = () => (
   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -12,7 +13,7 @@ const MoreIcon = () => (
 /**
  * Compact overflow menu. Items: { key, label, onClick, tone?: 'danger' | 'default', hidden?: boolean }
  */
-const ActionMenu = ({ label, items = [], align = 'right' }) => {
+const ActionMenu = ({ label, items = [], align = 'right', iconOnly = false, className = '' }) => {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const btnRef = useRef(null)
@@ -68,7 +69,7 @@ const ActionMenu = ({ label, items = [], align = 'right' }) => {
       <button
         ref={btnRef}
         type="button"
-        className={`admin-btn admin-btn-secondary admin-btn-sm px-2.5 ${open ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : ''}`}
+        className={`admin-btn admin-btn-secondary res-btn px-2 ${className} ${open ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]' : ''}`}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -79,7 +80,7 @@ const ActionMenu = ({ label, items = [], align = 'right' }) => {
         }}
       >
         <MoreIcon />
-        <span className="hidden sm:inline">{label}</span>
+        {iconOnly ? null : <span className="hidden sm:inline">{label}</span>}
       </button>
       {open
         ? createPortal(
@@ -93,6 +94,16 @@ const ActionMenu = ({ label, items = [], align = 'right' }) => {
               {visible.map((item) =>
                 item.separator ? (
                   <div key={item.key} className="my-1 border-t border-[var(--admin-border)]" role="separator" />
+                ) : item.href ? (
+                  <Link
+                    key={item.key}
+                    to={item.href}
+                    role="menuitem"
+                    className="flex w-full px-3 py-2.5 text-left text-sm text-[var(--admin-ink)] hover:bg-[var(--admin-hover)]"
+                    onClick={() => setOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
                 ) : (
                   <button
                     key={item.key}
