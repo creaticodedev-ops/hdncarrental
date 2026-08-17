@@ -751,9 +751,11 @@ export const adminEn = {
     linkModeSignatureOnly: 'Signature-only link',
     linkModeSignatureOnlyHint:
       'The customer opens the contract, signs, and is done. They cannot view or change any reservation details.',
+    linkModeBlanksHint:
+      'These fields are empty and will print as “—” on the contract. The customer is never asked for them.',
     linkModeFull: 'The customer will be asked to fill in details',
     linkModeFullHint:
-      'These contract fields are still empty, so the customer has to complete them and upload their documents before signing. Fill them in on the reservation to send a signature-only link instead.',
+      'This is a guest booking and these contract fields are still empty, so the customer has to complete them and upload their documents before signing. Fill them in on the reservation to send a signature-only link instead.',
     completeReservation: 'Complete the reservation',
     expiresAt: 'Expires',
     issuedAt: 'Issued',
@@ -2220,9 +2222,11 @@ export const adminFr = {
     linkModeSignatureOnly: 'Lien de signature uniquement',
     linkModeSignatureOnlyHint:
       "Le client ouvre le contrat, signe, et c'est terminé. Il ne peut modifier aucune information de la réservation.",
+    linkModeBlanksHint:
+      "Ces champs sont vides et s'afficheront « — » sur le contrat. Ils ne sont jamais demandés au client.",
     linkModeFull: 'Le client devra compléter des informations',
     linkModeFullHint:
-      "Ces champs du contrat sont encore vides : le client devra les remplir et téléverser ses documents avant de signer. Complétez-les sur la réservation pour envoyer un lien de signature uniquement.",
+      "Il s'agit d'une réservation en ligne et ces champs du contrat sont encore vides : le client devra les remplir et téléverser ses documents avant de signer. Complétez-les sur la réservation pour envoyer un lien de signature uniquement.",
     completeReservation: 'Compléter la réservation',
     expiresAt: 'Expire',
     issuedAt: 'Émis',
@@ -3686,9 +3690,11 @@ export const adminEs = {
     linkModeSignatureOnly: 'Enlace solo para firmar',
     linkModeSignatureOnlyHint:
       'El cliente abre el contrato, firma y listo. No puede modificar ningún dato de la reserva.',
+    linkModeBlanksHint:
+      'Estos campos están vacíos y se imprimirán como «—» en el contrato. Nunca se piden al cliente.',
     linkModeFull: 'El cliente tendrá que rellenar datos',
     linkModeFullHint:
-      'Estos campos del contrato siguen vacíos, así que el cliente deberá completarlos y subir sus documentos antes de firmar. Rellénelos en la reserva para enviar un enlace solo de firma.',
+      'Es una reserva en línea y estos campos del contrato siguen vacíos, así que el cliente deberá completarlos y subir sus documentos antes de firmar. Rellénelos en la reserva para enviar un enlace solo de firma.',
     completeReservation: 'Completar la reserva',
     expiresAt: 'Caduca',
     issuedAt: 'Emitido',

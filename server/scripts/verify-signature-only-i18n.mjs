@@ -69,6 +69,7 @@ const ADMIN_KEYS = [
   ...[
     'linkModeSignatureOnly',
     'linkModeSignatureOnlyHint',
+    'linkModeBlanksHint',
     'linkModeFull',
     'linkModeFullHint',
     'completeReservation',

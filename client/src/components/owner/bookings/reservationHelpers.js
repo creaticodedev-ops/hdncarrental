@@ -155,9 +155,19 @@ export const getMissingContractFields = (booking) => {
   return missing
 }
 
-/** What the customer will see when they open the signature link. */
-export const getCompletionMode = (booking) =>
-  getMissingContractFields(booking).length === 0 ? 'signature_only' : 'full'
+/** Channels where staff own the reservation data (mirrors DESK_CHANNELS server-side). */
+export const DESK_CHANNELS = ['walk_in']
+
+/**
+ * What the customer will see when they open the signature link.
+ * Desk reservations are always signature-only; guest bookings only qualify once the
+ * owner has filled in every contract field. The server is the authority — this exists
+ * so the drawer can tell the owner what to expect before sending.
+ */
+export const getCompletionMode = (booking) => {
+  if (DESK_CHANNELS.includes(booking?.channel || 'online')) return 'signature_only'
+  return getMissingContractFields(booking).length === 0 ? 'signature_only' : 'full'
+}
 
 export const getPaymentDisplay = (booking) => {
   const ps = booking?.paymentStatus || 'pending'

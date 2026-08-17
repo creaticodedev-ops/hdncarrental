@@ -20,19 +20,20 @@ fs.mkdirSync(OUT, { recursive: true })
 const booking = {
   reservationId: 'RES-1001',
   status: 'confirmed',
+  channel: 'walk_in',
   mode: 'signature_only',
   requestStatus: 'pending',
-  customerName: 'Amine Bennani',
+  customerName: 'Zakaria Douami',
   customerEmail: '',
-  customerPhone: '+212 600 112 233',
-  pickupDate: '2026-09-01T10:00:00.000Z',
-  returnDate: '2026-09-05T10:00:00.000Z',
+  customerPhone: '+212 611 223 344',
+  pickupDate: '2026-08-20T10:00:00.000Z',
+  returnDate: '2026-08-25T10:00:00.000Z',
   pickupLocation: 'Casablanca Airport',
   returnLocation: 'Casablanca Airport',
-  price: 2400,
+  price: 1700,
   paymentStatus: 'paid',
   secondDriver: { enabled: false },
-  car: { brand: 'Dacia', model: 'Duster', year: 2024, category: 'SUV' },
+  car: { brand: 'Renault', model: 'Clio 5', year: 2024, category: 'Compact' },
   completion: { documentsComplete: false, paymentComplete: true, signatureComplete: false },
 }
 
@@ -49,16 +50,16 @@ p{font-size:12px;line-height:1.6;color:#444}
 <h1>CONTRAT DE LOCATION DE VÉHICULE</h1>
 <div class="sub">N° RES-1001 — Americonfort Car</div>
 <h2>Locataire</h2>
-<table><tr><td>Nom / Prénom</td><td>Amine Bennani</td></tr>
-<tr><td>Téléphone</td><td>+212 600 112 233</td></tr>
-<tr><td>Adresse</td><td>12 Rue Tarik, Casablanca</td></tr>
-<tr><td>CIN</td><td>BK123456</td></tr>
-<tr><td>Permis de conduire</td><td>DL998877</td></tr></table>
+<table><tr><td>Nom / Prénom</td><td>Zakaria Douami</td></tr>
+<tr><td>Téléphone</td><td>+212 611 223 344</td></tr>
+<tr><td>Adresse</td><td>—</td></tr>
+<tr><td>CIN</td><td>—</td></tr>
+<tr><td>Permis de conduire</td><td>—</td></tr></table>
 <h2>Véhicule et période</h2>
-<table><tr><td>Véhicule</td><td>Dacia Duster (2024)</td></tr>
-<tr><td>Départ</td><td>01/09/2026 10:00 — Casablanca Airport</td></tr>
-<tr><td>Retour</td><td>05/09/2026 10:00 — Casablanca Airport</td></tr>
-<tr><td>Total</td><td>2 400 MAD</td></tr></table>
+<table><tr><td>Véhicule</td><td>Renault Clio 5 (2024)</td></tr>
+<tr><td>Départ</td><td>20/08/2026 10:00 — Casablanca Airport</td></tr>
+<tr><td>Retour</td><td>25/08/2026 10:00 — Casablanca Airport</td></tr>
+<tr><td>Total</td><td>1 700 MAD</td></tr></table>
 <h2>Conditions générales</h2>
 <p>Le locataire s'engage à restituer le véhicule dans l'état où il l'a reçu, à la date et au lieu convenus.
 Toute prolongation doit faire l'objet d'un accord écrit préalable de l'agence.</p>

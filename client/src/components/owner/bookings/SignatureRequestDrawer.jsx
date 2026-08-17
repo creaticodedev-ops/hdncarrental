@@ -4,6 +4,7 @@ import { SignatureBadge } from './ReservationBadges'
 import {
   customerEmail,
   formatDateTime,
+  getCompletionMode,
   getMissingContractFields,
   getSignatureStatus,
   reservationRef,
@@ -31,8 +32,10 @@ const SignatureRequestDrawer = ({
   const pending = status === 'pending'
   const showLinkActions = Boolean(linkUrl) || pending
   const canGenerate = !signed && !showLinkActions
+  const signatureOnly = getCompletionMode(booking) === 'signature_only'
+  // Blanks are worth flagging on a desk booking — they print as "—" on the contract —
+  // but they never downgrade the link.
   const missingFields = getMissingContractFields(booking)
-  const signatureOnly = missingFields.length === 0
 
   return (
     <AdminDrawer
@@ -109,6 +112,32 @@ const SignatureRequestDrawer = ({
             <p className="mt-1 text-xs leading-relaxed text-[var(--admin-muted)]">
               {t('admin.bookings.linkModeSignatureOnlyHint')}
             </p>
+            {missingFields.length ? (
+              <>
+                <p className="mt-2.5 text-xs leading-relaxed text-[var(--admin-muted)]">
+                  {t('admin.bookings.linkModeBlanksHint')}
+                </p>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {missingFields.map((key) => (
+                    <li
+                      key={key}
+                      className="rounded-full border border-[var(--admin-border)] bg-[var(--admin-surface)] px-2 py-0.5 text-[11px] text-[var(--admin-muted)]"
+                    >
+                      {t(`admin.contracts.${key}`)}
+                    </li>
+                  ))}
+                </ul>
+                {onEditReservation ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-ghost admin-btn-sm mt-2"
+                    onClick={onEditReservation}
+                  >
+                    {t('admin.bookings.completeReservation')}
+                  </button>
+                ) : null}
+              </>
+            ) : null}
           </div>
         ) : (
           <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-warn-soft)] px-4 py-3">

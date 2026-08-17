@@ -15,31 +15,38 @@ const executablePath =
   process.env.PUPPETEER_EXECUTABLE_PATH ||
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 
+/**
+ * Deliberately a *bare* walk-in: every identity field blank, which is what the desk
+ * form produces and what used to drop the customer into the completion wizard.
+ * A complete fixture here would hide that regression.
+ */
 const bookingPayload = {
   reservationId: 'RES-1001',
   status: 'confirmed',
+  channel: 'walk_in',
   mode: 'signature_only',
   requestStatus: 'pending',
-  customerName: 'Amine Bennani',
+  customerName: 'Zakaria Douami',
   customerEmail: '',
-  customerPhone: '+212600112233',
-  customerAddress: '12 Rue Tarik, Casablanca',
-  placeOfBirth: 'Casablanca',
-  identityDocumentNumber: 'BK123456',
-  identityIssuedOn: '2018-06-01',
-  driverLicenseIssuedOn: '2010-01-01',
-  driverLicenseNumber: 'DL998877',
-  driverLicenseExpiry: '2030-01-01',
-  dateOfBirth: '1990-04-12',
-  nationality: 'Moroccan',
-  pickupDate: '2026-09-01T10:00:00.000Z',
-  returnDate: '2026-09-05T10:00:00.000Z',
+  customerPhone: '+212611223344',
+  customerAddress: '',
+  placeOfBirth: '',
+  identityDocumentNumber: '',
+  identityIssuedOn: '',
+  driverLicenseIssuedOn: '',
+  driverLicenseNumber: '',
+  driverLicenseExpiry: '',
+  dateOfBirth: '',
+  nationality: '',
+  passportNumber: '',
+  pickupDate: '2026-08-20T10:00:00.000Z',
+  returnDate: '2026-08-25T10:00:00.000Z',
   pickupLocation: 'Casablanca Airport',
   returnLocation: 'Casablanca Airport',
-  price: 2400,
+  price: 1700,
   paymentStatus: 'paid',
   secondDriver: { enabled: false },
-  car: { brand: 'Dacia', model: 'Duster', year: 2024, category: 'SUV' },
+  car: { brand: 'Renault', model: 'Clio 5', year: 2024, category: 'Compact' },
   completion: {
     signatureUrl: '',
     documentsComplete: false,
@@ -108,10 +115,32 @@ if (/Sign your rental contract|Signez votre contrat|Firme su contrato/i.test(bod
   fail(`expected the signature-only heading, got:\n${body.slice(0, 400)}`)
 }
 
-if (body.includes('Amine Bennani') && body.includes('Dacia Duster')) {
+if (body.includes('Zakaria Douami') && body.includes('Renault Clio 5')) {
   ok('reservation details shown read-only')
 } else {
   fail('reservation summary missing')
+}
+
+// The exact wording from the bug report: none of this may appear on a walk-in link.
+const wizardPrompts = [
+  /passport/i,
+  /driving licen[cs]e|driver'?s? licen[cs]e|permis de conduire/i,
+  /national id|identity document|carte nationale/i,
+  /upload|téléverser|browse files|choose file/i,
+  /issued on|date of issue|délivré/i,
+  /additional driver|second driver|deuxième conducteur/i,
+]
+const leaked = wizardPrompts.filter((re) => re.test(body)).map(String)
+if (leaked.length === 0) {
+  ok('no document, ID or additional-driver prompts')
+} else {
+  fail(`completion-wizard prompts leaked onto the signature page: ${leaked.join(', ')}`)
+}
+
+if (!(await page.$('input[type="file"]'))) {
+  ok('no file inputs anywhere on the page')
+} else {
+  fail('the page still offers document uploads')
 }
 
 const editableInputs = await page.$$eval('input, select, textarea', (nodes) =>

@@ -164,8 +164,8 @@ export const getCompletionContractPreview = async (req, res) => {
       return res.status(404).json({ success: false, message: "Invalid or expired completion link" });
     }
 
-    const { html, contractNumber } = await renderContractPreviewHtml(booking._id);
-    res.json({ success: true, html, contractNumber });
+    const { html, contractNumber, source } = await renderContractPreviewHtml(booking._id);
+    res.json({ success: true, html, contractNumber, source });
   } catch (error) {
     console.error("[contract-preview]", error.message);
     const status = error.code === "TOKEN_EXPIRED" ? 410 : error.code === "VALIDATION" ? 400 : 500;
@@ -443,9 +443,14 @@ export const submitCompletionSignature = async (req, res) => {
 
     const signatureOnly = resolveCompletionMode(booking) === "signature_only";
 
-    // On a signature-only link the reservation is already complete, so anything the
+    // On a signature-only link the reservation belongs to the agency, so anything the
     // client sends alongside the signature is discarded rather than written. This is
     // the guarantee that a signer can never alter the booking they are signing for.
+    //
+    // The completeness gate is skipped with it: a desk booking may legitimately have
+    // blank identity fields (the walk-in form treats them as optional) and the signer
+    // has no way to fill them, so enforcing it here would only produce a dead end.
+    // Blank values render as "—" on the contract.
     if (!signatureOnly) {
       const hasDetailFields = [
         'customerName',
@@ -467,9 +472,14 @@ export const submitCompletionSignature = async (req, res) => {
       if (hasDetailFields) {
         applyCompletionDetailsToBooking(booking, detailsPayload, { scope: 'customer' });
       }
+      validateCompletionDetails(booking);
     }
 
-    validateCompletionDetails(booking);
+    // A contract still needs someone to name, on every path.
+    if (!String(booking.customerName || '').trim()) {
+      return res.status(400).json({ success: false, message: "This reservation has no customer name" });
+    }
+
     await booking.save();
 
     refreshCompletionFlags(booking);

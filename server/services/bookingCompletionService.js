@@ -22,21 +22,37 @@ export const SIGNATURE_REQUEST_STATUSES = ["none", "pending", "signed", "expired
 export const COMPLETION_MODES = ["signature_only", "full"];
 
 /**
+ * Channels where staff — not the customer — own the reservation data.
+ * `whatsapp` is excluded: that is a guest request from the public site, so the
+ * customer still has to supply their own identity details.
+ */
+export const DESK_CHANNELS = ["walk_in"];
+
+/**
  * How much the customer has to do on their completion link.
  *
- * `signature_only` — the reservation already carries every contract field, so the
- * link is locked down to "read the contract and sign". This is the normal outcome
- * for desk/walk-in reservations, where staff captured the details in person.
+ * `signature_only` — the link is locked down to "read the contract and sign".
  *
- * `full` — something the contract needs is still missing, so the customer is asked
- * to supply it first. This is the pre-existing online flow and is left untouched.
+ * `full` — the customer supplies their own contract details first. This is the
+ * pre-existing online flow and is left untouched.
  *
- * Derived rather than stored: the owner can complete a reservation after issuing a
- * link and it upgrades on the next request, and a link can never end up demanding a
- * signature for a contract that cannot be rendered.
+ * A desk (walk-in) reservation is ALWAYS signature-only. Staff entered whatever the
+ * agency needs face to face, and the walk-in form marks every identity field
+ * optional, so judging desk bookings by field completeness would drop real walk-ins
+ * into the customer wizard — which is exactly the bug this rule replaces. Missing
+ * values simply print as "—" on the contract; nothing downstream breaks.
+ *
+ * Guest bookings still upgrade to signature-only once the reservation carries every
+ * contract field, so an owner who completes one gets the locked link too.
+ *
+ * Derived rather than stored, so editing a reservation is reflected on the next
+ * request instead of being frozen at the moment the link was issued.
  */
-export const resolveCompletionMode = (booking) =>
-  getMissingCompletionFields(booking).length === 0 ? "signature_only" : "full";
+export const resolveCompletionMode = (booking) => {
+  const channel = booking?.channel || "online";
+  if (DESK_CHANNELS.includes(channel)) return "signature_only";
+  return getMissingCompletionFields(booking).length === 0 ? "signature_only" : "full";
+};
 
 export const isSignatureOnlyCompletion = (booking) => resolveCompletionMode(booking) === "signature_only";
 
@@ -91,11 +107,13 @@ export const syncSignatureRequestStatus = (booking, { persistLazyExpiry = false 
 export const getSignatureRequestSummary = (booking) => {
   const status = syncSignatureRequestStatus(booking);
   const c = booking.completion || {};
-  const missingFields = getMissingCompletionFields(booking);
+  const mode = resolveCompletionMode(booking);
   return {
     requestStatus: status,
-    mode: missingFields.length === 0 ? "signature_only" : "full",
-    missingFields,
+    mode,
+    // Informational only — on a desk booking these just print as "—" on the
+    // contract and never hold the signature link back.
+    missingFields: getMissingCompletionFields(booking),
     tokenExpiresAt: c.tokenExpiresAt || null,
     issuedAt: c.issuedAt || null,
     linkSentAt: c.linkSentAt || null,
@@ -609,9 +627,28 @@ export const tryFinalizeBookingCompletion = async (bookingId) => {
 };
 
 /**
- * Render the contract exactly as it will be issued, so the customer can read it
- * before signing. HTML only — no Puppeteer — because this runs on every page view
- * and the signed PDF is still produced by `tryFinalizeBookingCompletion`.
+ * Signed /uploads URLs baked into stored contract HTML expire after 7 days, so
+ * re-sign them before handing an archived contract to a customer.
+ */
+const resignUploadUrls = async (html) => {
+  if (!html || !String(html).includes("/uploads/")) return html;
+  const { appendSignedQuery } = await import("../middleware/uploadAccess.js");
+  return String(html).replace(
+    /(src|href)=(["'])([^"']*\/uploads\/[^"']*)\2/gi,
+    (_match, attr, quote, url) => `${attr}=${quote}${appendSignedQuery(url)}${quote}`,
+  );
+};
+
+/**
+ * The contract the customer reads before signing.
+ *
+ * Prefers the contract the owner already generated for this reservation — that is the
+ * reviewed document of record, and the whole point of "generate contract, then request
+ * signature". Falls back to rendering the default template live when none exists yet,
+ * so the link is never dead.
+ *
+ * HTML only, no Puppeteer: this runs on every page view, and the signed PDF is still
+ * produced by `tryFinalizeBookingCompletion`.
  */
 export const renderContractPreviewHtml = async (bookingId) => {
   const booking = await Booking.findById(bookingId).populate("car").populate("owner");
@@ -619,6 +656,20 @@ export const renderContractPreviewHtml = async (bookingId) => {
     const err = new Error("Booking not found");
     err.code = "VALIDATION";
     throw err;
+  }
+
+  const { default: Contract } = await import("../models/Contract.js");
+  const existing = await Contract.findOne({ booking: booking._id })
+    .sort({ createdAt: -1 })
+    .select("renderedHtml contractNumber")
+    .lean();
+
+  if (existing?.renderedHtml) {
+    return {
+      html: await resignUploadUrls(existing.renderedHtml),
+      contractNumber: existing.contractNumber || booking.reservationId || "",
+      source: "generated",
+    };
   }
 
   await ensureDefaultTemplates(booking.owner);
@@ -641,6 +692,7 @@ export const renderContractPreviewHtml = async (bookingId) => {
   return {
     html: buildDocumentHtml(template, variables),
     contractNumber,
+    source: "draft",
   };
 };
 
@@ -695,6 +747,7 @@ export const saveSignatureAndMaybeFinalize = async (
 export default {
   SIGNATURE_REQUEST_STATUSES,
   COMPLETION_MODES,
+  DESK_CHANNELS,
   resolveCompletionMode,
   isSignatureOnlyCompletion,
   syncSignatureRequestStatus,

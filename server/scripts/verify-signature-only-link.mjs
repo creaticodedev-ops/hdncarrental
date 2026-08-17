@@ -16,6 +16,7 @@ import {
   validateCompletionDetails,
 } from '../utils/applyCompletionDetails.js'
 import {
+  DESK_CHANNELS,
   getSignatureRequestSummary,
   isSignatureOnlyCompletion,
   resolveCompletionMode,
@@ -70,29 +71,62 @@ check('email stays optional — no email must not force the full flow', () => {
   assert.equal(resolveCompletionMode(noEmail), 'signature_only')
 })
 
-check('missing field falls back to the full customer flow', () => {
-  const booking = completeWalkIn({ placeOfBirth: '   ' })
-  const missing = getMissingCompletionFields(booking)
+// The regression this rule exists for: the walk-in form marks every identity field
+// optional, so a real desk booking is routinely missing several of them. It must
+// still produce a signature-only link.
+check('desk channel is signature_only regardless of blank fields', () => {
+  assert.deepEqual(DESK_CHANNELS, ['walk_in'])
+
+  const bare = {
+    channel: 'walk_in',
+    customerName: 'Zakaria Douami',
+    customerPhone: '+212611223344',
+    secondDriver: { enabled: false },
+    completion: {},
+  }
+  assert.ok(getMissingCompletionFields(bare).length >= 8, 'fixture should be missing most fields')
+  assert.equal(resolveCompletionMode(bare), 'signature_only')
+
+  // Every single required field blank except the two the walk-in form enforces.
+  for (const field of getMissingCompletionFields(completeWalkIn()).concat(
+    ['customerAddress', 'dateOfBirth', 'nationality', 'placeOfBirth', 'identityDocumentNumber',
+      'identityIssuedOn', 'driverLicenseNumber', 'driverLicenseExpiry', 'driverLicenseIssuedOn']
+      .map((f) => ({ field: f })),
+  )) {
+    assert.equal(resolveCompletionMode(completeWalkIn({ [field.field]: '' })), 'signature_only')
+  }
+})
+
+check('a walk-in with an owner-added second driver stays signature_only', () => {
+  const booking = completeWalkIn({
+    secondDriver: { enabled: true, fullName: 'Sara Idrissi', dateOfBirth: '', driverLicenseNumber: '' },
+  })
+  assert.equal(resolveCompletionMode(booking), 'signature_only')
+})
+
+check('guest booking with a missing field falls back to the full customer flow', () => {
+  const booking = completeWalkIn({ channel: 'online', placeOfBirth: '   ' })
   assert.deepEqual(
-    missing.map((m) => m.field),
+    getMissingCompletionFields(booking).map((m) => m.field),
     ['placeOfBirth'],
   )
   assert.equal(resolveCompletionMode(booking), 'full')
 })
 
-check('an incomplete second driver blocks signature_only', () => {
-  const booking = completeWalkIn({
-    secondDriver: { enabled: true, fullName: 'Sara Idrissi', dateOfBirth: '', driverLicenseNumber: '' },
-  })
-  assert.deepEqual(
-    getMissingCompletionFields(booking).map((m) => m.field),
-    ['secondDriver.dateOfBirth', 'secondDriver.driverLicenseNumber'],
-  )
-  assert.equal(resolveCompletionMode(booking), 'full')
+check('whatsapp is a guest channel, not a desk channel', () => {
+  assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'whatsapp', nationality: '' })), 'full')
+  assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'whatsapp' })), 'signature_only')
 })
 
-check('a complete second driver still allows signature_only', () => {
+check('a missing channel is treated as a guest booking', () => {
+  const legacy = completeWalkIn({ nationality: '' })
+  delete legacy.channel
+  assert.equal(resolveCompletionMode(legacy), 'full')
+})
+
+check('a complete guest booking upgrades to signature_only', () => {
   const booking = completeWalkIn({
+    channel: 'online',
     secondDriver: {
       enabled: true,
       fullName: 'Sara Idrissi',
@@ -101,6 +135,18 @@ check('a complete second driver still allows signature_only', () => {
     },
   })
   assert.equal(resolveCompletionMode(booking), 'signature_only')
+})
+
+check('an incomplete second driver blocks signature_only on guest bookings', () => {
+  const booking = completeWalkIn({
+    channel: 'online',
+    secondDriver: { enabled: true, fullName: 'Sara Idrissi', dateOfBirth: '', driverLicenseNumber: '' },
+  })
+  assert.deepEqual(
+    getMissingCompletionFields(booking).map((m) => m.field),
+    ['secondDriver.dateOfBirth', 'secondDriver.driverLicenseNumber'],
+  )
+  assert.equal(resolveCompletionMode(booking), 'full')
 })
 
 check('validation error carries the missing field list', () => {
@@ -131,16 +177,25 @@ check('owner signature summary reports the mode the customer will see', () => {
   assert.equal(summary.mode, 'signature_only')
   assert.deepEqual(summary.missingFields, [])
 
-  const incomplete = completeWalkIn({
+  // A desk booking with blanks reports them for the owner's information, but the
+  // mode must stay locked.
+  const deskBlanks = completeWalkIn({
     nationality: '',
     completion: { tokenHash: 'abc', tokenExpiresAt: new Date(Date.now() + 86_400_000) },
   })
-  const incompleteSummary = getSignatureRequestSummary(incomplete)
-  assert.equal(incompleteSummary.mode, 'full')
+  const deskSummary = getSignatureRequestSummary(deskBlanks)
+  assert.equal(deskSummary.mode, 'signature_only')
   assert.deepEqual(
-    incompleteSummary.missingFields.map((m) => m.field),
+    deskSummary.missingFields.map((m) => m.field),
     ['nationality'],
   )
+
+  const guest = completeWalkIn({
+    channel: 'online',
+    nationality: '',
+    completion: { tokenHash: 'abc', tokenExpiresAt: new Date(Date.now() + 86_400_000) },
+  })
+  assert.equal(getSignatureRequestSummary(guest).mode, 'full')
 })
 
 // ---- wiring assertions (source level, so they fail loudly on refactor) ----
@@ -179,8 +234,42 @@ check('signature endpoint discards detail fields when the link is locked', () =>
   assert.match(signBody, /const signatureOnly = resolveCompletionMode\(booking\) === "signature_only"/)
   assert.match(signBody, /if \(!signatureOnly\) \{[\s\S]*applyCompletionDetailsToBooking/)
   assert.match(signBody, /if \(!signatureOnly && !booking\.completion\.documentsComplete\)/)
-  // The contract must still be validated on every path.
-  assert.match(signBody, /validateCompletionDetails\(booking\);/)
+})
+
+// The bug that made a locked link unsignable: the completeness gate ran on every
+// path, so a desk booking with blank identity fields got a 400 the signer could
+// not act on. It must live inside the `!signatureOnly` branch.
+check('the completeness gate does not run on signature-only links', () => {
+  const signBody = controller.slice(
+    controller.indexOf('export const submitCompletionSignature'),
+    controller.indexOf('/** Owner: ensure a valid completion link exists'),
+  )
+  const branch = signBody.slice(
+    signBody.indexOf('if (!signatureOnly) {'),
+    signBody.indexOf('refreshCompletionFlags(booking)'),
+  )
+  const validateCalls = [...signBody.matchAll(/validateCompletionDetails\(booking\)/g)]
+  assert.equal(validateCalls.length, 1, 'expected exactly one completeness gate')
+  assert.ok(
+    branch.includes('validateCompletionDetails(booking)'),
+    'validateCompletionDetails must be inside the !signatureOnly branch',
+  )
+  // A contract still needs a name, on every path.
+  assert.match(signBody, /if \(!String\(booking\.customerName \|\| ''\)\.trim\(\)\)/)
+})
+
+check('the preview serves the contract the owner already generated', () => {
+  const previewBody = service.slice(
+    service.indexOf('export const renderContractPreviewHtml'),
+    service.indexOf('export const markCompletionPayment'),
+  )
+  assert.match(previewBody, /Contract\.findOne\(\{ booking: booking\._id \}\)/)
+  assert.match(previewBody, /\.sort\(\{ createdAt: -1 \}\)/)
+  assert.match(previewBody, /source: "generated"/)
+  // ...and still works before one exists.
+  assert.match(previewBody, /source: "draft"/)
+  // Stored HTML carries signed /uploads URLs that expire after 7 days.
+  assert.match(previewBody, /resignUploadUrls\(existing\.renderedHtml\)/)
 })
 
 check('finalization only demands uploads on the full flow', () => {
@@ -235,6 +324,15 @@ check('owner and server agree on the required contract fields', () => {
   const clientFields = [...clientBlock.matchAll(/\['([a-zA-Z]+)',/g)].map((m) => m[1])
   const serverFields = getMissingCompletionFields({}).map((m) => m.field)
   assert.deepEqual(clientFields, serverFields)
+})
+
+check('owner and server agree on which channels are desk channels', () => {
+  const helpers = read('client', 'src', 'components', 'owner', 'bookings', 'reservationHelpers.js')
+  const match = helpers.match(/export const DESK_CHANNELS = \[([^\]]*)\]/)
+  assert.ok(match, 'client must export DESK_CHANNELS')
+  const clientChannels = [...match[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1])
+  assert.deepEqual(clientChannels, DESK_CHANNELS)
+  assert.match(helpers, /DESK_CHANNELS\.includes\(booking\?\.channel \|\| 'online'\)/)
 })
 
 console.log(`\n${passed} checks passed`)
