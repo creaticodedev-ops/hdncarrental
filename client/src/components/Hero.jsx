@@ -1,19 +1,23 @@
-import React, { useMemo, useState } from 'react'
-import { HERO_IMAGE } from '../assets/assets'
+import React, { useMemo, useRef, useState } from 'react'
 import { useAppContext } from '../context/AppContext'
-import { motion as Motion } from 'framer-motion'
+import { motion as Motion, useReducedMotion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import DateRangePicker from './DateRangePicker'
 import CitySelect from './CitySelect'
+import HeroCarStage from './hero/HeroCarStage'
 import { BRAND_NAME } from '../constants/brand'
 import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
 
+const CINEMA = [0.16, 1, 0.3, 1]
+
 const Hero = () => {
   const [pickupLocation, setPickupLocation] = useState('')
   const { t } = useI18n()
   const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate, pickupLocations } = useAppContext()
+  const reduceMotion = useReducedMotion()
+  const heroRef = useRef(null)
 
   const cities = useMemo(() => {
     return [...new Set(pickupLocations.map((location) => location.city))].sort()
@@ -49,17 +53,18 @@ const Hero = () => {
   }
 
   return (
-    <section className="relative min-h-[100svh] overflow-x-clip bg-light">
+    <section ref={heroRef} className="relative min-h-[100svh] overflow-x-clip bg-light">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-10%,rgba(143,31,31,0.12),transparent_55%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-sand/80 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(143,31,31,0.14),transparent_58%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-sand/90 via-sand/35 to-transparent" />
+        <div className="absolute inset-x-0 bottom-[12%] h-px bg-gradient-to-r from-transparent via-ink/[0.06] to-transparent" />
       </div>
 
-      <div className="relative z-10 page-pad page-shell flex flex-col items-center pb-12 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] sm:pb-16 sm:pt-28 md:pb-20 md:pt-32">
+      <div className="relative z-10 page-pad page-shell flex flex-col items-center pb-4 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] sm:pb-6 sm:pt-28 md:pb-8 md:pt-32">
         <Motion.div
-          initial={{ opacity: 0, y: 18 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 22 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: 'easeOut' }}
+          transition={{ duration: 0.9, delay: reduceMotion ? 0 : 0.55, ease: CINEMA }}
           className="w-full max-w-3xl text-center"
         >
           <div className="mb-4 flex justify-center sm:mb-5 md:mb-6">
@@ -96,9 +101,9 @@ const Hero = () => {
         </Motion.div>
 
         <Motion.form
-          initial={{ opacity: 0, y: 22 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.12, ease: 'easeOut' }}
+          transition={{ duration: 0.9, delay: reduceMotion ? 0 : 0.78, ease: CINEMA }}
           onSubmit={handleSearch}
           className="mt-8 w-full max-w-4xl sm:mt-10 md:mt-12"
         >
@@ -147,25 +152,7 @@ const Hero = () => {
           </p>
         </Motion.form>
 
-        <Motion.div
-          initial={{ opacity: 0, y: 36 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.22, ease: 'easeOut' }}
-          className="mt-8 flex w-full max-w-3xl justify-center px-2 sm:mt-10 md:mt-14"
-        >
-          <picture>
-            <source srcSet={HERO_IMAGE.webp} type="image/webp" />
-            <img
-              src={HERO_IMAGE.webp}
-              alt={`${BRAND_NAME} premium rental`}
-              width={900}
-              height={506}
-              decoding="async"
-              fetchPriority="high"
-              className="max-h-[200px] w-full select-none object-contain drop-shadow-[0_30px_60px_rgba(22,18,16,0.18)] sm:max-h-[280px] md:max-h-[340px]"
-            />
-          </picture>
-        </Motion.div>
+        <HeroCarStage heroRef={heroRef} />
       </div>
     </section>
   )
