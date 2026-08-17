@@ -21,6 +21,7 @@ import {
 import { isPhoneValid } from '../components/PhoneInput'
 import { buildGuestReservationWaUrl, createExternalTabOpener } from '../utils/whatsapp'
 import ReservationPanel from '../components/reservation/ReservationPanel'
+import VehicleGallery from '../components/reservation/VehicleGallery'
 import { booking } from '../components/ui/bookingUi'
 import {
   trackCarView,
@@ -33,6 +34,53 @@ import { uniqueCarSlug } from '../seo/slugify'
 import { vehicleProductJsonLd } from '../seo/jsonLd'
 import { SITE_NAME } from '../seo/constants'
 import PromotionBadge from '../components/PromotionBadge'
+
+const stroke = {
+  className: 'h-4 w-4',
+  fill: 'none',
+  viewBox: '0 0 24 24',
+  stroke: 'currentColor',
+  strokeWidth: '1.6',
+  'aria-hidden': true,
+}
+
+const SpecIcons = {
+  fuel: (
+    <svg {...stroke}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 3v3.75m0 0h-6a1.5 1.5 0 00-1.5 1.5V21h9V8.25a1.5 1.5 0 00-1.5-1.5zM6.75 12h9M17.25 9l2.25 2.25V18a1.5 1.5 0 01-3 0v-3" />
+    </svg>
+  ),
+  gear: (
+    <svg {...stroke}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 4.5v15M6 12h12m0-7.5v15M12 4.5v7.5" />
+      <circle cx="6" cy="3.75" r="1.25" />
+      <circle cx="12" cy="3.75" r="1.25" />
+      <circle cx="18" cy="3.75" r="1.25" />
+    </svg>
+  ),
+  seat: (
+    <svg {...stroke}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75h4.5a2.25 2.25 0 012.25 2.25v7.5H9.75A2.25 2.25 0 017.5 11.25v-7.5zM14.25 13.5h3a2.25 2.25 0 012.25 2.25v1.5a2.25 2.25 0 01-2.25 2.25H9a4.5 4.5 0 01-4.5-4.5V9" />
+    </svg>
+  ),
+  body: (
+    <svg {...stroke}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 14.25h18m-18 0l1.8-5.4A2.25 2.25 0 016.93 7.5h10.14a2.25 2.25 0 012.13 1.35l1.8 5.4m-18 0V18a.75.75 0 00.75.75H5.25A.75.75 0 006 18v-.75h12V18a.75.75 0 00.75.75h1.5A.75.75 0 0021 18v-3.75" />
+      <path strokeLinecap="round" d="M6.75 17.25h.008v.008H6.75zM17.25 17.25h.008v.008h-.008z" />
+    </svg>
+  ),
+  calendar: (
+    <svg {...stroke}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M4.5 5.25h15a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V6a.75.75 0 01.75-.75z" />
+    </svg>
+  ),
+  pin: (
+    <svg {...stroke}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+    </svg>
+  ),
+}
 
 const toDateTimeLocal = (value) => {
   if (!value) return ''
@@ -683,19 +731,22 @@ const CarDetails = () => {
 
   if (!car) return <Loader />
 
+  // Only characteristics the Car model actually stores — nothing inferred.
   const specs = [
-    { icon: assets.users_icon, text: t('carDetails.seats', { count: car.seating_capacity }) },
-    { icon: assets.fuel_icon, text: car.fuel_type },
-    { icon: assets.car_icon, text: car.transmission },
-    { icon: assets.location_icon, text: formatLocationsDisplay(car) },
-  ]
+    { key: 'specFuel', value: car.fuel_type, icon: SpecIcons.fuel },
+    { key: 'specTransmission', value: car.transmission, icon: SpecIcons.gear },
+    { key: 'specSeats', value: car.seating_capacity, icon: SpecIcons.seat },
+    { key: 'specCategory', value: car.category, icon: SpecIcons.body },
+    { key: 'specYear', value: car.year, icon: SpecIcons.calendar },
+    { key: 'specCities', value: formatLocationsDisplay(car), icon: SpecIcons.pin },
+  ].filter((spec) => spec.value !== '' && spec.value != null)
 
   const seoSlug = uniqueCarSlug(car, cars)
   const seoPath = seoSlug ? `/cars/${seoSlug}` : `/car-details/${car._id}`
   const carName = `${car.brand || ''} ${car.model || ''}`.trim()
 
   return (
-    <div className={`page-pad page-shell mt-4 overflow-x-clip bg-gradient-to-b from-white via-white to-sand/40 sm:mt-8 md:mt-10 ${booking.pageBottom}`}>
+    <div className={`page-pad page-shell mt-5 overflow-x-clip sm:mt-8 md:mt-10 ${booking.pageBottom}`}>
       <SeoHead
         title={`Location ${carName} Maroc`}
         description={`Louez ${carName} avec ${SITE_NAME}. Réservation en ligne.`}
@@ -706,77 +757,103 @@ const CarDetails = () => {
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="booking-tap mb-5 inline-flex min-h-12 items-center gap-2 rounded-2xl px-2 text-sm text-muted transition hover:text-ink cursor-pointer sm:mb-7"
+        className="booking-tap mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted transition duration-200 hover:text-ink cursor-pointer sm:mb-8"
       >
-        <img src={assets.arrow_icon} alt="" className="w-4 rotate-180 opacity-55" />
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
         {t('carDetails.back')}
       </button>
 
-      <div className="grid grid-cols-1 gap-7 lg:grid-cols-12 lg:gap-10 xl:gap-14">
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10 xl:gap-12">
         <div className="order-2 min-w-0 lg:order-1 lg:col-span-7 xl:col-span-8">
-          <Motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-            <div className="relative overflow-hidden rounded-[1.35rem] bg-sand/40 shadow-sm ring-1 ring-borderColor/70 sm:rounded-3xl">
-              <img
-                src={car.image || car.images?.[0] || fallbackImage}
-                onError={(e) => { e.currentTarget.src = fallbackImage }}
+          <Motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+            <div className={`${booking.card} overflow-hidden`}>
+              <VehicleGallery
+                car={car}
+                fallbackImage={fallbackImage}
+                currency={currency}
                 alt={`${car.brand} ${car.model}`}
-                width={1280}
-                height={720}
-                fetchPriority="high"
-                decoding="async"
-                className="aspect-[16/10] w-full object-cover sm:aspect-[16/9]"
               />
-              {car.displayPromotion ? (
-                <PromotionBadge promotion={car.displayPromotion} currency={currency} />
-              ) : null}
-            </div>
 
-            <div className="mt-6 sm:mt-8">
-              <p className={booking.eyebrow}>{car.category}</p>
-              <h1 className="font-display mt-1.5 text-[1.75rem] font-medium leading-tight text-ink sm:text-3xl lg:text-4xl">
-                {car.brand} {car.model}
-              </h1>
-              <p className="mt-1.5 text-sm text-muted">{car.year}</p>
-              {car.displayPromotion ? (
-                <div className="mt-4 max-w-lg">
-                  <PromotionBadge
-                    promotion={car.displayPromotion}
-                    currency={currency}
-                    variant="detail"
-                    showPrice
-                  />
+              <div className="px-5 pb-7 pt-6 sm:px-8 sm:pb-9 sm:pt-8">
+                {car.category ? <span className={booking.pill}>{car.category}</span> : null}
+
+                <h1 className="mt-3 font-sans text-[1.65rem] font-semibold leading-[1.12] tracking-tight text-ink sm:text-[2.15rem] lg:text-[2.35rem]">
+                  {car.brand} {car.model} {car.year}
+                </h1>
+
+                <p className="mt-2 text-sm text-muted sm:text-[15px]">
+                  {[car.category, car.transmission, car.seating_capacity ? t('carDetails.seats', { count: car.seating_capacity }) : null]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </p>
+
+                {car.displayPromotion ? (
+                  <div className="mt-5 max-w-lg">
+                    <PromotionBadge
+                      promotion={car.displayPromotion}
+                      currency={currency}
+                      variant="detail"
+                      showPrice
+                    />
+                  </div>
+                ) : null}
+
+                {specs.length ? (
+                  <ul className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+                    {specs.map(({ key, value, icon }) => (
+                      <li key={key} className={booking.specTile}>
+                        <span className={booking.iconWrap}>{icon}</span>
+                        <span className="min-w-0">
+                          <span className="block text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted">
+                            {t(`carDetails.${key}`)}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[13px] font-semibold text-ink" title={String(value)}>
+                            {value}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <div className="mt-8 flex flex-col gap-6 border-t border-borderColor/60 pt-7 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
+                  {car.description ? (
+                    <section className="min-w-0 flex-1">
+                      <h2 className={booking.label}>{t('carDetails.description')}</h2>
+                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink/75">{car.description}</p>
+                    </section>
+                  ) : null}
+                  <div className="shrink-0 sm:text-right">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                      {t('carDetails.startingFrom')}
+                    </p>
+                    <p className="mt-1.5 flex items-baseline gap-1.5 sm:justify-end">
+                      <span className="font-sans text-[1.85rem] font-semibold leading-none tracking-tight tabular-nums text-primary sm:text-[2.1rem]">
+                        {currency}{car.pricePerDay}
+                      </span>
+                      <span className="text-sm text-muted">{t('carDetails.perDay')}</span>
+                    </p>
+                  </div>
                 </div>
-              ) : null}
-            </div>
 
-            <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
-              {specs.map(({ icon, text }) => (
-                <span
-                  key={text}
-                  className="inline-flex items-center gap-2 rounded-full border border-borderColor/80 bg-white px-3.5 py-2 text-xs font-medium text-ink/80 shadow-sm"
-                >
-                  <img src={icon} alt="" className="h-4 w-4 opacity-70" />
-                  {text}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-9 grid gap-8 sm:mt-10 sm:grid-cols-2 sm:gap-10">
-              <section>
-                <h2 className={booking.label}>{t('carDetails.description')}</h2>
-                <p className="mt-3 text-sm leading-relaxed text-ink/75">{car.description}</p>
-              </section>
-              <section>
-                <h2 className={booking.label}>{t('carDetails.features')}</h2>
-                <ul className="mt-3 space-y-2.5">
-                  {(car.features?.length ? car.features : ['360 Camera', 'Bluetooth', 'GPS', 'Heated Seats']).map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm text-ink/75">
-                      <img src={assets.check_icon} className="h-4 w-4 shrink-0 opacity-80" alt="" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                {car.features?.length ? (
+                  <section className="mt-8">
+                    <h2 className={booking.label}>{t('carDetails.features')}</h2>
+                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                      {car.features.map((item) => (
+                        <li key={item} className="flex items-center gap-2.5 text-sm text-ink/75">
+                          <svg className="h-4 w-4 shrink-0 text-primary" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                          </svg>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
             </div>
           </Motion.div>
         </div>

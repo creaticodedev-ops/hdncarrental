@@ -16,6 +16,12 @@ const MONTHS = {
 
 const pad = (n) => String(n).padStart(2, '0')
 
+const CalendarGlyph = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M4.5 5.25h15a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V6a.75.75 0 01.75-.75z" />
+  </svg>
+)
+
 export const toISODate = (date) => {
   if (!date) return ''
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -183,6 +189,8 @@ const DateRangePicker = ({
   returnLabel,
   className = '',
   hint = '',
+  /** `joined` = hero search bar. `split` = two independent reservation fields. */
+  variant = 'joined',
 }) => {
   const { t, language } = useI18n()
   const [open, setOpen] = useState(false)
@@ -368,6 +376,30 @@ const DateRangePicker = ({
   const fieldBase =
     'booking-tap flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 cursor-pointer rounded-2xl md:rounded-none flex flex-col justify-center'
 
+  const splitField = (active, onClick, label, value, empty) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`booking-tap flex min-h-12 w-full items-center gap-3 rounded-[0.9rem] border bg-white px-3.5 text-left transition duration-200 cursor-pointer ${
+        open && active
+          ? 'border-primary/40 shadow-[0_0_0_4px_rgba(143,31,31,0.08)]'
+          : 'border-borderColor/80 hover:border-ink/15'
+      }`}
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
+        <CalendarGlyph />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+          {label}
+        </span>
+        <span className={`block truncate text-[15px] leading-none ${value ? 'font-medium text-ink' : 'text-muted/55'}`}>
+          {value || empty}
+        </span>
+      </span>
+    </button>
+  )
+
   const calendarPanel = open && (
     <div
       ref={panelRef}
@@ -485,33 +517,52 @@ const DateRangePicker = ({
 
   return (
     <div className={`relative ${className}`} ref={wrapRef}>
-      <div className="flex flex-col divide-y divide-borderColor/80 md:flex-row md:items-stretch md:divide-x md:divide-y-0">
-        <button
-          type="button"
-          onClick={() => openCalendar('start')}
-          className={`${fieldBase} ${open && activeField === 'start' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
-        >
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-            {pickupLabel || t('hero.pickupDate')}
-          </p>
-          <p className={`truncate text-[15px] leading-none ${startDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
-            {startDate ? formatShort(startDate, language) : t('hero.selectPickup')}
-          </p>
-        </button>
+      {variant === 'split' ? (
+        <div className="grid grid-cols-2 gap-3 [&>button]:min-w-0">
+          {splitField(
+            activeField === 'start',
+            () => openCalendar('start'),
+            pickupLabel || t('hero.pickupDate'),
+            startDate ? formatShort(startDate, language) : '',
+            t('hero.selectPickup'),
+          )}
+          {splitField(
+            activeField === 'end',
+            () => openCalendar(start ? 'end' : 'start'),
+            returnLabel || t('hero.returnDate'),
+            endDate ? formatShort(endDate, language) : '',
+            t('hero.selectReturn'),
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col divide-y divide-borderColor/80 md:flex-row md:items-stretch md:divide-x md:divide-y-0">
+          <button
+            type="button"
+            onClick={() => openCalendar('start')}
+            className={`${fieldBase} ${open && activeField === 'start' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
+          >
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+              {pickupLabel || t('hero.pickupDate')}
+            </p>
+            <p className={`truncate text-[15px] leading-none ${startDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
+              {startDate ? formatShort(startDate, language) : t('hero.selectPickup')}
+            </p>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => openCalendar(start ? 'end' : 'start')}
-          className={`${fieldBase} ${open && activeField === 'end' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
-        >
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-            {returnLabel || t('hero.returnDate')}
-          </p>
-          <p className={`truncate text-[15px] leading-none ${endDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
-            {endDate ? formatShort(endDate, language) : t('hero.selectReturn')}
-          </p>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => openCalendar(start ? 'end' : 'start')}
+            className={`${fieldBase} ${open && activeField === 'end' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
+          >
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+              {returnLabel || t('hero.returnDate')}
+            </p>
+            <p className={`truncate text-[15px] leading-none ${endDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
+              {endDate ? formatShort(endDate, language) : t('hero.selectReturn')}
+            </p>
+          </button>
+        </div>
+      )}
 
       {open && createPortal(calendarPanel, document.body)}
     </div>

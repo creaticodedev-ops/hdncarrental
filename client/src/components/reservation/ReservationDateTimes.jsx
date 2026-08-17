@@ -148,37 +148,38 @@ export default function ReservationDateTimes({
   return (
     <div className="space-y-4">
       {rulesLoading ? (
-        <p className="rounded-2xl border border-borderColor/70 bg-light/70 px-3.5 py-2.5 text-xs leading-relaxed text-muted sm:text-[13px]">
-          {t('carDetails.rulesLoading')}
-        </p>
+        <p className={`${booking.notice} ${booking.noticeQuiet}`}>{t('carDetails.rulesLoading')}</p>
       ) : null}
       {spanReady && minDays > 1 ? (
-        <p className="rounded-2xl border border-primary/15 bg-primary/[0.04] px-3.5 py-2.5 text-xs leading-relaxed text-ink/80 sm:text-[13px]">
-          {t('carDetails.minRentalGuide', { days: minDays })}
+        <p className={`${booking.notice} border-primary/15 bg-primary/[0.06] text-ink/80`}>
+          <svg className="mt-px h-4 w-4 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M4.5 5.25h15a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V6a.75.75 0 01.75-.75z" />
+          </svg>
+          <span className="min-w-0 font-medium">{t('carDetails.minRentalNotice', { days: minDays })}</span>
         </p>
       ) : null}
-      <div className="overflow-hidden rounded-2xl border border-borderColor/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
-        {spanReady ? (
-          <DateRangePicker
-            startDate={startISO}
-            endDate={endISO}
-            onChange={handleRangeChange}
-            minDate={minDate}
-            maxDate={maxDate}
-            minSpanDays={minDays}
-            maxSpanDays={maxDays || 0}
-            unavailablePeriods={unavailablePeriods}
-            pickupLabel={t('carDetails.pickupDate')}
-            returnLabel={t('carDetails.returnDate')}
-            className="w-full"
-            hint={minDays > 1 ? t('carDetails.minRentalGuide', { days: minDays }) : ''}
-          />
-        ) : (
-          <div className="flex h-[3.75rem] items-center px-4 text-sm text-muted" aria-busy="true">
-            {t('carDetails.rulesLoading')}
-          </div>
-        )}
-      </div>
+      {spanReady ? (
+        <DateRangePicker
+          startDate={startISO}
+          endDate={endISO}
+          onChange={handleRangeChange}
+          minDate={minDate}
+          maxDate={maxDate}
+          minSpanDays={minDays}
+          maxSpanDays={maxDays || 0}
+          unavailablePeriods={unavailablePeriods}
+          pickupLabel={t('carDetails.pickupDate')}
+          returnLabel={t('carDetails.returnDate')}
+          className="w-full"
+          hint={minDays > 1 ? t('carDetails.minRentalGuide', { days: minDays }) : ''}
+          variant="split"
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-3" aria-busy="true">
+          <div className={`${booking.fieldShell} text-sm text-muted`}>{t('carDetails.rulesLoading')}</div>
+          <div className={`${booking.fieldShell} text-sm text-muted`}>{t('carDetails.rulesLoading')}</div>
+        </div>
+      )}
       {dateError ? (
         <p className="rounded-2xl border border-red-200 bg-red-50/90 px-3.5 py-2.5 text-xs leading-relaxed text-red-700 sm:text-[13px]" role="alert">
           {dateError}
