@@ -4,6 +4,7 @@ import { SignatureBadge } from './ReservationBadges'
 import {
   customerEmail,
   formatDateTime,
+  getMissingContractFields,
   getSignatureStatus,
   reservationRef,
   vehicleLabel,
@@ -22,6 +23,7 @@ const SignatureRequestDrawer = ({
   onResend,
   onShare,
   onCancelRequest,
+  onEditReservation,
 }) => {
   if (!booking) return null
   const status = getSignatureStatus(booking)
@@ -29,6 +31,8 @@ const SignatureRequestDrawer = ({
   const pending = status === 'pending'
   const showLinkActions = Boolean(linkUrl) || pending
   const canGenerate = !signed && !showLinkActions
+  const missingFields = getMissingContractFields(booking)
+  const signatureOnly = missingFields.length === 0
 
   return (
     <AdminDrawer
@@ -97,7 +101,44 @@ const SignatureRequestDrawer = ({
           <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-success-soft)] px-4 py-3 text-sm text-[var(--admin-success)]">
             {t('admin.bookings.signatureDrawerSigned')}
           </div>
-        ) : null}
+        ) : signatureOnly ? (
+          <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-success-soft)] px-4 py-3">
+            <p className="text-sm font-semibold text-[var(--admin-success)]">
+              {t('admin.bookings.linkModeSignatureOnly')}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--admin-muted)]">
+              {t('admin.bookings.linkModeSignatureOnlyHint')}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-warn-soft)] px-4 py-3">
+            <p className="text-sm font-semibold text-[var(--admin-warn)]">
+              {t('admin.bookings.linkModeFull')}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--admin-muted)]">
+              {t('admin.bookings.linkModeFullHint')}
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {missingFields.map((key) => (
+                <li
+                  key={key}
+                  className="rounded-full border border-[var(--admin-border)] bg-[var(--admin-surface)] px-2 py-0.5 text-[11px] text-[var(--admin-ink)]"
+                >
+                  {t(`admin.contracts.${key}`)}
+                </li>
+              ))}
+            </ul>
+            {onEditReservation ? (
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary admin-btn-sm mt-3"
+                onClick={onEditReservation}
+              >
+                {t('admin.bookings.completeReservation')}
+              </button>
+            ) : null}
+          </div>
+        )}
 
         {(linkUrl || pending) && !signed ? (
           <DrawerSection title={t('admin.bookings.secureLink')} description={t('admin.bookings.linkHint')}>

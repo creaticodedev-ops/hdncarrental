@@ -984,6 +984,10 @@ const ManageBookings = () => {
         onResend={() => resendCompletionLink(selectedBooking._id)}
         onShare={() => confirmViaWhatsApp(selectedBooking)}
         onCancelRequest={() => setConfirmAction({ type: 'cancelLink', bookingId: selectedBooking._id })}
+        onEditReservation={() => {
+          setSignatureOpen(false)
+          startEdit(selectedBooking)
+        }}
       />
 
       <AdminDrawer

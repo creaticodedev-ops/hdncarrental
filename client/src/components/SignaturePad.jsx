@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useI18n } from '../i18n/I18nContext'
 
 /**
  * Lightweight browser signature pad — no external dependency.
  */
 const SignaturePad = ({ onChange, className = '', disabled = false }) => {
+  const { t } = useI18n()
   const canvasRef = useRef(null)
   const drawing = useRef(false)
   const [hasInk, setHasInk] = useState(false)
@@ -99,9 +101,11 @@ const SignaturePad = ({ onChange, className = '', disabled = false }) => {
         />
       </div>
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-xs text-muted">{hasInk ? 'Signature captured' : 'Sign above using your mouse or finger'}</p>
+        <p className="text-xs text-muted">
+          {hasInk ? t('completion.padCaptured') : t('completion.padHint')}
+        </p>
         <button type="button" onClick={clear} disabled={disabled || !hasInk} className="text-xs text-primary hover:underline cursor-pointer disabled:opacity-40">
-          Clear
+          {t('completion.padClear')}
         </button>
       </div>
     </div>

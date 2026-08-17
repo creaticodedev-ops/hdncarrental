@@ -114,6 +114,51 @@ export const getSignatureStatus = (booking) => {
   return 'none'
 }
 
+/**
+ * Contract fields the reservation must carry before a customer can just sign.
+ * Mirrors the server's required list — the server stays the authority on whether a
+ * link is signature-only, this is only so the owner can see it before sending.
+ * Values are `admin.contracts.*` translation keys.
+ */
+const CONTRACT_FIELDS = [
+  ['customerName', 'customerName'],
+  ['customerPhone', 'phone'],
+  ['customerAddress', 'address'],
+  ['dateOfBirth', 'dateOfBirth'],
+  ['nationality', 'nationality'],
+  ['placeOfBirth', 'placeOfBirth'],
+  ['identityDocumentNumber', 'identityNumber'],
+  ['identityIssuedOn', 'identityIssued'],
+  ['driverLicenseNumber', 'driverLicense'],
+  ['driverLicenseExpiry', 'licenseExpiry'],
+  ['driverLicenseIssuedOn', 'licenseIssued'],
+]
+
+const SECOND_DRIVER_FIELDS = [
+  ['fullName', 'secondDriverName'],
+  ['dateOfBirth', 'secondDriverDob'],
+  ['driverLicenseNumber', 'driverLicense'],
+]
+
+const isBlank = (value) => value === undefined || value === null || String(value).trim() === ''
+
+/** Translation keys for the contract fields still empty on this reservation. */
+export const getMissingContractFields = (booking) => {
+  if (!booking) return []
+  const missing = CONTRACT_FIELDS.filter(([field]) => isBlank(booking[field])).map(([, key]) => key)
+  const sd = booking.secondDriver
+  if (sd?.enabled) {
+    for (const [field, key] of SECOND_DRIVER_FIELDS) {
+      if (isBlank(sd[field])) missing.push(key)
+    }
+  }
+  return missing
+}
+
+/** What the customer will see when they open the signature link. */
+export const getCompletionMode = (booking) =>
+  getMissingContractFields(booking).length === 0 ? 'signature_only' : 'full'
+
 export const getPaymentDisplay = (booking) => {
   const ps = booking?.paymentStatus || 'pending'
   if (ps === 'paid') return 'paid'

@@ -15,8 +15,30 @@ import { upsertContractFromCompletion } from "./documentInstanceService.js";
 import { logAudit } from "../utils/adminOps.js";
 import { storeDataUrlImage } from "./documentStore.js";
 import { escapeRegex } from "../utils/helpers.js";
+import { getMissingCompletionFields } from "../utils/applyCompletionDetails.js";
 
 export const SIGNATURE_REQUEST_STATUSES = ["none", "pending", "signed", "expired", "cancelled"];
+
+export const COMPLETION_MODES = ["signature_only", "full"];
+
+/**
+ * How much the customer has to do on their completion link.
+ *
+ * `signature_only` — the reservation already carries every contract field, so the
+ * link is locked down to "read the contract and sign". This is the normal outcome
+ * for desk/walk-in reservations, where staff captured the details in person.
+ *
+ * `full` — something the contract needs is still missing, so the customer is asked
+ * to supply it first. This is the pre-existing online flow and is left untouched.
+ *
+ * Derived rather than stored: the owner can complete a reservation after issuing a
+ * link and it upgrades on the next request, and a link can never end up demanding a
+ * signature for a contract that cannot be rendered.
+ */
+export const resolveCompletionMode = (booking) =>
+  getMissingCompletionFields(booking).length === 0 ? "signature_only" : "full";
+
+export const isSignatureOnlyCompletion = (booking) => resolveCompletionMode(booking) === "signature_only";
 
 const formatDt = (v) => {
   if (!v) return "—";
@@ -69,8 +91,11 @@ export const syncSignatureRequestStatus = (booking, { persistLazyExpiry = false 
 export const getSignatureRequestSummary = (booking) => {
   const status = syncSignatureRequestStatus(booking);
   const c = booking.completion || {};
+  const missingFields = getMissingCompletionFields(booking);
   return {
     requestStatus: status,
+    mode: missingFields.length === 0 ? "signature_only" : "full",
+    missingFields,
     tokenExpiresAt: c.tokenExpiresAt || null,
     issuedAt: c.issuedAt || null,
     linkSentAt: c.linkSentAt || null,
@@ -433,7 +458,10 @@ export const tryFinalizeBookingCompletion = async (bookingId) => {
   const flags = refreshCompletionFlags(booking);
   await booking.save();
 
-  if (!flags.documentsComplete || !flags.signatureComplete) {
+  // Signature-only links never ask for document scans — the agency already holds
+  // them — so uploads only gate finalization on the full customer flow.
+  const documentsRequired = resolveCompletionMode(booking) === "full";
+  if (!flags.signatureComplete || (documentsRequired && !flags.documentsComplete)) {
     return { finalized: false, booking, flags };
   }
 
@@ -580,6 +608,42 @@ export const tryFinalizeBookingCompletion = async (bookingId) => {
   return { finalized: true, booking, flags, emailResult: finalEmailResult };
 };
 
+/**
+ * Render the contract exactly as it will be issued, so the customer can read it
+ * before signing. HTML only — no Puppeteer — because this runs on every page view
+ * and the signed PDF is still produced by `tryFinalizeBookingCompletion`.
+ */
+export const renderContractPreviewHtml = async (bookingId) => {
+  const booking = await Booking.findById(bookingId).populate("car").populate("owner");
+  if (!booking) {
+    const err = new Error("Booking not found");
+    err.code = "VALIDATION";
+    throw err;
+  }
+
+  await ensureDefaultTemplates(booking.owner);
+  const template = await getDefaultContractTemplate(booking.owner);
+  if (!template) {
+    const err = new Error("No contract template is configured. Please contact the agency.");
+    err.code = "VALIDATION";
+    throw err;
+  }
+
+  const { buildDocumentHtml, buildTemplateVariables } = await import("./templateEngine.js");
+  const contractNumber =
+    booking.reservationId || `CTR-${booking._id.toString().slice(-8).toUpperCase()}`;
+  const variables = buildTemplateVariables(booking.toObject ? booking.toObject() : booking, {
+    contractNumber,
+    owner: booking.owner,
+    template,
+  });
+
+  return {
+    html: buildDocumentHtml(template, variables),
+    contractNumber,
+  };
+};
+
 export const markCompletionPayment = async (booking, { paymentType, amount, stripeSessionId = "" }) => {
   booking.completion = booking.completion || {};
   booking.completion.paymentType = paymentType;
@@ -630,6 +694,9 @@ export const saveSignatureAndMaybeFinalize = async (
 
 export default {
   SIGNATURE_REQUEST_STATUSES,
+  COMPLETION_MODES,
+  resolveCompletionMode,
+  isSignatureOnlyCompletion,
   syncSignatureRequestStatus,
   getSignatureRequestSummary,
   initiateBookingCompletion,
@@ -639,6 +706,7 @@ export default {
   listSignatureRequests,
   findBookingByCompletionToken,
   refreshCompletionFlags,
+  renderContractPreviewHtml,
   tryFinalizeBookingCompletion,
   markCompletionPayment,
   saveSignatureAndMaybeFinalize,

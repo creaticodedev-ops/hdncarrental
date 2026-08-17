@@ -4,6 +4,7 @@ import {
   confirmStripePayment,
   createCompletionPayment,
   getCompletionBooking,
+  getCompletionContractPreview,
   resendCompletionLink,
   ensureCompletionLink,
   cancelCompletionLink,
@@ -35,13 +36,15 @@ completionRouter.get("/owner/email-diagnostics", ...ownerGate, emailDiagnostics)
 completionRouter.post("/owner/test-email", ...ownerGate, sendTestEmail);
 
 completionRouter.get("/:token", tokenLimit, getCompletionBooking);
+completionRouter.get("/:token/contract-preview", tokenLimit, getCompletionContractPreview);
 completionRouter.post(
   "/:token/documents",
   tokenLimit,
   upload.single("file"),
   handleMulterError,
   uploadCompletionDocument
-);completionRouter.post("/:token/details", tokenLimit, saveCompletionDetails);
+);
+completionRouter.post("/:token/details", tokenLimit, saveCompletionDetails);
 completionRouter.post("/:token/payment/create", tokenLimit, createCompletionPayment);
 completionRouter.post("/:token/payment/demo-confirm", tokenLimit, confirmDemoPayment);
 completionRouter.post("/:token/payment/stripe-confirm", tokenLimit, confirmStripePayment);

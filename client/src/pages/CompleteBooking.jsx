@@ -17,6 +17,7 @@ import {
   formInputOnLightClass,
 } from '../components/forms/PremiumFormUI'
 import NoIndexHead from '../seo/NoIndexHead'
+import SignatureOnlyCompletion from './completion/SignatureOnlyCompletion'
 
 const STEPS = ['documents', 'signature', 'done']
 
@@ -340,6 +341,22 @@ const CompleteBooking = () => {
           {t('completion.backHome')}
         </Link>
       </div>
+    )
+  }
+
+  // Reservations that already carry every contract field get a locked, sign-only
+  // page. The wizard below stays exactly as it was for everyone else.
+  if (booking?.mode === 'signature_only') {
+    return (
+      <>
+        <NoIndexHead title={t('completion.only.title')} />
+        <SignatureOnlyCompletion
+          token={token}
+          api={api}
+          booking={booking}
+          onBookingChange={setBooking}
+        />
+      </>
     )
   }
 

@@ -8,6 +8,8 @@ import {
   getSignatureRequestSummary,
   markCompletionPayment,
   refreshCompletionFlags,
+  renderContractPreviewHtml,
+  resolveCompletionMode,
   saveSignatureAndMaybeFinalize,
   tryFinalizeBookingCompletion,
 } from "../services/bookingCompletionService.js";
@@ -49,6 +51,21 @@ const safePublicError = (error, fallback) => {
   return fallback;
 };
 
+/**
+ * A signature-only link exposes the reservation read-only. Anything that would let
+ * the holder of the link rewrite the booking is refused rather than ignored, so a
+ * tampered client gets a clear error instead of a silent no-op.
+ */
+const rejectIfSignatureOnly = (booking, res) => {
+  if (resolveCompletionMode(booking) !== "signature_only") return false;
+  res.status(403).json({
+    success: false,
+    code: "SIGNATURE_ONLY",
+    message: "This link is for signing only. Contact the agency to change reservation details.",
+  });
+  return true;
+};
+
 const publicBookingView = (booking) => {
   const c = booking.completion || {};
   const flags = {
@@ -59,6 +76,7 @@ const publicBookingView = (booking) => {
   return {
     reservationId: booking.reservationId,
     status: booking.status,
+    mode: resolveCompletionMode(booking),
     requestStatus: c.requestStatus || (flags.signatureComplete ? "signed" : "pending"),
     customerName: booking.customerName,
     customerEmail: booking.customerEmail,
@@ -138,6 +156,26 @@ export const getCompletionBooking = async (req, res) => {
   }
 };
 
+/** Read-only render of the contract the customer is about to sign. */
+export const getCompletionContractPreview = async (req, res) => {
+  try {
+    const booking = await findBookingByCompletionToken(req.params.token);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Invalid or expired completion link" });
+    }
+
+    const { html, contractNumber } = await renderContractPreviewHtml(booking._id);
+    res.json({ success: true, html, contractNumber });
+  } catch (error) {
+    console.error("[contract-preview]", error.message);
+    const status = error.code === "TOKEN_EXPIRED" ? 410 : error.code === "VALIDATION" ? 400 : 500;
+    res.status(status).json({
+      success: false,
+      message: safePublicError(error, "Could not load the contract. Please contact the agency."),
+    });
+  }
+};
+
 export const uploadCompletionDocument = async (req, res) => {
   let file = req.file;
   try {
@@ -145,6 +183,7 @@ export const uploadCompletionDocument = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: "Invalid or expired completion link" });
     }
+    if (rejectIfSignatureOnly(booking, res)) return;
     if (booking.status === "ready_for_pickup") {
       return res.status(400).json({ success: false, message: "This reservation is already complete" });
     }
@@ -203,6 +242,7 @@ export const saveCompletionDetails = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: "Invalid or expired completion link" });
     }
+    if (rejectIfSignatureOnly(booking, res)) return;
     if (booking.status === "ready_for_pickup") {
       return res.status(400).json({ success: false, message: "This reservation is already complete" });
     }
@@ -401,33 +441,39 @@ export const submitCompletionSignature = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please provide your signature" });
     }
 
-    // Persist any last-minute form fields sent with the signature step
-    const hasDetailFields = [
-      'customerName',
-      'customerEmail',
-      'customerPhone',
-      'dateOfBirth',
-      'nationality',
-      'customerAddress',
-      'placeOfBirth',
-      'identityDocumentNumber',
-      'identityIssuedOn',
-      'driverLicenseNumber',
-      'driverLicenseExpiry',
-      'driverLicenseIssuedOn',
-      'passportNumber',
-      'secondDriver',
-    ].some((k) => detailsPayload[k] !== undefined);
+    const signatureOnly = resolveCompletionMode(booking) === "signature_only";
 
-    if (hasDetailFields) {
-      applyCompletionDetailsToBooking(booking, detailsPayload, { scope: 'customer' });
+    // On a signature-only link the reservation is already complete, so anything the
+    // client sends alongside the signature is discarded rather than written. This is
+    // the guarantee that a signer can never alter the booking they are signing for.
+    if (!signatureOnly) {
+      const hasDetailFields = [
+        'customerName',
+        'customerEmail',
+        'customerPhone',
+        'dateOfBirth',
+        'nationality',
+        'customerAddress',
+        'placeOfBirth',
+        'identityDocumentNumber',
+        'identityIssuedOn',
+        'driverLicenseNumber',
+        'driverLicenseExpiry',
+        'driverLicenseIssuedOn',
+        'passportNumber',
+        'secondDriver',
+      ].some((k) => detailsPayload[k] !== undefined);
+
+      if (hasDetailFields) {
+        applyCompletionDetailsToBooking(booking, detailsPayload, { scope: 'customer' });
+      }
     }
+
     validateCompletionDetails(booking);
     await booking.save();
 
-    // Require docs before signature
     refreshCompletionFlags(booking);
-    if (!booking.completion.documentsComplete) {
+    if (!signatureOnly && !booking.completion.documentsComplete) {
       return res.status(400).json({ success: false, message: "Upload required documents first" });
     }
 
@@ -644,6 +690,7 @@ export const adminInitiateCompletion = initiateBookingCompletion;
 
 export default {
   getCompletionBooking,
+  getCompletionContractPreview,
   uploadCompletionDocument,
   createCompletionPayment,
   confirmDemoPayment,

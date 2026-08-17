@@ -87,37 +87,62 @@ export const applyCompletionDetailsToBooking = (booking, body = {}, options = {}
  */
 export const isSyntheticWalkInEmail = isPlaceholderEmail;
 
-/** Required fields before signature / contract generation */
-export const validateCompletionDetails = (booking) => {
-  const missing = [];
-  const req = (field, label) => {
-    const v = booking[field];
-    if (v === undefined || v === null || String(v).trim() === '') missing.push(label);
-  };
+/**
+ * Fields a booking must carry before a contract can be signed.
+ * Email is deliberately absent: desk customers are identified by phone and
+ * contracts print "—" when there is no address to show.
+ */
+const REQUIRED_COMPLETION_FIELDS = [
+  ['customerName', 'customer name'],
+  ['customerPhone', 'customer phone'],
+  ['customerAddress', 'address'],
+  ['dateOfBirth', 'date of birth'],
+  ['nationality', 'nationality'],
+  ['placeOfBirth', 'place of birth'],
+  ['identityDocumentNumber', 'identity document number'],
+  ['identityIssuedOn', 'identity issued date'],
+  ['driverLicenseNumber', 'driver license number'],
+  ['driverLicenseExpiry', 'driver license expiry'],
+  ['driverLicenseIssuedOn', 'driver license issued date'],
+];
 
-  req('customerName', 'customer name');
-  // Email is optional: desk customers are identified by phone and contracts print "—".
-  req('customerPhone', 'customer phone');
-  req('customerAddress', 'address');
-  req('dateOfBirth', 'date of birth');
-  req('nationality', 'nationality');
-  req('placeOfBirth', 'place of birth');
-  req('identityDocumentNumber', 'identity document number');
-  req('identityIssuedOn', 'identity issued date');
-  req('driverLicenseNumber', 'driver license number');
-  req('driverLicenseExpiry', 'driver license expiry');
-  req('driverLicenseIssuedOn', 'driver license issued date');
+const SECOND_DRIVER_REQUIRED_FIELDS = [
+  ['fullName', 'second driver name'],
+  ['dateOfBirth', 'second driver date of birth'],
+  ['driverLicenseNumber', 'second driver license'],
+];
+
+const blank = (value) => value === undefined || value === null || String(value).trim() === '';
+
+/**
+ * Which contract fields are still empty on this booking.
+ * Returns `{ field, label }` pairs — `field` is stable and safe to translate
+ * client-side, `label` is the English fallback used in API error messages.
+ */
+export const getMissingCompletionFields = (booking) => {
+  if (!booking) return REQUIRED_COMPLETION_FIELDS.map(([field, label]) => ({ field, label }));
+
+  const missing = REQUIRED_COMPLETION_FIELDS
+    .filter(([field]) => blank(booking[field]))
+    .map(([field, label]) => ({ field, label }));
 
   const sd = booking.secondDriver;
   if (sd?.enabled) {
-    if (!sd.fullName?.trim()) missing.push('second driver name');
-    if (!sd.dateOfBirth?.trim()) missing.push('second driver date of birth');
-    if (!sd.driverLicenseNumber?.trim()) missing.push('second driver license');
+    for (const [key, label] of SECOND_DRIVER_REQUIRED_FIELDS) {
+      if (blank(sd[key])) missing.push({ field: `secondDriver.${key}`, label });
+    }
   }
 
+  return missing;
+};
+
+/** Required fields before signature / contract generation */
+export const validateCompletionDetails = (booking) => {
+  const missing = getMissingCompletionFields(booking);
   if (missing.length) {
-    const err = new Error(`Please complete: ${missing.join(', ')}`);
+    const err = new Error(`Please complete: ${missing.map((m) => m.label).join(', ')}`);
     err.code = 'VALIDATION';
+    err.missingFields = missing;
     throw err;
   }
 };
