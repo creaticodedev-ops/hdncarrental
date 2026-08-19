@@ -9,6 +9,7 @@ import { BRAND_NAME } from '../constants/brand'
 import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
+import './hero/heroStage.css'
 
 const CINEMA = [0.16, 1, 0.3, 1]
 
@@ -53,18 +54,30 @@ const Hero = () => {
   }
 
   return (
-    <section ref={heroRef} className="relative min-h-[100svh] overflow-x-clip bg-light">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(143,31,31,0.14),transparent_58%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-sand/90 via-sand/35 to-transparent" />
-        <div className="absolute inset-x-0 bottom-[12%] h-px bg-gradient-to-r from-transparent via-ink/[0.06] to-transparent" />
+    <section ref={heroRef} className="hero-showroom relative min-h-[100svh] overflow-x-clip bg-light">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(143,31,31,0.13),transparent_58%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-sand/95 via-sand/40 to-transparent" />
+        <div className="hero-floor-sheen" />
       </div>
+
+      <Motion.aside
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: reduceMotion ? 0 : 1.82, ease: CINEMA }}
+        className="hero-aside hidden xl:flex"
+        aria-label={t('hero.callout')}
+      >
+        {[t('hero.asideInsured'), t('hero.asideRating'), t('hero.asideSupport')].map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </Motion.aside>
 
       <div className="relative z-10 page-pad page-shell flex flex-col items-center pb-4 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] sm:pb-6 sm:pt-28 md:pb-8 md:pt-32">
         <Motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 22 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: reduceMotion ? 0 : 0.55, ease: CINEMA }}
+          transition={{ duration: 0.85, delay: reduceMotion ? 0 : 1.18, ease: CINEMA }}
           className="w-full max-w-3xl text-center"
         >
           <div className="mb-4 flex justify-center sm:mb-5 md:mb-6">
@@ -101,13 +114,13 @@ const Hero = () => {
         </Motion.div>
 
         <Motion.form
-          initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: reduceMotion ? 0 : 0.78, ease: CINEMA }}
+          transition={{ duration: 0.85, delay: reduceMotion ? 0 : 1.32, ease: CINEMA }}
           onSubmit={handleSearch}
-          className="mt-8 w-full max-w-4xl sm:mt-10 md:mt-12"
+          className="relative z-20 mt-8 w-full max-w-4xl sm:mt-10 md:mt-11"
         >
-          <div className="overflow-visible rounded-[1.35rem] border border-borderColor/90 bg-white shadow-[0_18px_50px_-28px_rgba(22,18,16,0.35)] md:rounded-[1.75rem]">
+          <div className="hero-booking overflow-visible rounded-[1.25rem] border border-white/80 bg-white/92 shadow-[0_22px_60px_-32px_rgba(22,18,16,0.42)] backdrop-blur-md md:rounded-[1.6rem]">
             <div className="flex flex-col md:flex-row md:items-stretch">
               <div className="min-w-0 border-b border-borderColor/80 md:flex-[1.05] md:border-b-0 md:border-r">
                 <CitySelect
@@ -153,6 +166,26 @@ const Hero = () => {
         </Motion.form>
 
         <HeroCarStage heroRef={heroRef} />
+
+        <Motion.ul
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: reduceMotion ? 0 : 1.92, ease: CINEMA }}
+          className="hero-perks"
+        >
+          {[
+            ['perkVehicles', 'perkVehiclesHint'],
+            ['perkPricing', 'perkPricingHint'],
+            ['perkBooking', 'perkBookingHint'],
+            ['perkFlexible', 'perkFlexibleHint'],
+            ['perkNationwide', 'perkNationwideHint'],
+          ].map(([title, hint]) => (
+            <li key={title}>
+              <p>{t(`hero.${title}`)}</p>
+              <span>{t(`hero.${hint}`)}</span>
+            </li>
+          ))}
+        </Motion.ul>
       </div>
     </section>
   )
