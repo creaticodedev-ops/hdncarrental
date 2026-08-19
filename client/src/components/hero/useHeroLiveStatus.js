@@ -33,13 +33,29 @@ const writeCache = (temperatureC) => {
   }
 }
 
-const formatTime = (date, language) =>
-  new Intl.DateTimeFormat(LOCALES[language] || 'en-US', {
+const clockParts = (date, language) => {
+  const fmt = new Intl.DateTimeFormat(LOCALES[language] || 'en-US', {
     timeZone: HERO_LIVE.timezone,
     hour: 'numeric',
     minute: '2-digit',
+    second: '2-digit',
     hour12: language === 'en',
-  }).format(date)
+  })
+  const map = {}
+  for (const part of fmt.formatToParts(date)) {
+    if (part.type !== 'literal') map[part.type] = part.value
+  }
+  const hour = map.hour || '0'
+  const minute = map.minute || '00'
+  const second = Number(map.second || 0)
+  const period = map.dayPeriod || ''
+  return {
+    hourMinute: `${hour}:${minute}`,
+    period,
+    second,
+    time: period ? `${hour}:${minute} ${period}` : `${hour}:${minute}`,
+  }
+}
 
 export function useHeroLiveStatus() {
   const { language, t } = useI18n()
@@ -47,7 +63,7 @@ export function useHeroLiveStatus() {
   const [temperatureC, setTemperatureC] = useState(null)
 
   useEffect(() => {
-    const tick = window.setInterval(() => setNow(new Date()), 30_000)
+    const tick = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(tick)
   }, [])
 
@@ -80,12 +96,20 @@ export function useHeroLiveStatus() {
     return () => ctrl.abort()
   }, [])
 
-  const time = formatTime(now, language)
+  const clock = clockParts(now, language)
   const city = HERO_LIVE.city
+  const tempRatio =
+    temperatureC == null ? null : Math.min(1, Math.max(0, (temperatureC - 6) / 36))
   const aria =
     temperatureC == null
-      ? t('hero.liveAriaTime', { time, city })
-      : t('hero.liveAria', { time, city, temp: String(temperatureC) })
+      ? t('hero.liveAriaTime', { time: clock.time, city })
+      : t('hero.liveAria', { time: clock.time, city, temp: String(temperatureC) })
 
-  return { time, city, temperatureC, aria }
+  return {
+    ...clock,
+    city,
+    temperatureC,
+    tempRatio,
+    aria,
+  }
 }
