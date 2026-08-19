@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/I18nContext'
 import DateRangePicker from './DateRangePicker'
 import CitySelect from './CitySelect'
 import HeroCarStage from './hero/HeroCarStage'
+import HeroLiveBadge from './hero/HeroLiveBadge'
 import { useHeroCamera } from './hero/useHeroCamera'
 import { BRAND_NAME } from '../constants/brand'
 import toast from 'react-hot-toast'
@@ -113,6 +114,8 @@ const Hero = () => {
         className="hero-camera relative z-10 page-pad page-shell flex flex-col items-center pb-4 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] sm:pb-6 sm:pt-28 md:pb-8 md:pt-32"
         style={pullStyle}
       >
+        <HeroLiveBadge />
+
         <Motion.div className="w-full max-w-3xl text-center" style={copyExit}>
           <Motion.div
             className="mb-4 flex justify-center sm:mb-5 md:mb-6"

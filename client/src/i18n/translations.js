@@ -49,6 +49,8 @@ export const en = {
     perkFlexibleHint: 'Daily, weekly, monthly',
     perkNationwide: 'Nationwide service',
     perkNationwideHint: 'Across Morocco',
+    liveAria: '{{time}} in {{city}}, {{temp}}°C',
+    liveAriaTime: '{{time}} in {{city}}',
   },
   featured: {
     eyebrow: 'The fleet',
@@ -490,6 +492,8 @@ export const fr = {
     perkFlexibleHint: 'Jour, semaine, mois',
     perkNationwide: 'Partout au Maroc',
     perkNationwideHint: 'Service national',
+    liveAria: '{{time}} à {{city}}, {{temp}} °C',
+    liveAriaTime: '{{time}} à {{city}}',
   },
   featured: {
     eyebrow: 'La flotte',
@@ -931,6 +935,8 @@ export const es = {
     perkFlexibleHint: 'Día, semana, mes',
     perkNationwide: 'En todo Marruecos',
     perkNationwideHint: 'Servicio nacional',
+    liveAria: '{{time}} en {{city}}, {{temp}} °C',
+    liveAriaTime: '{{time}} en {{city}}',
   },
   featured: {
     eyebrow: 'La flota',
