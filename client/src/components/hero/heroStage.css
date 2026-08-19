@@ -1,12 +1,29 @@
-/* Cinematic hero — showroom stage. GPU transforms/opacity after entrance. */
+/* Editorial hero — one camera, no ground shadow, GPU transforms only. */
 
 .hero-floor-sheen {
   position: absolute;
-  inset-inline: 8%;
-  bottom: 6%;
-  height: 38%;
-  background: radial-gradient(ellipse 70% 55% at 50% 80%, rgba(255, 255, 255, 0.55), transparent 70%);
+  inset-inline: 10%;
+  bottom: 4%;
+  height: 34%;
+  background: radial-gradient(ellipse 65% 50% at 50% 80%, rgba(255, 255, 255, 0.42), transparent 72%);
   pointer-events: none;
+}
+
+.hero-keylight {
+  position: absolute;
+  width: min(52vw, 38rem);
+  height: min(52vw, 38rem);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(255, 248, 238, 0.5) 0%,
+    rgba(143, 31, 31, 0.07) 42%,
+    transparent 70%
+  );
+  filter: blur(32px);
+  mix-blend-mode: soft-light;
+  will-change: left, top;
 }
 
 .hero-aside {
@@ -41,25 +58,25 @@
   background: rgba(143, 31, 31, 0.45);
 }
 
+.hero-camera {
+  transform-origin: 50% 76%;
+  will-change: transform;
+}
+
 .hero-stage {
   isolation: isolate;
   transform: translateZ(0);
   pointer-events: none;
 }
 
-.hero-stage-camera {
-  transform-style: preserve-3d;
-}
-
 .hero-stage-rig {
   transform-style: preserve-3d;
-  perspective: 1600px;
 }
 
 .hero-arch {
   position: absolute;
   left: 50%;
-  border: 1px solid rgba(22, 18, 16, 0.045);
+  border: 1px solid rgba(22, 18, 16, 0.04);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -76,7 +93,7 @@
   width: 68%;
   height: 28%;
   transform: translateX(-50%);
-  border-color: rgba(143, 31, 31, 0.06);
+  border-color: rgba(143, 31, 31, 0.05);
 }
 
 .hero-haze {
@@ -84,94 +101,32 @@
   inset: 8% 10% auto;
   height: 70%;
   background:
-    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(143, 31, 31, 0.11), transparent 70%),
-    radial-gradient(ellipse 55% 35% at 70% 60%, rgba(255, 255, 255, 0.4), transparent 70%);
-  pointer-events: none;
-}
-
-.hero-volume {
-  position: absolute;
-  left: 18%;
-  right: 18%;
-  bottom: 22%;
-  height: 28%;
-  background: radial-gradient(ellipse at 50% 100%, rgba(143, 31, 31, 0.08), transparent 68%);
-  filter: blur(24px);
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(143, 31, 31, 0.1), transparent 70%),
+    radial-gradient(ellipse 55% 35% at 70% 60%, rgba(255, 255, 255, 0.38), transparent 70%);
   pointer-events: none;
 }
 
 .hero-horizon {
   position: absolute;
-  left: 10%;
-  right: 10%;
-  bottom: 16%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(22, 18, 16, 0.07) 35%, rgba(22, 18, 16, 0.07) 65%, transparent);
-  pointer-events: none;
-}
-
-.hero-streak {
-  position: absolute;
-  height: 2px;
-  border-radius: 999px;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), rgba(143, 31, 31, 0.38), transparent);
-  filter: blur(1.2px);
-  animation: hero-streak-drift 2.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
-}
-
-.hero-streak-a {
-  top: 38%;
-  left: 4%;
-  width: 58%;
-  opacity: 0.45;
-}
-
-.hero-streak-b {
-  top: 52%;
-  left: 10%;
-  width: 44%;
-  height: 1px;
-  opacity: 0.28;
-  animation-delay: 0.45s;
-}
-
-.hero-streak-c {
-  top: 61%;
-  right: 6%;
-  width: 32%;
-  opacity: 0.22;
-  animation-delay: 0.75s;
-  animation-duration: 2.9s;
-}
-
-.hero-ring {
-  position: absolute;
-  left: 18%;
-  right: 18%;
-  bottom: 7%;
-  z-index: 0;
-  height: 22%;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 0 0 1px rgba(143, 31, 31, 0.06),
-    inset 0 0 28px rgba(255, 255, 255, 0.35);
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.28), transparent 68%);
-  pointer-events: none;
-}
-
-.hero-floor {
-  position: absolute;
   left: 12%;
   right: 12%;
-  bottom: 3%;
-  z-index: 0;
-  height: 20%;
-  transform-origin: 50% 50%;
-  background: radial-gradient(ellipse at center, rgba(22, 18, 16, 0.2) 0%, rgba(22, 18, 16, 0.07) 42%, transparent 72%);
-  filter: blur(12px);
+  bottom: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(22, 18, 16, 0.06) 35%, rgba(22, 18, 16, 0.06) 65%, transparent);
   pointer-events: none;
+}
+
+/* Soft light on the floor — not a contact shadow */
+.hero-pool {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 8%;
+  z-index: 0;
+  height: 16%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.4), transparent 70%);
 }
 
 .hero-car-photo {
@@ -182,14 +137,14 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 52%;
+  top: 54%;
   z-index: 1;
   transform: scaleY(-1);
   transform-origin: center top;
-  opacity: 0.28;
-  filter: blur(5px);
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 52%);
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 52%);
+  opacity: 0.16;
+  filter: blur(6px);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 48%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 48%);
   pointer-events: none;
 }
 
@@ -215,33 +170,18 @@
   top: -20%;
   bottom: -20%;
   left: -30%;
-  width: 38%;
+  width: 34%;
   background: linear-gradient(
     105deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.08) 40%,
-    rgba(255, 255, 255, 0.48) 50%,
-    rgba(255, 248, 240, 0.16) 58%,
+    transparent 22%,
+    rgba(255, 255, 255, 0.1) 42%,
+    rgba(255, 255, 255, 0.46) 50%,
+    rgba(255, 248, 240, 0.14) 58%,
     transparent 78%
   );
   transform: skewX(-22deg);
-  animation: hero-sheen-sweep 1.55s cubic-bezier(0.16, 1, 0.3, 1) 1s both;
+  animation: hero-sheen-sweep 1.35s cubic-bezier(0.16, 1, 0.28, 1) 1.15s both;
   mix-blend-mode: screen;
-}
-
-.hero-headlamp {
-  position: absolute;
-  right: 7%;
-  top: 46%;
-  z-index: 4;
-  width: 14%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 244, 220, 0.55) 0%, rgba(255, 210, 160, 0.18) 32%, transparent 70%);
-  filter: blur(8px);
-  mix-blend-mode: screen;
-  animation: hero-lamp-idle 5.5s ease-in-out 1.8s infinite;
 }
 
 .hero-callout {
@@ -254,12 +194,10 @@
 }
 
 .hero-callout-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(143, 31, 31, 0.12);
-  animation: hero-lamp-idle 4.5s ease-in-out 2s infinite;
 }
 
 .hero-callout-line {
@@ -343,38 +281,12 @@
     transform: translateX(-40%) skewX(-22deg);
     opacity: 0;
   }
-  18% {
+  20% {
     opacity: 1;
   }
   to {
     transform: translateX(280%) skewX(-22deg);
     opacity: 0;
-  }
-}
-
-@keyframes hero-streak-drift {
-  from {
-    transform: translateX(-16%);
-    opacity: 0;
-  }
-  35% {
-    opacity: 0.5;
-  }
-  to {
-    transform: translateX(22%);
-    opacity: 0;
-  }
-}
-
-@keyframes hero-lamp-idle {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.75;
-    transform: scale(1.08);
   }
 }
 
@@ -390,19 +302,13 @@
 
 @media (max-width: 767px) {
   .hero-sheen::after {
-    width: 46%;
+    width: 42%;
   }
 
-  .hero-headlamp {
-    width: 18%;
-    filter: blur(6px);
-  }
-
-  .hero-floor,
-  .hero-ring {
-    left: 6%;
-    right: 6%;
-    bottom: 5%;
+  .hero-pool {
+    left: 10%;
+    right: 10%;
+    bottom: 6%;
   }
 
   .hero-perks {
@@ -431,13 +337,24 @@
 }
 
 @media (pointer: coarse) {
-  .hero-streak {
+  .hero-keylight {
     display: none;
   }
 
-  .hero-headlamp,
-  .hero-callout-dot {
+  .hero-sheen::after {
+    animation-duration: 1.1s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-camera,
+  .hero-stage-rig,
+  .hero-showroom .hero-keylight {
+    transform: none !important;
+  }
+
+  .hero-sheen::after {
     animation: none;
-    opacity: 0.5;
+    opacity: 0;
   }
 }
