@@ -10,7 +10,7 @@ const WhyChoose = lazy(() => import('../components/WhyChoose'))
 const SeoHomeModule = lazy(() => import('../components/SeoHomeModule'))
 
 const FeaturedFallback = () => (
-  <div className="hidden min-h-[12rem] w-full md:block" aria-hidden />
+  <div className="min-h-[8rem] w-full md:min-h-[12rem]" aria-hidden />
 )
 
 const SectionFallback = () => (

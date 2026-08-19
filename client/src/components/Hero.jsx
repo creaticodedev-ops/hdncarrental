@@ -196,6 +196,24 @@ const Hero = () => {
 
         <HeroCarStage camera={camera} reduceMotion={reduceMotion} />
 
+        <PremiumVehicleShowcase />
+
+        <Motion.ul
+          className="hero-perks-mobile"
+          style={reduceMotion ? undefined : { opacity: perkOpacity }}
+        >
+          {[
+            ['perkBooking', 'perkBookingHint'],
+            ['perkFlexible', 'perkFlexibleHint'],
+            ['perkNationwide', 'perkNationwideHint'],
+          ].map(([title, hint]) => (
+            <li key={title}>
+              <p>{t(`hero.${title}`)}</p>
+              <span>{t(`hero.${hint}`)}</span>
+            </li>
+          ))}
+        </Motion.ul>
+
         <Motion.ul
           className="hero-perks hidden md:grid"
           style={reduceMotion ? undefined : { opacity: perkOpacity }}
@@ -213,8 +231,6 @@ const Hero = () => {
             </li>
           ))}
         </Motion.ul>
-
-        <PremiumVehicleShowcase />
       </Motion.div>
     </section>
   )

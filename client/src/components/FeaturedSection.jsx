@@ -22,8 +22,8 @@ const FeaturedSection = () => {
   }, [cars])
 
   return (
-    <section className="relative hidden bg-light page-pad page-shell py-28 md:block">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-sand/60 to-transparent" />
+    <section className="relative bg-light page-pad page-shell py-12 md:py-28">
+      <div className="pointer-events-none absolute inset-x-0 top-0 hidden h-40 bg-gradient-to-b from-sand/60 to-transparent md:block" />
 
       <Motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -38,7 +38,7 @@ const FeaturedSection = () => {
         />
       </Motion.div>
 
-      <div className="mt-14 md:mt-16 space-y-14 md:space-y-16">
+      <div className="mt-8 space-y-10 md:mt-16 md:space-y-16">
         {sections.map((section) => (
           <div key={section.category}>
             <div className="flex items-end justify-between gap-3 mb-6">
@@ -59,7 +59,7 @@ const FeaturedSection = () => {
                 {t('featured.viewCategory')}
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3 md:gap-10">
               {section.cars.map((car, index) => (
                 <Motion.div
                   key={car._id}
@@ -81,7 +81,7 @@ const FeaturedSection = () => {
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="flex justify-center mt-14 md:mt-16"
+        className="mt-10 flex justify-center md:mt-16"
       >
         <button
           type="button"

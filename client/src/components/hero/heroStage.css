@@ -561,15 +561,19 @@
     order: 3;
   }
 
-  .hero-camera > .pv-showcase {
+  .hero-camera > .hero-booking-wrap {
     order: 4;
-    width: 100%;
-    margin-top: 0.55rem;
+    margin-top: 0.7rem;
   }
 
-  .hero-camera > .hero-booking-wrap {
+  .hero-camera > .pv-showcase {
     order: 5;
+    width: 100%;
     margin-top: 0.7rem;
+  }
+
+  .hero-camera > .hero-perks-mobile {
+    order: 6;
   }
 
   .hero-perks {
@@ -737,6 +741,50 @@
 @media (min-width: 768px) {
   .hero-perks {
     display: grid;
+  }
+}
+
+.hero-perks-mobile {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  width: 100%;
+  max-width: 28rem;
+  margin-top: 0.75rem;
+  padding: 0.15rem 0;
+  list-style: none;
+  border-top: 1px solid rgba(22, 18, 16, 0.07);
+}
+
+.hero-perks-mobile li {
+  padding: 0.7rem 0.4rem 0.35rem;
+  text-align: center;
+}
+
+.hero-perks-mobile li + li {
+  border-left: 1px solid rgba(22, 18, 16, 0.08);
+}
+
+.hero-perks-mobile p {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+.hero-perks-mobile span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+@media (min-width: 768px) {
+  .hero-perks-mobile {
+    display: none;
   }
 }
 
