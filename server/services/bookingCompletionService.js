@@ -16,6 +16,7 @@ import { logAudit } from "../utils/adminOps.js";
 import { storeDataUrlImage } from "./documentStore.js";
 import { escapeRegex } from "../utils/helpers.js";
 import { getMissingCompletionFields } from "../utils/applyCompletionDetails.js";
+import { normalizeChannel } from "../utils/bookingChannel.js";
 
 export const SIGNATURE_REQUEST_STATUSES = ["none", "pending", "signed", "expired", "cancelled"];
 
@@ -31,27 +32,19 @@ export const DESK_CHANNELS = ["walk_in"];
 /**
  * How much the customer has to do on their completion link.
  *
- * `signature_only` — the link is locked down to "read the contract and sign".
+ * Channel is the only source of truth — never field completeness.
  *
- * `full` — the customer supplies their own contract details first. This is the
- * pre-existing online flow and is left untouched.
+ * `signature_only` — walk-in / desk. Staff already captured the reservation.
+ * The customer only opens the contract, accepts, and signs. Missing identity
+ * values print as "—" and must not drop the booking into the online wizard.
  *
- * A desk (walk-in) reservation is ALWAYS signature-only. Staff entered whatever the
- * agency needs face to face, and the walk-in form marks every identity field
- * optional, so judging desk bookings by field completeness would drop real walk-ins
- * into the customer wizard — which is exactly the bug this rule replaces. Missing
- * values simply print as "—" on the contract; nothing downstream breaks.
- *
- * Guest bookings still upgrade to signature-only once the reservation carries every
- * contract field, so an owner who completes one gets the locked link too.
- *
- * Derived rather than stored, so editing a reservation is reflected on the next
- * request instead of being frozen at the moment the link was issued.
+ * `full` — online and WhatsApp guest bookings. The existing completion wizard
+ * stays as-is even when every contract field is already filled. Completing
+ * fields on an online reservation must never convert it into signature-only.
  */
 export const resolveCompletionMode = (booking) => {
-  const channel = booking?.channel || "online";
-  if (DESK_CHANNELS.includes(channel)) return "signature_only";
-  return getMissingCompletionFields(booking).length === 0 ? "signature_only" : "full";
+  if (DESK_CHANNELS.includes(normalizeChannel(booking?.channel))) return "signature_only";
+  return "full";
 };
 
 export const isSignatureOnlyCompletion = (booking) => resolveCompletionMode(booking) === "signature_only";
@@ -453,7 +446,8 @@ export const refreshCompletionFlags = (booking) => {
     c.drivingLicenseUrl && c.identityDocumentUrl && (c.identityType === "national_id" || c.identityType === "passport"),
   );
   c.paymentComplete = Boolean(c.paymentCompletedAt && (c.amountPaid > 0 || booking.paymentStatus === "paid"));
-  const needsSecondDriverSig = Boolean(booking.secondDriver?.enabled);
+  const needsSecondDriverSig =
+    resolveCompletionMode(booking) === "full" && Boolean(booking.secondDriver?.enabled);
   const secondDriverSigOk =
     !needsSecondDriverSig || Boolean(c.secondDriverSignatureUrl && c.secondDriverSignatureSignedAt);
   c.signatureComplete = Boolean(c.signatureUrl && c.signatureSignedAt && secondDriverSigOk);
@@ -720,7 +714,8 @@ export const saveSignatureAndMaybeFinalize = async (
   booking.completion.signatureUrl = url;
   booking.completion.signatureSignedAt = new Date();
 
-  const needsSecond = Boolean(booking.secondDriver?.enabled);
+  const needsSecond =
+    resolveCompletionMode(booking) === "full" && Boolean(booking.secondDriver?.enabled);
   if (needsSecond) {
     if (!secondDriverSignatureDataUrl || !String(secondDriverSignatureDataUrl).startsWith('data:image')) {
       const err = new Error('Second driver signature is required');

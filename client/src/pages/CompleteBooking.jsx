@@ -344,8 +344,7 @@ const CompleteBooking = () => {
     )
   }
 
-  // Reservations that already carry every contract field get a locked, sign-only
-  // page. The wizard below stays exactly as it was for everyone else.
+  // Walk-in links are signature-only. Online / WhatsApp keep the full wizard.
   if (booking?.mode === 'signature_only') {
     return (
       <>

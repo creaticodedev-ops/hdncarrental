@@ -755,7 +755,7 @@ export const adminEn = {
       'These fields are empty and will print as “—” on the contract. The customer is never asked for them.',
     linkModeFull: 'The customer will be asked to fill in details',
     linkModeFullHint:
-      'This is a guest booking and these contract fields are still empty, so the customer has to complete them and upload their documents before signing. Fill them in on the reservation to send a signature-only link instead.',
+      'This is an online reservation. The customer uses the existing completion wizard to provide missing information, upload documents, and sign. Filling fields here does not turn this into a signature-only link.',
     completeReservation: 'Complete the reservation',
     expiresAt: 'Expires',
     issuedAt: 'Issued',
@@ -2226,7 +2226,7 @@ export const adminFr = {
       "Ces champs sont vides et s'afficheront « — » sur le contrat. Ils ne sont jamais demandés au client.",
     linkModeFull: 'Le client devra compléter des informations',
     linkModeFullHint:
-      "Il s'agit d'une réservation en ligne et ces champs du contrat sont encore vides : le client devra les remplir et téléverser ses documents avant de signer. Complétez-les sur la réservation pour envoyer un lien de signature uniquement.",
+      "Il s'agit d'une réservation en ligne. Le client suit le parcours existant pour fournir les informations manquantes, envoyer ses documents et signer. Remplir les champs ici ne transforme pas ce lien en signature uniquement.",
     completeReservation: 'Compléter la réservation',
     expiresAt: 'Expire',
     issuedAt: 'Émis',
@@ -3694,7 +3694,7 @@ export const adminEs = {
       'Estos campos están vacíos y se imprimirán como «—» en el contrato. Nunca se piden al cliente.',
     linkModeFull: 'El cliente tendrá que rellenar datos',
     linkModeFullHint:
-      'Es una reserva en línea y estos campos del contrato siguen vacíos, así que el cliente deberá completarlos y subir sus documentos antes de firmar. Rellénelos en la reserva para enviar un enlace solo de firma.',
+      'Es una reserva en línea. El cliente sigue el flujo existente para aportar datos, subir documentos y firmar. Rellenar los campos aquí no convierte el enlace en solo firma.',
     completeReservation: 'Completar la reserva',
     expiresAt: 'Caduca',
     issuedAt: 'Emitido',

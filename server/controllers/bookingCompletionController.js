@@ -487,7 +487,9 @@ export const submitCompletionSignature = async (req, res) => {
       return res.status(400).json({ success: false, message: "Upload required documents first" });
     }
 
-    if (booking.secondDriver?.enabled) {
+    // A walk-in signature-only link has no second-driver option. Ignore any
+    // extra signature the client may send, and never require one.
+    if (!signatureOnly && booking.secondDriver?.enabled) {
       if (!secondDriverSignatureDataUrl || !String(secondDriverSignatureDataUrl).startsWith("data:image")) {
         return res.status(400).json({ success: false, message: "Please provide the second driver signature" });
       }
@@ -495,7 +497,7 @@ export const submitCompletionSignature = async (req, res) => {
 
     const result = await saveSignatureAndMaybeFinalize(booking, {
       signatureDataUrl,
-      secondDriverSignatureDataUrl,
+      secondDriverSignatureDataUrl: signatureOnly ? undefined : secondDriverSignatureDataUrl,
     });
     res.json({
       success: true,

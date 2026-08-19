@@ -1,9 +1,8 @@
 /**
  * Signature-only completion links.
  *
- * Asserts that a reservation carrying every contract field produces a locked
- * "review + sign" link, that an incomplete one falls back to the original customer
- * wizard, and that the public API refuses reservation edits on locked links.
+ * Channel is the source of truth: walk-in is always signature-only; online and
+ * WhatsApp always keep the full customer wizard — even when every field is filled.
  *
  * Offline: node scripts/verify-signature-only-link.mjs
  */
@@ -115,7 +114,12 @@ check('guest booking with a missing field falls back to the full customer flow',
 
 check('whatsapp is a guest channel, not a desk channel', () => {
   assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'whatsapp', nationality: '' })), 'full')
-  assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'whatsapp' })), 'signature_only')
+  assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'whatsapp' })), 'full')
+})
+
+check('walk-in aliases still resolve to signature_only', () => {
+  assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'walk-in' })), 'signature_only')
+  assert.equal(resolveCompletionMode(completeWalkIn({ channel: 'walkin' })), 'signature_only')
 })
 
 check('a missing channel is treated as a guest booking', () => {
@@ -124,7 +128,7 @@ check('a missing channel is treated as a guest booking', () => {
   assert.equal(resolveCompletionMode(legacy), 'full')
 })
 
-check('a complete guest booking upgrades to signature_only', () => {
+check('a complete guest booking stays on the full customer flow', () => {
   const booking = completeWalkIn({
     channel: 'online',
     secondDriver: {
@@ -134,10 +138,10 @@ check('a complete guest booking upgrades to signature_only', () => {
       driverLicenseNumber: 'DL111222',
     },
   })
-  assert.equal(resolveCompletionMode(booking), 'signature_only')
+  assert.equal(resolveCompletionMode(booking), 'full')
 })
 
-check('an incomplete second driver blocks signature_only on guest bookings', () => {
+check('an incomplete second driver on a guest booking stays on the full flow', () => {
   const booking = completeWalkIn({
     channel: 'online',
     secondDriver: { enabled: true, fullName: 'Sara Idrissi', dateOfBirth: '', driverLicenseNumber: '' },
@@ -234,6 +238,7 @@ check('signature endpoint discards detail fields when the link is locked', () =>
   assert.match(signBody, /const signatureOnly = resolveCompletionMode\(booking\) === "signature_only"/)
   assert.match(signBody, /if \(!signatureOnly\) \{[\s\S]*applyCompletionDetailsToBooking/)
   assert.match(signBody, /if \(!signatureOnly && !booking\.completion\.documentsComplete\)/)
+  assert.match(signBody, /if \(!signatureOnly && booking\.secondDriver\?\.enabled\)/)
 })
 
 // The bug that made a locked link unsignable: the completeness gate ran on every
@@ -332,7 +337,8 @@ check('owner and server agree on which channels are desk channels', () => {
   assert.ok(match, 'client must export DESK_CHANNELS')
   const clientChannels = [...match[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1])
   assert.deepEqual(clientChannels, DESK_CHANNELS)
-  assert.match(helpers, /DESK_CHANNELS\.includes\(booking\?\.channel \|\| 'online'\)/)
+  assert.match(helpers, /DESK_CHANNELS\.includes\(channel\)/)
+  assert.match(helpers, /return 'full'/)
 })
 
 console.log(`\n${passed} checks passed`)

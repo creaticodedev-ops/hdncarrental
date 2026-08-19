@@ -44,14 +44,12 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
   const [contractState, setContractState] = useState('idle')
   const [contractOpen, setContractOpen] = useState(false)
   const [signature, setSignature] = useState('')
-  const [secondDriverSignature, setSecondDriverSignature] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [signing, setSigning] = useState(false)
   const blobUrlRef = useRef('')
 
   const completion = booking?.completion
   const signed = Boolean(completion?.signatureComplete) || booking?.status === 'ready_for_pickup'
-  const secondDriver = booking?.secondDriver?.enabled ? booking.secondDriver : null
 
   useEffect(
     () => () => {
@@ -94,10 +92,6 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
       toast.error(t('completion.needSignature'))
       return
     }
-    if (secondDriver && !secondDriverSignature) {
-      toast.error(t('completion.needSecondDriverSignature'))
-      return
-    }
     if (!agreed) {
       toast.error(t('completion.needAgree'))
       return
@@ -111,7 +105,6 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
           // Signature only — no reservation data is sent from this page.
           const { data } = await api.post(`/api/booking-completion/${token}/signature`, {
             signatureDataUrl: signature,
-            secondDriverSignatureDataUrl: secondDriver ? secondDriverSignature : undefined,
             agreed: true,
           })
           if (!data.success) throw new Error(data.message)
@@ -244,12 +237,6 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
                   <Row label={t('confirmation.until')} value={dateLabel(booking.returnDate)} />
                   <Row label={t('confirmation.pickup')} value={booking.pickupLocation} />
                   <Row label={t('confirmation.total')} value={`${currency}${booking.price}`} />
-                  {secondDriver ? (
-                    <Row
-                      label={t('completion.signatureSecondDriverLabel')}
-                      value={secondDriver.fullName}
-                    />
-                  ) : null}
                 </dl>
 
                 <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-muted">
@@ -323,16 +310,6 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
                     </p>
                     <SignaturePad onChange={setSignature} disabled={signing} />
                   </div>
-
-                  {secondDriver ? (
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold text-ink">
-                        {t('completion.signatureSecondDriverLabel')}
-                        <span className="ml-2 font-normal text-muted">{secondDriver.fullName}</span>
-                      </p>
-                      <SignaturePad onChange={setSecondDriverSignature} disabled={signing} />
-                    </div>
-                  ) : null}
 
                   <label className="flex cursor-pointer items-start gap-3 text-sm text-muted">
                     <input
