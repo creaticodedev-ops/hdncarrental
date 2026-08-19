@@ -6,6 +6,7 @@ import DateRangePicker from './DateRangePicker'
 import CitySelect from './CitySelect'
 import HeroCarStage from './hero/HeroCarStage'
 import HeroLiveBadge from './hero/HeroLiveBadge'
+import HeroWorld from './hero/HeroWorld'
 import { useHeroCamera } from './hero/useHeroCamera'
 import { BRAND_NAME } from '../constants/brand'
 import toast from 'react-hot-toast'
@@ -21,14 +22,10 @@ const Hero = () => {
   const camera = useHeroCamera(heroRef)
   const {
     annotateOpacity,
-    atmosphereY,
     cameraScale,
     cameraY,
     coverOpacity,
     frameReady,
-    hazeX,
-    lightX,
-    lightY,
     perkOpacity,
     reduceMotion,
     tracking,
@@ -80,25 +77,7 @@ const Hero = () => {
 
   return (
     <section ref={heroRef} className="hero-showroom relative min-h-[100svh] overflow-hidden bg-light">
-      <Motion.div
-        className="pointer-events-none absolute inset-0"
-        style={reduceMotion ? undefined : { y: atmosphereY, x: hazeX }}
-        aria-hidden="true"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-8%,rgba(143,31,31,0.13),transparent_58%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-sand/95 via-sand/40 to-transparent" />
-        <div className="hero-floor-sheen" />
-        {!reduceMotion ? (
-          <Motion.div
-            className="hero-keylight"
-            style={{ left: lightX, top: lightY, x: '-50%', y: '-50%' }}
-          />
-        ) : null}
-        <div className="hero-arch hero-arch-a" />
-        <div className="hero-arch hero-arch-b" />
-        <div className="hero-haze" />
-        <div className="hero-horizon" />
-      </Motion.div>
+      <HeroWorld camera={camera} reduceMotion={reduceMotion} />
 
       <Motion.aside
         className="hero-aside hidden xl:flex"

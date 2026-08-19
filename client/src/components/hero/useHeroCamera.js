@@ -104,6 +104,14 @@ export function useHeroCamera(heroRef) {
   const cameraScale = useTransform([introScale, scrollScale], ([i, s]) => i * s)
   const cameraY = useTransform([introY, scrollY], ([i, s]) => i + s)
 
+  const worldIntroScale = useTransform(intro, [0, 1], [compact ? 1.18 : 1.3, 1])
+  const worldIntroY = useTransform(intro, [0, 1], [compact ? 12 : 22, 0])
+  const worldScrollScale = useTransform(scrollYProgress, [0, 1], [1, 1.08])
+  const worldScrollY = useTransform(scrollYProgress, [0, 1], [0, 72])
+  const worldScale = useTransform([worldIntroScale, worldScrollScale], ([i, s]) => i * s)
+  const worldY = useTransform([worldIntroY, worldScrollY], ([i, s]) => i + s)
+  const worldX = useTransform(spx, [-0.5, 0.5], [-18, 18])
+
   const lookY = useTransform(spx, [-0.5, 0.5], [1.15, -1.15])
   const lookX = useTransform(spy, [-0.5, 0.5], [-0.45, 0.55])
   const lightX = useTransform(spx, [-0.5, 0.5], ['30%', '70%'])
@@ -141,5 +149,8 @@ export function useHeroCamera(heroRef) {
     tracking,
     uiOpacity,
     uiY,
+    worldScale,
+    worldX,
+    worldY,
   }
 }
