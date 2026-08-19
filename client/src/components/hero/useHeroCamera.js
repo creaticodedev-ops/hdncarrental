@@ -104,13 +104,15 @@ export function useHeroCamera(heroRef) {
   const cameraScale = useTransform([introScale, scrollScale], ([i, s]) => i * s)
   const cameraY = useTransform([introY, scrollY], ([i, s]) => i + s)
 
-  const worldIntroScale = useTransform(intro, [0, 1], [compact ? 1.18 : 1.3, 1])
-  const worldIntroY = useTransform(intro, [0, 1], [compact ? 12 : 22, 0])
-  const worldScrollScale = useTransform(scrollYProgress, [0, 1], [1, 1.08])
-  const worldScrollY = useTransform(scrollYProgress, [0, 1], [0, 72])
+  const worldIntroScale = useTransform(intro, [0, 1], [compact ? 1.12 : 1.2, 1])
+  const worldIntroY = useTransform(intro, [0, 1], [compact ? 8 : 14, 0])
+  const worldScrollScale = useTransform(scrollYProgress, [0, 1], [1, 1.05])
+  const worldScrollY = useTransform(scrollYProgress, [0, 1], [0, 48])
   const worldScale = useTransform([worldIntroScale, worldScrollScale], ([i, s]) => i * s)
   const worldY = useTransform([worldIntroY, worldScrollY], ([i, s]) => i + s)
-  const worldX = useTransform(spx, [-0.5, 0.5], [-18, 18])
+  const worldX = useTransform(spx, [-0.5, 0.5], [-12, 12])
+  const farX = useTransform(spx, [-0.5, 0.5], [-6, 6])
+  const farY = useTransform(spy, [-0.5, 0.5], [-4, 4])
 
   const lookY = useTransform(spx, [-0.5, 0.5], [1.15, -1.15])
   const lookX = useTransform(spy, [-0.5, 0.5], [-0.45, 0.55])
@@ -135,6 +137,8 @@ export function useHeroCamera(heroRef) {
     cameraY,
     carScrollY,
     coverOpacity,
+    farX,
+    farY,
     finePointer,
     frameReady,
     hazeX,
