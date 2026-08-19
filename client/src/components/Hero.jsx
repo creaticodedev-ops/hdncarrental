@@ -197,7 +197,7 @@ const Hero = () => {
         <HeroCarStage camera={camera} reduceMotion={reduceMotion} />
 
         <Motion.ul
-          className="hero-perks"
+          className="hero-perks hidden md:grid"
           style={reduceMotion ? undefined : { opacity: perkOpacity }}
         >
           {[

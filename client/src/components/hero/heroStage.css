@@ -523,13 +523,13 @@
   width: 100%;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .hero-live {
     display: flex;
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 767px) {
   .hero-live {
     display: flex;
     position: relative;
@@ -561,15 +561,15 @@
     order: 3;
   }
 
-  .hero-camera > .hero-booking-wrap {
+  .hero-camera > .pv-showcase {
     order: 4;
-    margin-top: 0.7rem;
+    width: 100%;
+    margin-top: 0.55rem;
   }
 
-  .hero-camera > .pv-showcase {
+  .hero-camera > .hero-booking-wrap {
     order: 5;
-    width: 100%;
-    margin-top: 0.65rem;
+    margin-top: 0.7rem;
   }
 
   .hero-perks {
@@ -723,7 +723,7 @@
 }
 
 .hero-perks {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0;
   width: 100%;
@@ -732,6 +732,12 @@
   padding: 1.1rem 0.25rem 0.4rem;
   list-style: none;
   border-top: 1px solid rgba(22, 18, 16, 0.06);
+}
+
+@media (min-width: 768px) {
+  .hero-perks {
+    display: grid;
+  }
 }
 
 .hero-perks li {

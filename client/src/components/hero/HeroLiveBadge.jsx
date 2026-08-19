@@ -58,8 +58,8 @@ export default function HeroLiveBadge() {
       node.setAttribute('transform', `rotate(${seconds * 6} ${CX} ${CY})`)
     }
 
-    apply(!reduceMotion && !window.matchMedia('(max-width: 639px)').matches)
-    if (reduceMotion || window.matchMedia('(max-width: 639px)').matches) return undefined
+    apply(!reduceMotion && !window.matchMedia('(max-width: 767px)').matches)
+    if (reduceMotion || window.matchMedia('(max-width: 767px)').matches) return undefined
 
     let frame = 0
     const loop = () => {
