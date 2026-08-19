@@ -478,9 +478,95 @@
   text-align: right;
 }
 
+.hero-live-rail {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(22, 18, 16, 0.06);
+  border: 1px solid rgba(22, 18, 16, 0.08);
+}
+
+.hero-live-rail-time,
+.hero-live-rail-temp,
+.hero-live-rail-city {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+
+.hero-live-rail-temp {
+  color: var(--color-primary);
+}
+
+.hero-live-rail-city {
+  letter-spacing: 0.16em;
+  color: var(--color-muted);
+}
+
+.hero-live-rail-rule {
+  width: 1px;
+  height: 0.7rem;
+  background: rgba(22, 18, 16, 0.16);
+}
+
+.hero-live-cluster-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
 @media (min-width: 640px) {
   .hero-live {
     display: flex;
+  }
+}
+
+@media (max-width: 639px) {
+  .hero-live {
+    display: flex;
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-width: 22rem;
+    margin-top: 0.15rem;
+  }
+
+  .hero-live-rail {
+    display: flex;
+  }
+
+  .hero-live-cluster-wrap {
+    display: none;
+  }
+
+  .hero-camera > .hero-copy {
+    order: 1;
+  }
+
+  .hero-camera > .hero-stage {
+    order: 2;
+    margin-top: 0.85rem;
+  }
+
+  .hero-camera > .hero-live {
+    order: 3;
+  }
+
+  .hero-camera > .hero-booking-wrap {
+    order: 4;
+  }
+
+  .hero-perks {
+    display: none;
   }
 }
 
@@ -778,26 +864,6 @@
     left: 10%;
     right: 10%;
     bottom: 6%;
-  }
-
-  .hero-perks {
-    display: flex;
-    gap: 0;
-    overflow-x: auto;
-    padding: 0.75rem 0 0.15rem;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .hero-perks::-webkit-scrollbar {
-    display: none;
-  }
-
-  .hero-perks li {
-    flex: 0 0 42%;
-    scroll-snap-align: start;
-    border-left: 1px solid rgba(22, 18, 16, 0.08);
   }
 
   .hero-fleet {

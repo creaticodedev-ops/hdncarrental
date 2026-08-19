@@ -12,6 +12,7 @@ import { BRAND_NAME } from '../constants/brand'
 import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
+import { haptic } from '../utils/haptics'
 import './hero/heroStage.css'
 
 const Hero = () => {
@@ -24,6 +25,7 @@ const Hero = () => {
     annotateOpacity,
     cameraScale,
     cameraY,
+    compact,
     coverOpacity,
     frameReady,
     perkOpacity,
@@ -59,6 +61,7 @@ const Hero = () => {
       has_dates: true,
       source: 'hero',
     })
+    haptic('success')
     navigate(`/cars?${new URLSearchParams({
       pickupLocation,
       pickupDate: startISO,
@@ -74,6 +77,7 @@ const Hero = () => {
       }
 
   const copyExit = reduceMotion ? undefined : { opacity: uiOpacity, y: uiY }
+  const formMotion = reduceMotion || compact ? undefined : copyExit
 
   return (
     <section ref={heroRef} className="hero-showroom relative min-h-[100svh] overflow-hidden bg-light">
@@ -95,9 +99,9 @@ const Hero = () => {
       >
         <HeroLiveBadge />
 
-        <Motion.div className="w-full max-w-3xl text-center" style={copyExit}>
+        <Motion.div className="hero-copy w-full max-w-3xl text-center" style={copyExit}>
           <Motion.div
-            className="mb-4 flex justify-center sm:mb-5 md:mb-6"
+            className="mb-4 hidden justify-center sm:mb-5 sm:flex md:mb-6"
             style={reduceMotion ? undefined : { opacity: coverOpacity }}
           >
             <div
@@ -122,19 +126,19 @@ const Hero = () => {
           </Motion.div>
 
           <Motion.p
-            className="font-display text-5xl font-medium leading-none tracking-tight text-primary sm:text-6xl md:text-7xl"
+            className="font-display text-[2.65rem] font-medium leading-none tracking-tight text-primary sm:text-6xl md:text-7xl"
             style={reduceMotion ? undefined : { letterSpacing: tracking }}
           >
             {BRAND_NAME}
           </Motion.p>
           <Motion.h1
-            className="mt-3 font-display text-3xl font-medium leading-tight text-ink sm:mt-4 sm:text-4xl md:text-5xl"
+            className="mt-2 font-display text-[1.85rem] font-medium leading-tight text-ink sm:mt-4 sm:text-4xl md:text-5xl"
             style={reduceMotion ? undefined : { opacity: coverOpacity }}
           >
             {t('hero.title')}
           </Motion.h1>
           <Motion.p
-            className="mx-auto mt-3 max-w-xl text-sm font-light leading-relaxed text-muted sm:mt-4 sm:text-base md:text-lg"
+            className="mx-auto mt-3 hidden max-w-xl text-sm font-light leading-relaxed text-muted sm:mt-4 sm:block sm:text-base md:text-lg"
             style={reduceMotion ? undefined : { opacity: coverOpacity }}
           >
             {t('hero.subtitle')}
@@ -143,8 +147,8 @@ const Hero = () => {
 
         <Motion.form
           onSubmit={handleSearch}
-          className={`relative z-20 mt-8 w-full max-w-4xl sm:mt-10 md:mt-11 ${frameReady ? '' : 'pointer-events-none'}`}
-          style={copyExit}
+          className={`hero-booking-wrap relative z-20 mt-5 w-full max-w-4xl sm:mt-10 md:mt-11 ${frameReady ? '' : 'pointer-events-none'}`}
+          style={formMotion}
         >
           <div className="hero-booking overflow-visible rounded-[1.25rem] border border-white/80 bg-white/92 shadow-[0_18px_50px_-34px_rgba(22,18,16,0.38)] backdrop-blur-md md:rounded-[1.6rem]">
             <div className="flex flex-col md:flex-row md:items-stretch">

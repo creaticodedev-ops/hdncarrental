@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nContext'
+import { haptic } from '../utils/haptics'
 
 /**
  * Premium city selector — matches DateRangePicker visual language.
@@ -99,6 +100,7 @@ const CitySelect = ({ value, onChange, options = [], label, placeholder, classNa
   }, [open])
 
   const select = (city) => {
+    haptic('light')
     onChange(city)
     setOpen(false)
     setQuery('')

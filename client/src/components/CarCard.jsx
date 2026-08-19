@@ -81,7 +81,7 @@ const CarCard = ({ car }) => {
           <img src={assets.car_icon} alt="" className="h-3.5 opacity-70" />
           {car.transmission}
         </span>
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="hidden min-w-0 items-center gap-1.5 sm:inline-flex">
           <img src={assets.location_icon} alt="" className="h-3.5 shrink-0 opacity-70" />
           <span className="truncate">{formatLocationsDisplay(car)}</span>
         </span>

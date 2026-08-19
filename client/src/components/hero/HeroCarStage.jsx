@@ -37,7 +37,7 @@ export default function HeroCarStage({ camera, reduceMotion }) {
   } = camera
 
   return (
-    <div className="hero-stage relative mt-4 w-full sm:mt-6 md:mt-8">
+    <div className="hero-stage relative mt-2 w-full sm:mt-6 md:mt-8">
       <Motion.div
         className="hero-stage-rig relative mx-auto w-full max-w-6xl px-2 sm:px-4"
         style={

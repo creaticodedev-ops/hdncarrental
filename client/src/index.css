@@ -229,9 +229,54 @@ body.nav-open {
 }
 
 .booking-tap {
-  min-height: 3rem; /* 48px */
+  min-height: 3rem;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.fleet-rail {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fleet-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-burger {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 12px;
+}
+
+.nav-burger::before,
+.nav-burger::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: currentColor;
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.28, 1), top 0.32s cubic-bezier(0.16, 1, 0.28, 1);
+}
+
+.nav-burger::before {
+  top: 2px;
+}
+
+.nav-burger::after {
+  top: 9px;
+}
+
+.nav-burger.is-open::before {
+  top: 5.25px;
+  transform: rotate(45deg);
+}
+
+.nav-burger.is-open::after {
+  top: 5.25px;
+  transform: rotate(-45deg);
 }
 
 /* Prefer transform/opacity for GPU-composited motion (Lighthouse / INP) */

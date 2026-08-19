@@ -58,8 +58,8 @@ export default function HeroLiveBadge() {
       node.setAttribute('transform', `rotate(${seconds * 6} ${CX} ${CY})`)
     }
 
-    apply(!reduceMotion)
-    if (reduceMotion) return undefined
+    apply(!reduceMotion && !window.matchMedia('(max-width: 639px)').matches)
+    if (reduceMotion || window.matchMedia('(max-width: 639px)').matches) return undefined
 
     let frame = 0
     const loop = () => {
@@ -75,78 +75,91 @@ export default function HeroLiveBadge() {
 
   return (
     <div className="hero-live" aria-label={aria}>
-      <div className="hero-live-head">
+      <div className="hero-live-rail">
         <span className={`hero-live-pip${reduceMotion ? '' : ' is-live'}`} aria-hidden="true" />
-        <span>LIVE</span>
-        <span className="hero-live-dot" aria-hidden="true" />
-        <span>{city.toUpperCase()}</span>
+        <span className="hero-live-rail-time">{hourMinute}{period ? ` ${period}` : ''}</span>
+        <span className="hero-live-rail-rule" aria-hidden="true" />
+        <span className="hero-live-rail-temp">
+          {temperatureC != null ? `${temperatureC}°` : '—'}
+        </span>
+        <span className="hero-live-rail-rule" aria-hidden="true" />
+        <span className="hero-live-rail-city">{city.toUpperCase()}</span>
       </div>
 
-      <div className="hero-live-cluster">
-        <div className="hero-live-disc">
-          <svg className="hero-live-gauge" viewBox="0 0 120 120" aria-hidden="true">
-            <path
-              className="hero-live-arc"
-              d="M26.1 93.9 A 48 48 0 1 1 93.9 93.9"
-              fill="none"
-            />
-            {SPEEDO_MARKS.map((mark) => (
-              <line
-                key={`s-${mark.x1}-${mark.y1}`}
-                x1={mark.x1}
-                y1={mark.y1}
-                x2={mark.x2}
-                y2={mark.y2}
-                className={mark.major ? 'is-major' : ''}
-              />
-            ))}
-            {CHRONO_MARKS.map((mark) => (
-              <line
-                key={`c-${mark.x1}-${mark.y1}`}
-                x1={mark.x1}
-                y1={mark.y1}
-                x2={mark.x2}
-                y2={mark.y2}
-                className={mark.major ? 'is-major is-chrono' : 'is-chrono'}
-              />
-            ))}
-            {!reduceMotion ? (
-              <g className="hero-live-scan">
-                <circle cx="60" cy="8.5" r="1.35" />
-              </g>
-            ) : null}
-            <g ref={needleRef}>
-              <line className="hero-live-needle" x1="60" y1="60" x2="60" y2="24" />
-              <circle className="hero-live-hub" cx="60" cy="60" r="1.6" />
-            </g>
-          </svg>
+      <div className="hero-live-cluster-wrap">
+        <div className="hero-live-head">
+          <span className={`hero-live-pip${reduceMotion ? '' : ' is-live'}`} aria-hidden="true" />
+          <span>LIVE</span>
+          <span className="hero-live-dot" aria-hidden="true" />
+          <span>{city.toUpperCase()}</span>
+        </div>
 
-          <div className="hero-live-readout">
-            <span className="hero-live-time">{hourMinute}</span>
-            {period ? <span className="hero-live-period">{period}</span> : null}
+        <div className="hero-live-cluster">
+          <div className="hero-live-disc">
+            <svg className="hero-live-gauge" viewBox="0 0 120 120" aria-hidden="true">
+              <path
+                className="hero-live-arc"
+                d="M26.1 93.9 A 48 48 0 1 1 93.9 93.9"
+                fill="none"
+              />
+              {SPEEDO_MARKS.map((mark) => (
+                <line
+                  key={`s-${mark.x1}-${mark.y1}`}
+                  x1={mark.x1}
+                  y1={mark.y1}
+                  x2={mark.x2}
+                  y2={mark.y2}
+                  className={mark.major ? 'is-major' : ''}
+                />
+              ))}
+              {CHRONO_MARKS.map((mark) => (
+                <line
+                  key={`c-${mark.x1}-${mark.y1}`}
+                  x1={mark.x1}
+                  y1={mark.y1}
+                  x2={mark.x2}
+                  y2={mark.y2}
+                  className={mark.major ? 'is-major is-chrono' : 'is-chrono'}
+                />
+              ))}
+              {!reduceMotion ? (
+                <g className="hero-live-scan">
+                  <circle cx="60" cy="8.5" r="1.35" />
+                </g>
+              ) : null}
+              <g ref={needleRef}>
+                <line className="hero-live-needle" x1="60" y1="60" x2="60" y2="24" />
+                <circle className="hero-live-hub" cx="60" cy="60" r="1.6" />
+              </g>
+            </svg>
+
+            <div className="hero-live-readout">
+              <span className="hero-live-time">{hourMinute}</span>
+              {period ? <span className="hero-live-period">{period}</span> : null}
+            </div>
+          </div>
+
+          <div className="hero-live-temp" aria-hidden="true">
+            {Array.from({ length: TEMP_TICKS }, (_, i) => (
+              <span
+                key={i}
+                className={i === TEMP_TICKS - 1 - tempIndex ? 'is-active' : ''}
+              />
+            ))}
           </div>
         </div>
 
-        <div className="hero-live-temp" aria-hidden="true">
-          {Array.from({ length: TEMP_TICKS }, (_, i) => (
-            <span
-              key={i}
-              className={i === TEMP_TICKS - 1 - tempIndex ? 'is-active' : ''}
-            />
-          ))}
+        <div className="hero-live-course" aria-hidden="true">
+          <span className="hero-live-streak" />
+          <span className="hero-live-diamond" />
+          <span className="hero-live-streak" />
         </div>
-      </div>
 
-      <div className="hero-live-course" aria-hidden="true">
-        <span className="hero-live-streak" />
-        <span className="hero-live-diamond" />
-        <span className="hero-live-streak" />
-      </div>
-
-      <div className="hero-live-foot">
-        <span>{temperatureC != null ? `${temperatureC}°C` : '—'}</span>
-        <span>ROAD</span>
-        <span>LOCAL</span>
+        <div className="hero-live-foot">
+          <span>{temperatureC != null ? `${temperatureC}°C` : '—'}</span>
+          <span>ROAD</span>
+          <span>LOCAL</span>
+        </div>
       </div>
     </div>
   )

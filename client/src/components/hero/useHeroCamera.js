@@ -19,7 +19,9 @@ const LOOK = { stiffness: 18, damping: 28, mass: 1.45 }
 export function useHeroCamera(heroRef) {
   const reduceMotion = useReducedMotion()
   const [finePointer, setFinePointer] = useState(false)
-  const [compact, setCompact] = useState(false)
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
+  )
   const [frameReady, setFrameReady] = useState(false)
 
   const intro = useMotionValue(
@@ -96,8 +98,8 @@ export function useHeroCamera(heroRef) {
     }
   }, [finePointer, heroRef, px, py, reduceMotion])
 
-  const introScale = useTransform(intro, [0, 1], [compact ? 1.32 : 1.52, 1])
-  const introY = useTransform(intro, [0, 1], [compact ? 28 : 52, 0])
+  const introScale = useTransform(intro, [0, 1], [compact ? 1.16 : 1.52, 1])
+  const introY = useTransform(intro, [0, 1], [compact ? 16 : 52, 0])
   const scrollScale = useTransform(scrollYProgress, [0, 0.9], [1, 1.12])
   const scrollY = useTransform(scrollYProgress, [0, 1], [0, 28])
 
@@ -127,7 +129,7 @@ export function useHeroCamera(heroRef) {
   const uiOpacity = useTransform(scrollYProgress, [0.02, 0.34], [1, 0])
   const uiY = useTransform(scrollYProgress, [0, 0.4], [0, -40])
   const perkOpacity = useTransform([annotateOpacity, uiOpacity], ([a, u]) => a * u)
-  const carScrollY = useTransform(scrollYProgress, [0.06, 1], [0, 240])
+  const carScrollY = useTransform(scrollYProgress, [0.06, 1], [0, compact ? 72 : 240])
   const atmosphereY = useTransform(scrollYProgress, [0, 1], [0, 64])
 
   return {
@@ -136,6 +138,7 @@ export function useHeroCamera(heroRef) {
     cameraScale,
     cameraY,
     carScrollY,
+    compact,
     coverOpacity,
     farX,
     farY,

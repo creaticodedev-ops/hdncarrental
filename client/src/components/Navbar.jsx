@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { assets, menuLinks } from '../assets/assets'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
-import { motion as Motion } from 'framer-motion'
+import { AnimatePresence, motion as Motion } from 'framer-motion'
 import LanguageSwitcher from './LanguageSwitcher'
 import { useI18n } from '../i18n/I18nContext'
 import { BRAND_NAME, INSTAGRAM_URL } from '../constants/brand'
+import { haptic } from '../utils/haptics'
 
 /** Thin monochrome Instagram glyph — matches HDN header line weight */
 const InstagramGlyph = ({ className = 'h-[21px] w-[21px]' }) => (
@@ -30,6 +31,11 @@ const InstagramGlyph = ({ className = 'h-[21px] w-[21px]' }) => (
   </svg>
 )
 
+const SHEET = {
+  overlay: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+  panel: { duration: 0.45, ease: [0.16, 1, 0.28, 1] },
+}
+
 const Navbar = () => {
   const { logout, isOwner } = useAppContext()
   const { t } = useI18n()
@@ -42,6 +48,14 @@ const Navbar = () => {
   const navLabels = {
     Home: t('nav.home'),
     Cars: t('nav.cars'),
+  }
+
+  const toggleMenu = () => {
+    setOpen((v) => {
+      const next = !v
+      haptic(next ? 'open' : 'light')
+      return next
+    })
   }
 
   useEffect(() => {
@@ -82,33 +96,16 @@ const Navbar = () => {
           : 'bg-transparent border-transparent text-ink'
       }`}
     >
-      {/* —— Mobile: [Menu][IG] · logo centered · [Search][FR] —— */}
       <div className="page-pad page-shell relative flex items-center justify-between sm:hidden min-h-14 py-1.5">
-        <div className="relative z-10 flex items-center -ml-1.5">
-          <button
-            type="button"
-            className="booking-tap flex h-11 w-11 shrink-0 items-center justify-center text-ink/80 transition-opacity active:opacity-55 cursor-pointer"
-            aria-label="Menu"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-          >
-            <img
-              src={open ? assets.close_icon : assets.menu_icon}
-              alt=""
-              className="block h-5 w-5 object-contain"
-            />
-          </button>
-
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="booking-tap flex h-11 w-11 shrink-0 items-center justify-center text-ink/70 transition-opacity hover:text-ink hover:opacity-100 active:opacity-55"
-            aria-label={`${BRAND_NAME} Instagram`}
-          >
-            <InstagramGlyph />
-          </a>
-        </div>
+        <button
+          type="button"
+          className="booking-tap relative z-10 -ml-1.5 flex h-11 w-11 shrink-0 items-center justify-center text-ink"
+          aria-label="Menu"
+          aria-expanded={open}
+          onClick={toggleMenu}
+        >
+          <span className={`nav-burger${open ? ' is-open' : ''}`} aria-hidden="true" />
+        </button>
 
         <Link
           to="/"
@@ -125,20 +122,11 @@ const Navbar = () => {
           />
         </Link>
 
-        <div className="relative z-10 flex items-center -mr-1.5">
-          <button
-            type="button"
-            onClick={() => navigate('/cars')}
-            className="booking-tap flex h-11 w-11 shrink-0 items-center justify-center text-ink/70 transition-opacity hover:text-ink active:opacity-55 cursor-pointer"
-            aria-label={t('nav.cars')}
-          >
-            <img src={assets.search_icon} alt="" className="block h-[18px] w-[18px] object-contain opacity-80" />
-          </button>
+        <div className="relative z-10 -mr-1.5">
           <LanguageSwitcher variant="bare" className="shrink-0" />
         </div>
       </div>
 
-      {/* —— Desktop: unchanged —— */}
       <div className="page-pad page-shell hidden sm:flex items-center justify-between gap-4 py-3.5 sm:py-4">
         <Link to="/" className="relative z-10 shrink-0 flex items-center">
           <Motion.img
@@ -184,54 +172,91 @@ const Navbar = () => {
         </nav>
       </div>
 
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Close menu overlay"
-            className="fixed inset-0 z-40 bg-ink/40 sm:hidden"
-            onClick={() => setOpen(false)}
-          />
-          <nav className="fixed inset-x-0 top-[calc(3.75rem+env(safe-area-inset-top))] z-50 flex h-[calc(100svh-3.75rem-env(safe-area-inset-top))] flex-col gap-1 overflow-y-auto border-t border-borderColor bg-white p-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:hidden">
-            {menuLinks.map((link, index) => (
-              <Link
-                key={index}
-                to={link.path}
-                onClick={() => setOpen(false)}
-                className="booking-tap flex min-h-12 items-center border-b border-borderColor/60 py-3 text-sm tracking-wide text-muted transition-colors hover:text-ink"
-              >
-                {navLabels[link.name] || link.name}
-              </Link>
-            ))}
-            <div className="flex flex-col gap-3 pt-4">
-              {isOwner ? (
-                <>
+      <AnimatePresence>
+        {open ? (
+          <>
+            <Motion.button
+              key="nav-overlay"
+              type="button"
+              aria-label="Close menu overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={SHEET.overlay}
+              className="fixed inset-0 z-40 bg-ink/35 sm:hidden"
+              onClick={() => setOpen(false)}
+            />
+            <Motion.nav
+              key="nav-sheet"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={SHEET.panel}
+              className="fixed inset-x-0 top-[calc(3.75rem+env(safe-area-inset-top))] z-50 flex h-[calc(100svh-3.75rem-env(safe-area-inset-top))] flex-col bg-light px-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] pt-8 sm:hidden"
+            >
+              <div className="flex flex-col gap-1">
+                {menuLinks.map((link, index) => (
+                  <Link
+                    key={index}
+                    to={link.path}
+                    onClick={() => setOpen(false)}
+                    className="booking-tap font-display text-[2.35rem] font-medium leading-tight text-ink"
+                  >
+                    {navLabels[link.name] || link.name}
+                  </Link>
+                ))}
+                {isOwner ? (
                   <button
                     type="button"
                     onClick={() => {
                       navigate('/owner')
                       setOpen(false)
                     }}
-                    className="booking-tap cursor-pointer py-3 text-left text-sm text-muted hover:text-ink"
+                    className="booking-tap mt-4 text-left font-display text-[2.35rem] font-medium leading-tight text-ink"
                   >
                     {t('nav.dashboard')}
                   </button>
+                ) : null}
+              </div>
+
+              <div className="mt-auto flex flex-col gap-3 pt-10">
+                <a
+                  href={INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="booking-tap inline-flex min-h-12 items-center gap-3 text-sm tracking-wide text-muted"
+                >
+                  <InstagramGlyph className="h-5 w-5" />
+                  Instagram
+                </a>
+                {isOwner ? (
                   <button
                     type="button"
                     onClick={() => {
                       logout()
                       setOpen(false)
                     }}
-                    className="booking-tap cursor-pointer rounded-2xl bg-primary px-5 text-[15px] font-semibold text-white transition-all hover:bg-primary-dull"
+                    className="booking-tap min-h-12 text-left text-sm text-muted"
                   >
                     {t('nav.logout')}
                   </button>
-                </>
-              ) : null}
-            </div>
-          </nav>
-        </>
-      )}
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic('success')
+                    setOpen(false)
+                    navigate('/cars')
+                  }}
+                  className="booking-tap inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-primary text-[15px] font-semibold text-white"
+                >
+                  {t('hero.search')}
+                </button>
+              </div>
+            </Motion.nav>
+          </>
+        ) : null}
+      </AnimatePresence>
     </Motion.header>
   )
 }
