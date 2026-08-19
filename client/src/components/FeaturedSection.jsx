@@ -15,7 +15,6 @@ const FeaturedSection = () => {
 
   const sections = useMemo(() => {
     const grouped = groupCarsByCategory(cars)
-    // Home: up to 3 categories, 3 cars each — keeps the page premium, not crowded
     return grouped.slice(0, 3).map((s) => ({
       ...s,
       cars: s.cars.slice(0, 3),
@@ -23,8 +22,8 @@ const FeaturedSection = () => {
   }, [cars])
 
   return (
-    <section className="relative py-14 md:py-28 page-pad page-shell bg-light">
-      <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-sand/60 to-transparent pointer-events-none" />
+    <section className="relative hidden bg-light page-pad page-shell py-28 md:block">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-sand/60 to-transparent" />
 
       <Motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -60,7 +59,7 @@ const FeaturedSection = () => {
                 {t('featured.viewCategory')}
               </button>
             </div>
-            <div className="fleet-rail -mx-4 flex gap-4 overflow-x-auto px-4 pb-1 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-8 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 md:gap-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
               {section.cars.map((car, index) => (
                 <Motion.div
                   key={car._id}
@@ -68,7 +67,6 @@ const FeaturedSection = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ duration: 0.5, delay: Math.min(index * 0.08, 0.32), ease: 'easeOut' }}
-                  className="w-[min(82vw,20.5rem)] shrink-0 snap-start sm:w-auto"
                 >
                   <CarCard car={car} />
                 </Motion.div>

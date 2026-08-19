@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
 import { haptic } from '../utils/haptics'
+import PremiumVehicleShowcase from './PremiumVehicleShowcase'
 import './hero/heroStage.css'
 
 const Hero = () => {
@@ -80,7 +81,7 @@ const Hero = () => {
   const formMotion = reduceMotion || compact ? undefined : copyExit
 
   return (
-    <section ref={heroRef} className="hero-showroom relative min-h-[100svh] overflow-hidden bg-light">
+    <section ref={heroRef} className="hero-showroom relative min-h-0 overflow-x-clip overflow-y-visible bg-light md:min-h-[100svh] md:overflow-hidden">
       <HeroWorld camera={camera} reduceMotion={reduceMotion} />
 
       <Motion.aside
@@ -94,7 +95,7 @@ const Hero = () => {
       </Motion.aside>
 
       <Motion.div
-        className="hero-camera relative z-10 page-pad page-shell flex flex-col items-center pb-4 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] sm:pb-6 sm:pt-28 md:pb-8 md:pt-32"
+        className="hero-camera relative z-10 page-pad page-shell flex flex-col items-center pb-3 pt-[max(4.85rem,calc(env(safe-area-inset-top)+3.85rem))] sm:pb-6 sm:pt-28 md:pb-8 md:pt-32"
         style={pullStyle}
       >
         <HeroLiveBadge />
@@ -126,13 +127,13 @@ const Hero = () => {
           </Motion.div>
 
           <Motion.p
-            className="font-display text-[2.65rem] font-medium leading-none tracking-tight text-primary sm:text-6xl md:text-7xl"
+            className="font-display text-[2.15rem] font-medium leading-none tracking-tight text-primary sm:text-6xl md:text-7xl"
             style={reduceMotion ? undefined : { letterSpacing: tracking }}
           >
             {BRAND_NAME}
           </Motion.p>
           <Motion.h1
-            className="mt-2 font-display text-[1.85rem] font-medium leading-tight text-ink sm:mt-4 sm:text-4xl md:text-5xl"
+            className="mt-1.5 font-display text-[1.5rem] font-medium leading-tight text-ink sm:mt-4 sm:text-4xl md:text-5xl"
             style={reduceMotion ? undefined : { opacity: coverOpacity }}
           >
             {t('hero.title')}
@@ -147,7 +148,7 @@ const Hero = () => {
 
         <Motion.form
           onSubmit={handleSearch}
-          className={`hero-booking-wrap relative z-20 mt-5 w-full max-w-4xl sm:mt-10 md:mt-11 ${frameReady ? '' : 'pointer-events-none'}`}
+          className={`hero-booking-wrap relative z-20 mt-3 w-full max-w-4xl sm:mt-10 md:mt-11 ${frameReady ? '' : 'pointer-events-none'}`}
           style={formMotion}
         >
           <div className="hero-booking overflow-visible rounded-[1.25rem] border border-white/80 bg-white/92 shadow-[0_18px_50px_-34px_rgba(22,18,16,0.38)] backdrop-blur-md md:rounded-[1.6rem]">
@@ -188,7 +189,7 @@ const Hero = () => {
             </div>
           </div>
 
-          <p className="mt-3.5 px-2 text-center text-xs leading-relaxed tracking-wide text-muted sm:text-sm">
+          <p className="mt-2.5 hidden px-2 text-center text-xs leading-relaxed tracking-wide text-muted sm:mt-3.5 sm:block sm:text-sm">
             {t('hero.trustLine')}
           </p>
         </Motion.form>
@@ -212,6 +213,8 @@ const Hero = () => {
             </li>
           ))}
         </Motion.ul>
+
+        <PremiumVehicleShowcase />
       </Motion.div>
     </section>
   )

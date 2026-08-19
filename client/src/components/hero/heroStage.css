@@ -554,7 +554,7 @@
 
   .hero-camera > .hero-stage {
     order: 2;
-    margin-top: 0.85rem;
+    margin-top: 0.5rem;
   }
 
   .hero-camera > .hero-live {
@@ -563,6 +563,13 @@
 
   .hero-camera > .hero-booking-wrap {
     order: 4;
+    margin-top: 0.7rem;
+  }
+
+  .hero-camera > .pv-showcase {
+    order: 5;
+    width: 100%;
+    margin-top: 0.65rem;
   }
 
   .hero-perks {

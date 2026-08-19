@@ -9,8 +9,12 @@ const Testimonial = lazy(() => import('../components/Testimonial'))
 const WhyChoose = lazy(() => import('../components/WhyChoose'))
 const SeoHomeModule = lazy(() => import('../components/SeoHomeModule'))
 
+const FeaturedFallback = () => (
+  <div className="hidden min-h-[12rem] w-full md:block" aria-hidden />
+)
+
 const SectionFallback = () => (
-  <div className="min-h-[12rem] w-full" aria-hidden />
+  <div className="min-h-[5rem] w-full md:min-h-[12rem]" aria-hidden />
 )
 
 const Home = () => {
@@ -23,7 +27,7 @@ const Home = () => {
         jsonLd={[organizationJsonLd(), websiteJsonLd(), localBusinessJsonLd()]}
       />
       <Hero />
-      <Suspense fallback={<SectionFallback />}>
+      <Suspense fallback={<FeaturedFallback />}>
         <FeaturedSection />
       </Suspense>
       <Suspense fallback={<SectionFallback />}>

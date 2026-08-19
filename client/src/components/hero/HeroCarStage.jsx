@@ -37,7 +37,7 @@ export default function HeroCarStage({ camera, reduceMotion }) {
   } = camera
 
   return (
-    <div className="hero-stage relative mt-2 w-full sm:mt-6 md:mt-8">
+    <div className="hero-stage relative mt-1 w-full sm:mt-6 md:mt-8">
       <Motion.div
         className="hero-stage-rig relative mx-auto w-full max-w-6xl px-2 sm:px-4"
         style={
@@ -58,7 +58,7 @@ export default function HeroCarStage({ camera, reduceMotion }) {
           <CarAsset
             alt={`${BRAND_NAME} premium rental`}
             fetchPriority="high"
-            className="hero-car-photo relative z-[2] mx-auto max-h-[230px] w-full select-none object-contain sm:max-h-[340px] md:max-h-[420px] lg:max-h-[460px]"
+            className="hero-car-photo relative z-[2] mx-auto max-h-[186px] w-full select-none object-contain sm:max-h-[340px] md:max-h-[420px] lg:max-h-[460px]"
           />
 
           <div className="hero-car-reflection hidden md:block" aria-hidden="true">
