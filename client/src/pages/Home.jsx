@@ -21,8 +21,8 @@ const Home = () => {
   return (
     <>
       <SeoHead
-        title="HDN Car — Location de voiture au Maroc"
-        description="HDN Car — location de voiture premium au Maroc. Réservez en ligne, aéroports actifs et flotte récente."
+        title="Location de voitures au Maroc | HDN Car"
+        description="Location de voitures au Maroc — HDN Car à Safi. Réservez en ligne pour Casablanca, Marrakech, Agadir et plus. Flotte récente, tarifs clairs."
         path="/"
         jsonLd={[organizationJsonLd(), websiteJsonLd(), localBusinessJsonLd()]}
       />

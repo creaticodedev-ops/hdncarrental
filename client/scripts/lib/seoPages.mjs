@@ -5,6 +5,7 @@ import { MOROCCO_PILLAR } from '../../src/seo/data/moroccoPillar.js'
 import { getPublishedCities } from '../../src/seo/data/cities.js'
 import { SEO_CATEGORIES } from '../../src/seo/data/categories.js'
 import { SEO_GUIDES } from '../../src/seo/data/guides.js'
+import { TRUST_PAGES } from '../../src/seo/data/trust.js'
 import { airportsFromLocations } from '../../src/seo/data/airports.js'
 import { SITE_ORIGIN } from '../../src/seo/constants.js'
 import { uniqueCarSlug } from '../../src/seo/slugify.js'
@@ -74,6 +75,47 @@ export async function collectSeoPages() {
   const cars = carsData?.success && Array.isArray(carsData.cars) ? carsData.cars : []
 
   const pages = []
+
+  pages.push({
+    path: '/location-voiture',
+    title: 'Location voiture par ville au Maroc',
+    description:
+      'Choisissez une ville : Safi (siège HDN Car), Casablanca, Marrakech, Agadir, Rabat, Essaouira et autres destinations réellement couvertes.',
+    h1: 'Location de voiture par ville au Maroc',
+    intro:
+      'Pages villes pour les destinations réellement desservies. Siège à Safi — pas d’agences fictives.',
+    sections: getPublishedCities().map((c) => ({ heading: c.name, body: c.description })),
+    faqs: [],
+    priority: '0.9',
+    changefreq: 'weekly',
+  })
+
+  pages.push({
+    path: '/location-voiture-aeroport',
+    title: 'Location voiture aéroport Maroc',
+    description:
+      'Location de voiture à l’arrivée : uniquement les aéroports réellement bookables chez HDN Car.',
+    h1: 'Location de voiture à l’aéroport au Maroc',
+    intro: 'Pages aéroport générées uniquement pour des points de type aéroport actifs.',
+    sections: airports.map((a) => ({ heading: a.h1, body: a.description })),
+    faqs: [],
+    priority: '0.88',
+    changefreq: 'weekly',
+  })
+
+  for (const trust of TRUST_PAGES) {
+    pages.push({
+      path: trust.path,
+      title: trust.title,
+      description: trust.description,
+      h1: trust.h1,
+      intro: trust.intro,
+      sections: trust.sections,
+      faqs: trust.faqs,
+      priority: trust.slug === 'contact' || trust.slug === 'a-propos' ? '0.8' : '0.7',
+      changefreq: 'monthly',
+    })
+  }
 
   pages.push({
     path: MOROCCO_PILLAR.path,
@@ -184,27 +226,38 @@ export async function collectSeoPages() {
   pages.unshift(
     {
       path: '/',
-      title: 'HDN Car — Location de voiture au Maroc',
-      description: 'Location de voiture premium au Maroc. Réservez en ligne avec HDN Car.',
+      title: 'Location de voitures au Maroc | HDN Car',
+      description:
+        'Location de voitures au Maroc — HDN Car à Safi. Réservez en ligne pour Casablanca, Marrakech, Agadir et plus. Flotte récente, tarifs clairs.',
       h1: 'Location de voiture au Maroc',
-      intro: 'Flotte récente, réservation simple.',
-      sections: [],
+      intro:
+        'HDN Car est une agence de location basée à Safi. Réservez en ligne, choisissez un lieu de prise en charge actif (ville ou aéroport), et partez avec un véhicule entretenu.',
+      sections: [
+        {
+          heading: 'Villes',
+          body: getPublishedCities()
+            .map((c) => c.name)
+            .join(', '),
+        },
+        {
+          heading: 'Catégories',
+          body: SEO_CATEGORIES.map((c) => c.name).join(', '),
+        },
+      ],
       faqs: [],
       priority: '1.0',
       changefreq: 'weekly',
-      skipBodyPrerender: true,
     },
     {
       path: '/cars',
-      title: 'Véhicules à louer — HDN Car',
-      description: 'Parcourez la flotte HDN Car et réservez votre véhicule au Maroc.',
+      title: 'Véhicules à louer au Maroc | HDN Car',
+      description: 'Parcourez la flotte HDN Car : économique, compacte, SUV, automatique. Réservez en ligne au Maroc.',
       h1: 'Nos véhicules',
-      intro: 'Catalogue de location.',
+      intro: 'Catalogue de location HDN Car au Maroc.',
       sections: [],
       faqs: [],
       priority: '0.9',
       changefreq: 'daily',
-      skipBodyPrerender: true,
     }
   )
 
@@ -219,7 +272,7 @@ export function renderPageBody(page) {
     <p>${escapeHtml(page.intro || '')}</p>
     ${renderSections(page.sections)}
     ${renderFaqs(page.faqs)}
-    <p><a href="/cars">Voir les véhicules disponibles</a> · <a href="/location-voiture-maroc">Location voiture Maroc</a></p>
+    <p><a href="/cars">Voir les véhicules disponibles</a> · <a href="/location-voiture-maroc">Location voiture Maroc</a> · <a href="/contact">Contact</a></p>
   </article>
 </main>`
 }

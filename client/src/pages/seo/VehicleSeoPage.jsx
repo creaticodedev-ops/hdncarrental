@@ -73,19 +73,38 @@ const VehicleSeoPage = ({ slug }) => {
         },
       ]}
     >
+      {car.image || car.images?.[0] ? (
+        <figure className="mt-8 overflow-hidden rounded-2xl border border-borderColor/80 bg-sand">
+          <img
+            src={car.image || car.images[0]}
+            alt={`${name} à louer au Maroc — ${SITE_NAME}`}
+            width={960}
+            height={600}
+            className="mx-auto max-h-80 w-full object-contain"
+            loading="eager"
+            decoding="async"
+          />
+        </figure>
+      ) : null}
       <section className="mt-8 rounded-2xl border border-borderColor/80 bg-white p-4 text-sm text-muted">
-        <p>
-          Catégorie : <strong className="text-ink">{car.category || '—'}</strong>
-          {' · '}
-          Transmission : <strong className="text-ink">{car.transmission || '—'}</strong>
-          {typeof car.pricePerDay === 'number' ? (
-            <>
-              {' · '}
-              À partir de <strong className="text-ink">{car.pricePerDay} MAD</strong>/jour
-            </>
+        <h2 className="text-base font-semibold text-ink">Caractéristiques</h2>
+        <ul className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          <li>Marque : <strong className="text-ink">{car.brand || '—'}</strong></li>
+          <li>Modèle : <strong className="text-ink">{car.model || '—'}</strong></li>
+          {car.year ? <li>Année : <strong className="text-ink">{car.year}</strong></li> : null}
+          <li>Catégorie : <strong className="text-ink">{car.category || '—'}</strong></li>
+          <li>Transmission : <strong className="text-ink">{car.transmission || '—'}</strong></li>
+          {car.fuel_type ? <li>Carburant : <strong className="text-ink">{car.fuel_type}</strong></li> : null}
+          {car.seating_capacity ? (
+            <li>Places : <strong className="text-ink">{car.seating_capacity}</strong></li>
           ) : null}
-        </p>
-        <p className="mt-2">
+          {typeof car.pricePerDay === 'number' ? (
+            <li>
+              À partir de <strong className="text-ink">{car.pricePerDay} MAD</strong> / jour
+            </li>
+          ) : null}
+        </ul>
+        <p className="mt-3">
           <Link to={`/car-details/${car._id}`} className="text-primary hover:underline">
             Ouvrir la fiche complète et réserver
           </Link>

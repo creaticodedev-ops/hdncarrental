@@ -1,4 +1,5 @@
 import React from 'react';
+import NoIndexHead from '../seo/NoIndexHead'
 import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -7,6 +8,7 @@ const NotFound = () => {
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center page-pad text-center py-16">
+      <NoIndexHead title="Page introuvable" />
       <p className="text-5xl sm:text-6xl font-bold text-primary">404</p>
       <h1 className="mt-4 text-xl sm:text-2xl font-semibold text-gray-800">Page not found</h1>
       <p className="mt-2 text-sm sm:text-base text-gray-500 max-w-md">The page you are looking for does not exist or has been moved.</p>

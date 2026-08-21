@@ -5,7 +5,7 @@ import { getCategoryBySlug } from '../../seo/data/categories'
 import { getPublishedCities } from '../../seo/data/cities'
 import { useAppContext } from '../../context/AppContext'
 import { uniqueCarSlug } from '../../seo/slugify'
-import { breadcrumbJsonLd, faqJsonLd } from '../../seo/jsonLd'
+import { breadcrumbJsonLd, faqJsonLd, itemListJsonLd } from '../../seo/jsonLd'
 
 const CategoryPage = () => {
   const { slug } = useParams()
@@ -17,6 +17,9 @@ const CategoryPage = () => {
     return (cars || []).filter((car) => {
       if (data.filterType === 'transmission') {
         return String(car.transmission || '').toLowerCase() === String(data.filterValue).toLowerCase()
+      }
+      if (data.filterType === 'seats') {
+        return Number(car.seating_capacity) >= Number(data.filterValue)
       }
       return String(car.category || '').toLowerCase() === String(data.filterValue).toLowerCase()
     })
@@ -48,7 +51,18 @@ const CategoryPage = () => {
       breadcrumbs={breadcrumbs}
       ctaTo={ctaTo}
       ctaLabel={`Voir les ${data.name.toLowerCase()} disponibles`}
-      jsonLd={[breadcrumbJsonLd(breadcrumbs), faqJsonLd(data.faqs)]}
+      jsonLd={[
+        breadcrumbJsonLd(breadcrumbs),
+        faqJsonLd(data.faqs),
+        itemListJsonLd(
+          data.h1,
+          path,
+          matched.slice(0, 12).map((car) => ({
+            name: `${car.brand} ${car.model}`.trim(),
+            path: `/cars/${uniqueCarSlug(car, cars)}`,
+          })),
+        ),
+      ]}
       related={[
         {
           title: 'Villes',

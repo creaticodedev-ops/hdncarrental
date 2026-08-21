@@ -148,6 +148,87 @@ export const SEO_CATEGORIES = [
     relatedCities: ['casablanca', 'marrakech', 'rabat'],
     relatedGuides: ['conduire-au-maroc', 'comment-louer-voiture-maroc'],
   },
+  {
+    slug: 'manuelle',
+    filterType: 'transmission',
+    filterValue: 'Manual',
+    name: 'Manuelle',
+    title: 'Location voiture manuelle Maroc',
+    description:
+      'Location de voitures à boîte manuelle au Maroc avec HDN Car — souvent plus économiques, adaptées à la conduite hors ville.',
+    h1: 'Location de voiture manuelle au Maroc',
+    intro:
+      'La boîte manuelle reste courante au Maroc et souvent moins chère à la journée. HDN Car affiche la transmission réelle de chaque véhicule : choisissez manuelle si vous êtes à l’aise avec l’embrayage, surtout hors des embouteillages de Casa ou Marrakech.',
+    sections: [
+      {
+        heading: 'Quand la manuelle suffit',
+        body: 'Routes nationales, côte, et conducteurs habitués. En ville dense, l’automatique fatigue moins. Vérifiez toujours la fiche : nous ne relabelons pas un automatique en manuelle.',
+      },
+    ],
+    faqs: [
+      {
+        question: 'Les permis étrangers permettent-ils la manuelle ?',
+        answer:
+          'Si votre permis autorise les véhicules manuels (catégorie B classique), oui. Un permis limité à l’automatique ne couvre pas une manuelle — vérifiez avant de réserver.',
+      },
+    ],
+    relatedCities: ['safi', 'el-jadida', 'agadir'],
+    relatedGuides: ['conduire-au-maroc', 'voiture-economique-maroc'],
+  },
+  {
+    slug: 'luxe',
+    filterType: 'category',
+    filterValue: 'Luxury',
+    name: 'Luxe',
+    title: 'Location voiture luxe Maroc',
+    description:
+      'Location de véhicules catégorie luxe au Maroc avec HDN Car, selon le stock réel — pas de modèles inventés.',
+    h1: 'Location de voiture luxe au Maroc',
+    intro:
+      'Lorsque notre flotte compte des véhicules classés luxe, ils apparaissent ici et sur le catalogue. Cette page ne promet pas de berlines que nous n’avons pas : le listing ci-dessous reflète uniquement le stock publié.',
+    sections: [
+      {
+        heading: 'Pour quels trajets ?',
+        body: 'Transferts professionnels, mariages, ou confort sur autoroute Casablanca–Marrakech. Confirmez disponibilité et caution, souvent plus élevées.',
+      },
+    ],
+    faqs: [
+      {
+        question: 'Que faire s’il n’y a aucun modèle luxe affiché ?',
+        answer:
+          'Le stock varie. Parcourez SUV et compactes, ou contactez HDN Car pour une alternative honnête.',
+      },
+    ],
+    relatedCities: ['casablanca', 'marrakech', 'rabat'],
+    relatedGuides: ['assurance-location-voiture-maroc', 'comment-louer-voiture-maroc'],
+  },
+  {
+    slug: '7-places',
+    filterType: 'seats',
+    filterValue: 7,
+    name: '7 places',
+    title: 'Location voiture 7 places Maroc',
+    description:
+      'Besoin de 7 sièges ou plus ? HDN Car liste les véhicules dont la capacité réelle est d’au moins 7 places.',
+    h1: 'Location de voiture 7 places au Maroc',
+    intro:
+      'Familles nombreuses et groupes : seuls les véhicules dont la fiche indique au moins 7 places apparaissent ici. Pas de van inventé.',
+    sections: [
+      {
+        heading: 'Bagages',
+        body: 'Sept occupants réduisent souvent le coffre. Vérifiez volume et sièges enfants auprès de l’équipe si vous voyagez chargés.',
+      },
+    ],
+    faqs: [
+      {
+        question: 'Puis-je réserver un siège enfant en plus ?',
+        answer:
+          'Selon disponibilité locale. Mentionnez-le à la réservation ou sur WhatsApp pour que le véhicule soit préparé.',
+      },
+    ],
+    relatedCities: ['casablanca', 'marrakech', 'agadir', 'rabat'],
+    relatedGuides: ['comment-louer-voiture-maroc', 'documents-location-voiture-maroc'],
+  },
 ]
 
 export const getCategoryBySlug = (slug) =>

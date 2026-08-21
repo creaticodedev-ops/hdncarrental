@@ -2,6 +2,8 @@ export const en = {
   nav: {
     home: 'Home',
     cars: 'Cars',
+    locations: 'Morocco',
+    contact: 'Contact',
     searchPlaceholder: 'Search cars',
     admin: 'Admin',
     dashboard: 'Dashboard',
@@ -446,6 +448,8 @@ export const fr = {
   nav: {
     home: 'Accueil',
     cars: 'Voitures',
+    locations: 'Maroc',
+    contact: 'Contact',
     searchPlaceholder: 'Rechercher',
     admin: 'Admin',
     dashboard: 'Tableau de bord',
@@ -890,6 +894,8 @@ export const es = {
   nav: {
     home: 'Inicio',
     cars: 'Coches',
+    locations: 'Marruecos',
+    contact: 'Contacto',
     searchPlaceholder: 'Buscar coches',
     admin: 'Admin',
     dashboard: 'Panel',

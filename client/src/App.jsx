@@ -8,6 +8,11 @@ import { Toaster } from 'react-hot-toast'
 import { useAppContext } from './context/AppContext'
 import Loader from './components/Loader'
 import GaRouteTracker from './analytics/GaRouteTracker'
+import {
+  AirportAliasRedirect,
+  LocationAliasRedirect,
+  TrustAliasRedirect,
+} from './pages/seo/SeoAliasRedirect'
 
 const Cars = lazy(() => import('./pages/Cars'))
 const CarDetails = lazy(() => import('./pages/CarDetails'))
@@ -64,6 +69,9 @@ const AirportPage = lazy(() => import('./pages/seo/AirportPage'))
 const CarsSlugPage = lazy(() => import('./pages/seo/CarsSlugPage'))
 const GuideHubPage = lazy(() => import('./pages/seo/GuideHubPage'))
 const GuideArticlePage = lazy(() => import('./pages/seo/GuideArticlePage'))
+const LocationHubPage = lazy(() => import('./pages/seo/LocationHubPage'))
+const AirportHubPage = lazy(() => import('./pages/seo/AirportHubPage'))
+const TrustPage = lazy(() => import('./pages/seo/TrustPage'))
 
 const withPerm = (permission, Component) => (
   <RequirePermission permission={permission}>{React.createElement(Component)}</RequirePermission>
@@ -122,10 +130,24 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/location-voiture-maroc" element={<MoroccoPillarPage />} />
+            <Route path="/location-voiture" element={<LocationHubPage />} />
             <Route path="/location-voiture/:city" element={<CityPage />} />
+            <Route path="/locations" element={<LocationHubPage />} />
+            <Route path="/locations/:city" element={<LocationAliasRedirect />} />
+            <Route path="/location-voiture-aeroport" element={<AirportHubPage />} />
             <Route path="/location-voiture-aeroport/:airport" element={<AirportPage />} />
+            <Route path="/airport-car-rental" element={<AirportHubPage />} />
+            <Route path="/airport-car-rental/:slug" element={<AirportAliasRedirect />} />
             <Route path="/guide" element={<GuideHubPage />} />
             <Route path="/guide/:slug" element={<GuideArticlePage />} />
+            <Route path="/a-propos" element={<TrustPage slug="a-propos" />} />
+            <Route path="/about" element={<TrustAliasRedirect to="/a-propos" />} />
+            <Route path="/contact" element={<TrustPage slug="contact" />} />
+            <Route path="/faq" element={<TrustPage slug="faq" />} />
+            <Route path="/conditions-de-location" element={<TrustPage slug="conditions-de-location" />} />
+            <Route path="/terms" element={<TrustAliasRedirect to="/conditions-de-location" />} />
+            <Route path="/confidentialite" element={<TrustPage slug="confidentialite" />} />
+            <Route path="/privacy" element={<TrustAliasRedirect to="/confidentialite" />} />
             <Route path="/car-details/:id" element={<CarDetails />} />
             <Route path="/cars" element={<Cars />} />
             <Route path="/cars/:slug" element={<CarsSlugPage />} />

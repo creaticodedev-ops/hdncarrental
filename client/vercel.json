@@ -47,6 +47,24 @@
           "value": "noindex, nofollow"
         }
       ]
+    },
+    {
+      "source": "/owner/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/superadmin/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -54,5 +72,15 @@
       "source": "/((?!robots\\.txt$|sitemap\\.xml$).*)",
       "destination": "/"
     }
+  ],
+  "redirects": [
+    { "source": "/about", "destination": "/a-propos", "permanent": true },
+    { "source": "/privacy", "destination": "/confidentialite", "permanent": true },
+    { "source": "/terms", "destination": "/conditions-de-location", "permanent": true },
+    { "source": "/locations", "destination": "/location-voiture", "permanent": true },
+    { "source": "/locations/:city", "destination": "/location-voiture/:city", "permanent": true },
+    { "source": "/airport-car-rental", "destination": "/location-voiture-aeroport", "permanent": true },
+    { "source": "/airport-car-rental/marrakech", "destination": "/location-voiture-aeroport/marrakech-rak", "permanent": true },
+    { "source": "/airport-car-rental/casablanca", "destination": "/location-voiture-aeroport/casablanca-cmn", "permanent": true }
   ]
 }

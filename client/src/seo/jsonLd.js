@@ -49,7 +49,6 @@ export const localBusinessJsonLd = () => ({
     '@type': 'Country',
     name: 'Morocco',
   },
-  priceRange: '$$',
 })
 
 export const breadcrumbJsonLd = (items = []) => ({
@@ -79,7 +78,23 @@ export const faqJsonLd = (faqs = []) => {
   }
 }
 
-/** Product/Vehicle — only with real inventory fields; never fake reviews. */
+/** ItemList for real vehicle collections visible on the page. */
+export const itemListJsonLd = (name, path, items = []) => {
+  if (!items.length) return null
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    url: absoluteUrl(path),
+    numberOfItems: items.length,
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      url: absoluteUrl(item.path),
+    })),
+  }
+}
 export const vehicleProductJsonLd = (car, path) => {
   if (!car?.brand || !car?.model) return null
   const name = `${car.brand} ${car.model}`.trim()
@@ -98,8 +113,12 @@ export const vehicleProductJsonLd = (car, path) => {
       '@type': 'Offer',
       priceCurrency: 'MAD',
       price: String(car.pricePerDay),
-      availability: 'https://schema.org/InStock',
       url: absoluteUrl(path),
+    }
+    if (car.isAvaliable === false) {
+      data.offers.availability = 'https://schema.org/OutOfStock'
+    } else if (car.isAvaliable === true) {
+      data.offers.availability = 'https://schema.org/InStock'
     }
   }
   return data

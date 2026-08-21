@@ -27,6 +27,9 @@ const GuideArticlePage = () => {
       breadcrumbs={breadcrumbs}
       jsonLd={[breadcrumbJsonLd(breadcrumbs), faqJsonLd(data.faqs)]}
       related={[
+        ...(data.relatedCommercial?.length
+          ? [{ title: 'Réserver', links: data.relatedCommercial }]
+          : []),
         {
           title: 'Autres guides',
           links: SEO_GUIDES.filter((g) => g.slug !== data.slug)

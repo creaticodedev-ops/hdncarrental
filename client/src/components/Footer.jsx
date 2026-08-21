@@ -77,7 +77,12 @@ const Footer = () => {
               <li><Link className="hover:text-gray-700 transition" to="/">{t('footer.home')}</Link></li>
               <li><Link className="hover:text-gray-700 transition" to="/cars">{t('footer.browseCars')}</Link></li>
               <li><Link className="hover:text-gray-700 transition" to="/location-voiture-maroc">Location Maroc</Link></li>
+              <li><Link className="hover:text-gray-700 transition" to="/location-voiture">Villes</Link></li>
+              <li><Link className="hover:text-gray-700 transition" to="/location-voiture-aeroport">Aéroports</Link></li>
               <li><Link className="hover:text-gray-700 transition" to="/guide">Guides</Link></li>
+              <li><Link className="hover:text-gray-700 transition" to="/a-propos">{t('footer.aboutUs')}</Link></li>
+              <li><Link className="hover:text-gray-700 transition" to="/contact">{t('footer.contact')}</Link></li>
+              <li><Link className="hover:text-gray-700 transition" to="/faq">FAQ</Link></li>
             </ul>
           </div>
 
@@ -153,25 +158,26 @@ const Footer = () => {
         <div className="flex flex-col items-center gap-2 md:items-end">
           <ul className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs sm:text-sm">
             <li>
-              <Link className="hover:text-gray-800 transition" to="/guide/documents-location-voiture-maroc">
+              <Link className="hover:text-gray-800 transition" to="/confidentialite">
                 {t('footer.privacy')}
               </Link>
             </li>
             <span className="text-borderColor" aria-hidden>|</span>
             <li>
-              <Link className="hover:text-gray-800 transition" to="/guide/assurance-location-voiture-maroc">
+              <Link className="hover:text-gray-800 transition" to="/conditions-de-location">
                 {t('footer.terms')}
               </Link>
             </li>
             <span className="text-borderColor" aria-hidden>|</span>
             <li>
-              <Link className="hover:text-gray-800 transition" to="/guide/caution-location-voiture">
+              <Link className="hover:text-gray-800 transition" to="/confidentialite">
                 {t('footer.cookies')}
               </Link>
             </li>
           </ul>
           <Link
             to="/owner"
+            rel="nofollow"
             className="text-[10px] text-gray-400/70 hover:text-gray-500 transition tracking-wide"
           >
             {t('footer.staffPortal')}

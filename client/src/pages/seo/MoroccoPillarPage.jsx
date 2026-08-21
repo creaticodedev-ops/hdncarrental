@@ -42,6 +42,15 @@ const MoroccoPillarPage = () => {
             .map((c) => ({ to: `/location-voiture/${c.slug}`, label: c.name })),
         },
         {
+          title: 'Parcourir',
+          links: [
+            { to: '/location-voiture', label: 'Toutes les villes' },
+            { to: '/location-voiture-aeroport', label: 'Aéroports' },
+            { to: '/contact', label: 'Contact' },
+            { to: '/faq', label: 'FAQ' },
+          ],
+        },
+        {
           title: 'Catégories',
           links: SEO_CATEGORIES.map((c) => ({ to: `/cars/${c.slug}`, label: c.name })),
         },

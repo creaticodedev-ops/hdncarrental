@@ -86,6 +86,8 @@ export const assets = {
 export const menuLinks = [
     { name: "Home", path: "/" },
     { name: "Cars", path: "/cars" },
+    { name: "Locations", path: "/location-voiture-maroc" },
+    { name: "Contact", path: "/contact" },
 ]
 
 /** Admin sidebar: professional IA (permissions + paths unchanged). */

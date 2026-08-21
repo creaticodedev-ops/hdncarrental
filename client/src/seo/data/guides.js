@@ -79,6 +79,45 @@ export const SEO_GUIDES = [
         answer: 'Oui, comme en Europe continentale. Ceinture obligatoire.',
       },
     ],
+    relatedCommercial: [
+      { to: '/location-voiture/marrakech', label: 'Location voiture Marrakech' },
+      { to: '/cars/automatique', label: 'Voitures automatiques' },
+    ],
+  },
+  {
+    slug: 'conduire-a-marrakech',
+    title: 'Conduire à Marrakech — médina, Atlas, aéroport',
+    description:
+      'Conseils pour conduire à Marrakech en voiture de location : médina, parkings Guéliz, aéroport Menara, route vers Essaouira et l’Atlas.',
+    h1: 'Conduire à Marrakech',
+    intro:
+      'Marrakech se visite surtout à pied dans la médina. La voiture sert aux transferts aéroport, à Guéliz, et aux étapes vers l’Atlas ou Essaouira. Voici comment éviter les erreurs classiques.',
+    sections: [
+      {
+        heading: 'Médina et parkings',
+        body: 'N’entrez pas dans les ruelles en location. Garez-vous à Guéliz, Hivernage ou parkings périphériques, puis continuez à pied ou en taxi vers Jemaa el-Fna.',
+      },
+      {
+        heading: 'Depuis l’aéroport Menara',
+        body: 'Lorsque le point RAK est actif chez HDN Car, la remise des clés se fait selon les instructions après confirmation. La ville est proche : prévoyez tout de même formalités et circulation en fin d’après-midi.',
+      },
+      {
+        heading: 'Vers Essaouira ou l’Atlas',
+        body: 'Essaouira : route bitumée, 2h30–3h, une compacte suffit. Ourika / cols : partez tôt, SUV plus confortable. Évitez les pistes hors contrat.',
+      },
+    ],
+    faqs: [
+      {
+        question: 'Faut-il une automatique à Marrakech ?',
+        answer:
+          'Utile dans les ronds-points et ralentissements. La manuelle reste possible si vous y êtes habitué. Voir notre page automatique.',
+      },
+    ],
+    relatedCommercial: [
+      { to: '/location-voiture/marrakech', label: 'Location voiture Marrakech' },
+      { to: '/location-voiture-aeroport/marrakech-rak', label: 'Aéroport Marrakech (RAK)' },
+      { to: '/cars/suv', label: 'Location SUV' },
+    ],
   },
   {
     slug: 'assurance-location-voiture-maroc',

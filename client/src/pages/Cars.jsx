@@ -10,6 +10,7 @@ import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { VEHICLE_CATEGORIES, groupCarsByCategory } from '../utils/vehicleCategories'
 import { getCarLocations } from '../utils/carLocations'
+import SeoHead from '../seo/SeoHead'
 import { booking } from '../components/ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
 
@@ -122,6 +123,11 @@ const Cars = () => {
 
   return (
     <div className={booking.pageBottom}>
+      <SeoHead
+        title="Véhicules à louer au Maroc"
+        description="Parcourez la flotte HDN Car : économique, compacte, SUV, automatique. Réservez en ligne au Maroc."
+        path="/cars"
+      />
       <Motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

@@ -138,7 +138,18 @@ export const SEO_CITIES = [
         body: 'Tanger–Tétouan–Chefchaouen est un classique. Routes parfois étroites : conduisez prudemment, surtout de nuit.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'Avez-vous un comptoir à Tanger ville ?',
+        answer:
+          'Pas d’agence fictive au centre. Location ou livraison selon les points réellement actifs à vos dates.',
+      },
+      {
+        question: 'Chefchaouen en une journée depuis Tanger ?',
+        answer:
+          'Le trajet est faisable (environ 2h), avec de la marge pour les routes sinueuses et le parking en bas de la médina.',
+      },
+    ],
     relatedCategories: ['compacte', 'suv'],
   }),
   city({
@@ -159,7 +170,13 @@ export const SEO_CITIES = [
         body: 'Utilisez parkings périphériques. Un GPS aide à éviter les voies interdites autour de la vieille ville.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'Dois-je louer pour visiter la médina de Fès ?',
+        answer:
+          'Non : la médina se parcourt à pied. Louez pour Meknès, Ifrane, Chefchaouen ou Rabat, et garez-vous en périphérie.',
+      },
+    ],
     relatedCategories: ['compacte', 'economique'],
   }),
   city({
@@ -180,7 +197,13 @@ export const SEO_CITIES = [
         body: 'Route touristique fréquentée. Partez tôt le matin en haute saison pour éviter la chaleur et le trafic local.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'Mieux vaut louer à Essaouira ou à Marrakech ?',
+        answer:
+          'La plupart des voyageurs récupèrent à Marrakech (RAK si actif) puis rejoignent Essaouira. Une compacte suffit pour cette route bitumée.',
+      },
+    ],
     relatedCategories: ['compacte', 'economique'],
   }),
   city({
@@ -228,7 +251,13 @@ export const SEO_CITIES = [
         body: 'Meknès–Volubilis–Moulay Idriss en journée, puis Ifrane si vous visez la fraîcheur du Moyen Atlas.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'Peut-on aller à Volubilis sans 4x4 ?',
+        answer:
+          'Oui, l’accès classique est bitumé. Une compacte suffit ; un SUV n’est utile que pour le confort ou des étapes vers Ifrane.',
+      },
+    ],
     relatedCategories: ['compacte', 'suv'],
   }),
   city({
@@ -249,7 +278,13 @@ export const SEO_CITIES = [
         body: 'SUV recommandé pour bagages et routes de montagne. Évitez de vous engager sur des pistes non couvertes par votre contrat.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'Faut-il un SUV pour Ouarzazate ?',
+        answer:
+          'La route depuis Marrakech est bitumée mais montagneuse. Un SUV est plus confortable avec bagages ; une compacte récente reste possible hors pistes.',
+      },
+    ],
     relatedCategories: ['suv'],
   }),
   city({
@@ -270,7 +305,13 @@ export const SEO_CITIES = [
         body: 'Depuis Tanger ou Fès, routes sinueuses. Conduite de jour recommandée si vous n’êtes pas habitué.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'Où se garer à Chefchaouen ?',
+        answer:
+          'Utilisez les parkings indiqués en contrebas / entrée de ville. N’entrez pas dans les ruelles bleues en voiture.',
+      },
+    ],
     relatedCategories: ['compacte', 'suv'],
   }),
   city({
@@ -291,7 +332,13 @@ export const SEO_CITIES = [
         body: 'A3/routes côtières vers Casa ; descente vers Safi pour rejoindre notre base HDN Car.',
       },
     ],
-    faqs: [],
+    faqs: [
+      {
+        question: 'El Jadida depuis Casablanca, combien de temps ?',
+        answer:
+          'Environ une heure hors pointe via les axes côtiers / A3 selon votre point de départ. Une économique suffit pour un week-end mer.',
+      },
+    ],
     relatedCategories: ['economique', 'compacte'],
   }),
   // Unpublished stubs — scalable later without code changes

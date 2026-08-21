@@ -48,6 +48,8 @@ const Navbar = () => {
   const navLabels = {
     Home: t('nav.home'),
     Cars: t('nav.cars'),
+    Locations: t('nav.locations'),
+    Contact: t('nav.contact'),
   }
 
   const toggleMenu = () => {

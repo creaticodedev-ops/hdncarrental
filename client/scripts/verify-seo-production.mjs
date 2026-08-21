@@ -3,7 +3,7 @@
  * Usage: node scripts/verify-seo-production.mjs
  */
 const ORIGIN = process.env.SEO_VERIFY_ORIGIN || 'https://www.hdncar.com'
-const HOME_TITLE_SNIPPET = 'Premium Car Rental in Morocco'
+const HOME_TITLE_SNIPPET = 'Location de voitures au Maroc'
 
 const fetchText = async (url) => {
   const res = await fetch(url, {
