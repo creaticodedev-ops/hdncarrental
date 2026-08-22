@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import { AdminDrawer } from '../../admin/ui'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -43,13 +44,14 @@ const createEmptyForm = () => ({
 
 const Invoices = () => {
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 })
   const [filters, setFilters] = useState({ search: '', customerName: '', cin: '', phone: '' })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [form, setForm] = useState(createEmptyForm())
   const [editOpen, setEditOpen] = useState(false)
   const [editTab, setEditTab] = useState('fields')
@@ -537,6 +539,33 @@ const Invoices = () => {
             <div>{t('admin.invoices.totalCount', { count: totals.count })}</div>
             <div>{t('admin.invoices.totalAmount', { amount: `${currency}${totals.totalAmount.toFixed(2)}` })}</div>
           </div>
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try {
+                await downloadXlsx(axios, '/api/invoices/export', {
+                  params: {
+                    ...(filters.search ? { search: filters.search } : {}),
+                    ...(filters.customerName ? { customerName: filters.customerName } : {}),
+                    ...(filters.cin ? { cin: filters.cin } : {}),
+                    ...(filters.phone ? { phone: filters.phone } : {}),
+                  },
+                  language,
+                  fallbackName: 'invoices.xlsx',
+                })
+                toast.success(t('admin.common.exportSuccess'))
+              } catch (error) {
+                toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+              } finally {
+                setExporting(false)
+              }
+            }}
+            className="rounded-xl border border-borderColor px-4 py-2 text-sm font-medium hover:bg-gray-50"
+          >
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+          </button>
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}

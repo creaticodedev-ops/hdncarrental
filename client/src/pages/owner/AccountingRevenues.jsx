@@ -5,10 +5,11 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { carLabel, formatMoney, toInputDate, inputClass, labelClass } from './AccountingLedgerPage'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const AccountingRevenues = () => {
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [items, setItems] = useState([])
   const [totals, setTotals] = useState(null)
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 })
@@ -20,6 +21,7 @@ const AccountingRevenues = () => {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [cars, setCars] = useState([])
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     axios
@@ -109,6 +111,35 @@ const AccountingRevenues = () => {
             className={inputClass}
           />
         </label>
+        <button
+          type="button"
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true)
+            try {
+              await downloadXlsx(axios, '/api/owner/accounting/export', {
+                params: {
+                  ledger: 'revenues',
+                  ...(from ? { from } : {}),
+                  ...(to ? { to } : {}),
+                  ...(paymentStatus !== 'all' ? { paymentStatus } : {}),
+                  ...(carId ? { car: carId } : {}),
+                  ...(q.trim() ? { q: q.trim() } : {}),
+                },
+                language,
+                fallbackName: 'revenues.xlsx',
+              })
+              toast.success(t('admin.common.exportSuccess'))
+            } catch (error) {
+              toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+            } finally {
+              setExporting(false)
+            }
+          }}
+          className="admin-btn admin-btn-secondary"
+        >
+          {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+        </button>
       </div>
 
       {totals ? (

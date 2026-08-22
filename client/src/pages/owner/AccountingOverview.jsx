@@ -5,17 +5,19 @@ import { AdminPage, StatCard, SkeletonBlock } from '../../admin/ui'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const formatMoney = (n, currency = 'MAD') =>
   `${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`
 
 const AccountingOverview = () => {
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [kpis, setKpis] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -100,6 +102,28 @@ const AccountingOverview = () => {
         </label>
         <button type="button" onClick={load} className="admin-btn admin-btn-primary">
           {t('admin.accounting.applyFilters')}
+        </button>
+        <button
+          type="button"
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true)
+            try {
+              await downloadXlsx(axios, '/api/owner/accounting/export', {
+                params: { ...(from ? { from } : {}), ...(to ? { to } : {}) },
+                language,
+                fallbackName: 'accounting.xlsx',
+              })
+              toast.success(t('admin.common.exportSuccess'))
+            } catch (error) {
+              toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+            } finally {
+              setExporting(false)
+            }
+          }}
+          className="admin-btn admin-btn-secondary"
+        >
+          {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
         </button>
       </div>
 

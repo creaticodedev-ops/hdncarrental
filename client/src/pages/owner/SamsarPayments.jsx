@@ -8,6 +8,7 @@ const config = {
   titleKey: 'admin.accounting.samsarPayTitle',
   subtitleKey: 'admin.accounting.samsarPaySubtitle',
   createKey: 'admin.accounting.samsarPayCreate',
+  exportLedger: 'samsar-payments',
   editKey: 'admin.accounting.samsarPayEdit',
   needsSamsars: true,
   emptyForm: () => ({

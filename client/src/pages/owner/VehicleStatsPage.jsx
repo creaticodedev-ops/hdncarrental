@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAppContext } from '../../context/AppContext'
 import { getErrorMessage } from '../../utils/apiError'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 import Title from '../../components/owner/Title'
 import { useI18n } from '../../i18n/I18nContext'
 
@@ -112,7 +113,7 @@ const VehicleStatsPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
   const [car, setCar] = useState(null)
@@ -123,40 +124,20 @@ const VehicleStatsPage = () => {
 
   const analytics = stats?.analytics || {}
 
-  const exportReport = (type = 'csv') => {
-    if (!analytics || !Object.keys(analytics).length) {
-      toast.error(t('admin.vehicleStats.exportError'))
-      return
-    }
-
+  const exportReport = async (type = 'xlsx') => {
     if (type === 'pdf') {
       window.print()
       return
     }
-
-    const rows = [
-      ['Metric', 'Value'],
-      [t('admin.vehicleStats.revenueToday'), formatCurrency(analytics.revenueToday, currency)],
-      [t('admin.vehicleStats.revenueThisWeek'), formatCurrency(analytics.revenueThisWeek, currency)],
-      [t('admin.vehicleStats.revenueThisMonth'), formatCurrency(analytics.revenueThisMonth, currency)],
-      [t('admin.vehicleStats.revenueThisYear'), formatCurrency(analytics.revenueThisYear, currency)],
-      [t('admin.vehicleStats.lifetimeRevenue'), formatCurrency(analytics.lifetimeRevenue, currency)],
-      [t('admin.vehicleStats.avgRevenuePerBooking'), formatCurrency(analytics.averageRevenuePerBooking, currency)],
-      [t('admin.vehicleStats.avgDailyRevenue'), formatCurrency(analytics.averageDailyRevenue, currency)],
-      [t('admin.vehicleStats.revenuePerRentalDay'), formatCurrency(analytics.revenuePerRentalDay, currency)],
-      [t('admin.vehicleStats.estimatedProfit'), formatCurrency(analytics.estimatedProfit, currency)],
-      [t('admin.vehicleStats.bestPerformingPeriod'), `${analytics.bestPerformingPeriod?.label || '—'} · ${analytics.bestPerformingPeriod?.revenue ? formatCurrency(analytics.bestPerformingPeriod.revenue, currency) : '—'}`],
-    ]
-
-    const csvContent = rows.map((row) => row.join(',')).join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${car?.fleetId || car?.licensePlate || 'vehicle'}-analytics.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    toast.success(t('admin.vehicleStats.exportSuccess'))
+    try {
+      await downloadXlsx(axios, `/api/owner/vehicles/${id}/stats/export`, {
+        language,
+        fallbackName: `${car?.fleetId || car?.licensePlate || 'vehicle'}-report.xlsx`,
+      })
+      toast.success(t('admin.common.exportSuccess'))
+    } catch (error) {
+      toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+    }
   }
 
   useEffect(() => {
@@ -243,7 +224,7 @@ const VehicleStatsPage = () => {
                 {filter.label}
               </button>
             ))}
-            <button type='button' onClick={() => exportReport('csv')} className='rounded-full border border-borderColor px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900'>{t('admin.vehicleStats.exportCsv')}</button>
+            <button type='button' onClick={() => exportReport('xlsx')} className='rounded-full border border-borderColor px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900'>{t('admin.common.exportExcel')}</button>
             <button type='button' onClick={() => exportReport('pdf')} className='rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm text-primary hover:bg-primary/20'>{t('admin.vehicleStats.exportPdf')}</button>
           </div>
         </div>

@@ -5,13 +5,15 @@ import { useAppContext } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/apiError';
+import { downloadXlsx } from '../../utils/downloadXlsx';
 
 const Analytics = () => {
   const { axios, currency } = useAppContext();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [analytics, setAnalytics] = useState(null);
   const [tab, setTab] = useState('monthly');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -36,7 +38,34 @@ const Analytics = () => {
 
   return (
     <div className="admin-page-pad flex-1 pb-12">
-      <Title title={t('admin.analytics.title')} subTitle={t('admin.analytics.subtitle')} />
+      <Title
+        title={t('admin.analytics.title')}
+        subTitle={t('admin.analytics.subtitle')}
+        secondaryAction={
+          <button
+            type="button"
+            disabled={exporting || !analytics}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                await downloadXlsx(axios, '/api/owner/reports/export', {
+                  params: { type: 'analytics' },
+                  language,
+                  fallbackName: 'analytics.xlsx',
+                });
+                toast.success(t('admin.common.exportSuccess'));
+              } catch (error) {
+                toast.error(getErrorMessage(error) || t('admin.common.exportError'));
+              } finally {
+                setExporting(false);
+              }
+            }}
+            className="admin-btn admin-btn-secondary"
+          >
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+          </button>
+        }
+      />
 
       {loading ? (
         <p className="mt-8 text-gray-400">{t('admin.analytics.loading')}</p>

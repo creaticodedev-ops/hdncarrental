@@ -6,6 +6,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { AdminDrawer } from '../../admin/ui'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -31,7 +32,7 @@ const carLabel = (car) => {
  */
 const AccountingLedgerPage = ({ config }) => {
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 })
   const [loading, setLoading] = useState(true)
@@ -48,6 +49,7 @@ const AccountingLedgerPage = ({ config }) => {
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [exporting, setExporting] = useState(false)
   const [cars, setCars] = useState([])
   const [samsars, setSamsars] = useState([])
 
@@ -181,13 +183,45 @@ const AccountingLedgerPage = ({ config }) => {
     <div className="admin-page-pad">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <Title title={t(config.titleKey)} subTitle={t(config.subtitleKey)} />
-        <button
-          type="button"
-          onClick={openCreate}
-          className="admin-btn admin-btn-primary"
-        >
-          {t(config.createKey)}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try {
+                await downloadXlsx(axios, '/api/owner/accounting/export', {
+                  params: {
+                    ledger: config.exportLedger || '',
+                    ...(from ? { from } : {}),
+                    ...(to ? { to } : {}),
+                    ...(paymentStatus !== 'all' ? { paymentStatus } : {}),
+                    ...(category !== 'all' && config.categories ? { category } : {}),
+                    ...(config.needsCars && carId ? { car: carId } : {}),
+                    ...(config.needsSamsars && samsarId ? { samsar: samsarId } : {}),
+                  },
+                  language,
+                  fallbackName: 'accounting.xlsx',
+                })
+                toast.success(t('admin.common.exportSuccess'))
+              } catch (error) {
+                toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+              } finally {
+                setExporting(false)
+              }
+            }}
+            className="admin-btn admin-btn-secondary"
+          >
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+          </button>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="admin-btn admin-btn-primary"
+          >
+            {t(config.createKey)}
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap items-end gap-3">

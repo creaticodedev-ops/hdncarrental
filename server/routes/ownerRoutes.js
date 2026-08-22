@@ -18,7 +18,6 @@ import {
 } from "../controllers/ownerController.js";
 import {
   addCustomerNote,
-  exportReport,
   getAuditLogs,
   getCrmCustomerDetail,
   getCrmCustomers,
@@ -30,6 +29,13 @@ import {
   rateCustomer,
   updateCustomerStatus,
 } from "../controllers/adminOpsController.js";
+import {
+  exportReportXlsx,
+  exportAccountingXlsx,
+  exportMaintenanceXlsx,
+  exportVehicleStatsXlsx,
+  exportCustomersXlsx,
+} from "../controllers/xlsxExportController.js";
 import {
   getFleetMaintenance,
   updateCarMaintenance,
@@ -96,6 +102,7 @@ ownerRouter.get("/cars/:id", ...gate('fleet'), getOwnerCarById);
 ownerRouter.get("/cars/:id/stats", ...gate('fleet'), getVehicleStats);
 ownerRouter.get("/vehicles/:id", ...gate('fleet'), getOwnerCarById);
 ownerRouter.get("/vehicles/:id/stats", ...gate('fleet'), getVehicleStats);
+ownerRouter.get("/vehicles/:id/stats/export", ...gate('fleet'), exportVehicleStatsXlsx);
 ownerRouter.post("/update-car", ...gate('fleet'), upload.single("image"), handleMulterError, updateCar);
 ownerRouter.post("/toggle-car", ...gate('fleet'), toggleCarAvailability);
 ownerRouter.post("/delete-car", ...gate('fleet'), deleteCar);
@@ -108,6 +115,7 @@ ownerRouter.get('/analytics', ...gate('analytics'), getRevenueAnalytics);
 ownerRouter.get('/overview', ...gate('dashboard'), getAdminOverview);
 ownerRouter.get('/customers', ...gate('customers'), getCustomers);
 ownerRouter.get('/crm/customers', ...gate('customers'), getCrmCustomers);
+ownerRouter.get('/crm/customers/export', ...gate('customers'), exportCustomersXlsx);
 ownerRouter.get('/crm/customers/:email', ...gate('customers'), getCrmCustomerDetail);
 ownerRouter.post('/crm/rate', ...gate('customers'), rateCustomer);
 ownerRouter.post('/crm/note', ...gate('customers'), addCustomerNote);
@@ -120,11 +128,12 @@ ownerRouter.patch('/maintenance/records', ...gate('maintenance'), updateMaintena
 ownerRouter.post('/maintenance/records/delete', ...gate('maintenance'), deleteMaintenanceRecord);
 ownerRouter.get('/maintenance/calendar', ...gate('maintenance'), getMaintenanceCalendar);
 ownerRouter.get('/maintenance/report', ...gate('maintenance'), getMaintenanceReport);
+ownerRouter.get('/maintenance/export', ...gate('maintenance'), exportMaintenanceXlsx);
 ownerRouter.get('/notifications', protect, requireOwner, getNotifications);
 ownerRouter.post('/notifications/read', protect, requireOwner, markNotificationRead);
 ownerRouter.get('/audit-logs', ...gate('audit'), getAuditLogs);
 ownerRouter.get('/search', protect, requireOwner, globalSearch);
-ownerRouter.get('/reports/export', ...gate('reports'), exportReport);
+ownerRouter.get('/reports/export', ...gate('reports'), exportReportXlsx);
 ownerRouter.post('/update-image', protect, requireOwner, upload.single("image"), handleMulterError, updateUserImage);
 
 ownerRouter.put('/account/profile', protect, requireOwner, updateAccountProfile);
@@ -166,6 +175,7 @@ ownerRouter.patch('/partner-companies/:id/status', ...gate('partners'), partnerC
 /* —— Accounting / Comptabilité (Phase B) —— */
 ownerRouter.get('/accounting/meta', ...gate('accounting'), getAccountingMeta);
 ownerRouter.get('/accounting/kpis', ...gate('accounting'), getKpis);
+ownerRouter.get('/accounting/export', ...gate('accounting'), exportAccountingXlsx);
 ownerRouter.get('/accounting/revenues', ...gate('accounting'), getRevenues);
 ownerRouter.get('/accounting/cars', ...gate('accounting'), listAccountingCars);
 ownerRouter.get('/accounting/samsars', ...gate('accounting'), listAccountingSamsars);

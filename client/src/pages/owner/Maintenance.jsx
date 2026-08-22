@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const toInputDate = (v) => {
   if (!v) return ''
@@ -58,7 +59,7 @@ const formatUnit = (car) => {
 
 const Maintenance = () => {
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [tab, setTab] = useState('fleet')
   const [cars, setCars] = useState([])
   const [branches, setBranches] = useState([])
@@ -72,6 +73,7 @@ const Maintenance = () => {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [showRecord, setShowRecord] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [recordForm, setRecordForm] = useState(emptyRecord)
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth() + 1)
   const [calYear, setCalYear] = useState(() => new Date().getFullYear())
@@ -259,13 +261,36 @@ const Maintenance = () => {
     <div className="admin-page-pad flex-1 pb-12 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <Title title={t('admin.maintenance.title')} subTitle={t('admin.maintenance.subtitle')} />
-        <button
-          type="button"
-          onClick={() => { setRecordForm(emptyRecord); setShowRecord(true) }}
-          className="admin-btn admin-btn-primary"
-        >
-          {t('admin.maintenance.scheduleWork')}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try {
+                await downloadXlsx(axios, '/api/owner/maintenance/export', {
+                  language,
+                  fallbackName: 'maintenance.xlsx',
+                })
+                toast.success(t('admin.common.exportSuccess'))
+              } catch (error) {
+                toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+              } finally {
+                setExporting(false)
+              }
+            }}
+            className="admin-btn admin-btn-secondary"
+          >
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRecordForm(emptyRecord); setShowRecord(true) }}
+            className="admin-btn admin-btn-primary"
+          >
+            {t('admin.maintenance.scheduleWork')}
+          </button>
+        </div>
       </div>
 
       {summary && (

@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/apiError';
 import { customerEmail } from '../../utils/customerEmail';
+import { downloadXlsx } from '../../utils/downloadXlsx';
 
 const statusStyles = {
   new: 'bg-blue-100 text-blue-700',
@@ -40,7 +41,7 @@ const emptyFilters = {
 
 const Customers = () => {
   const { axios, currency } = useAppContext();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [customers, setCustomers] = useState([]);
   const [filters, setFilters] = useState(emptyFilters);
   const [applied, setApplied] = useState(emptyFilters);
@@ -50,6 +51,7 @@ const Customers = () => {
   const [rating, setRating] = useState(5);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -143,6 +145,24 @@ const Customers = () => {
     }
   };
 
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      Object.entries(applied).forEach(([k, v]) => { if (v) params[k] = v; });
+      await downloadXlsx(axios, '/api/owner/crm/customers/export', {
+        params,
+        language,
+        fallbackName: 'customers.xlsx',
+      });
+      toast.success(t('admin.common.exportSuccess'));
+    } catch (error) {
+      toast.error(getErrorMessage(error) || t('admin.common.exportError'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const inputClass = 'border border-borderColor rounded-md px-3 py-2 text-sm w-full outline-none focus:border-primary';
 
   return (
@@ -150,6 +170,11 @@ const Customers = () => {
       <Title
         title={t('admin.customers.title')}
         subTitle={t('admin.customers.subtitle')}
+        secondaryAction={
+          <button type="button" disabled={exporting} onClick={exportExcel} className="admin-btn admin-btn-secondary">
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+          </button>
+        }
       />
 
       <form

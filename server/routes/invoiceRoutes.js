@@ -13,11 +13,13 @@ import {
   restoreInvoiceVersion,
   downloadInvoicePdf,
 } from '../controllers/invoiceController.js';
+import { exportInvoicesXlsx } from '../controllers/xlsxExportController.js';
 
 const router = express.Router();
 const gate = (perm) => [protect, requireOwner, requirePermission(perm)];
 
 router.get('/', ...gate('contracts'), listInvoices);
+router.get('/export', ...gate('contracts'), exportInvoicesXlsx);
 router.post('/generate', ...gate('contracts'), generateInvoice);
 router.post('/manual', ...gate('contracts'), createManualInvoice);
 router.get('/:id', ...gate('contracts'), getInvoice);

@@ -25,6 +25,7 @@ const config = {
   subtitleKey: 'admin.accounting.vehicleSubtitle',
   createKey: 'admin.accounting.vehicleCreate',
   editKey: 'admin.accounting.vehicleEdit',
+  exportLedger: 'vehicle-expenses',
   categories: VEHICLE_CATEGORIES,
   categoryI18nPrefix: 'admin.accounting.vehicleCategories',
   needsCars: true,

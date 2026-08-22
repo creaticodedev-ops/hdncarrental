@@ -22,6 +22,7 @@ const config = {
   titleKey: 'admin.accounting.agencyTitle',
   subtitleKey: 'admin.accounting.agencySubtitle',
   createKey: 'admin.accounting.agencyCreate',
+  exportLedger: 'agency-expenses',
   editKey: 'admin.accounting.agencyEdit',
   categories: AGENCY_CATEGORIES,
   categoryI18nPrefix: 'admin.accounting.agencyCategories',

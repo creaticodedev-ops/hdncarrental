@@ -15,11 +15,13 @@ import {
   downloadContractPdf,
   listBookingsForContracts,
 } from '../controllers/contractController.js';
+import { exportContractsXlsx } from '../controllers/xlsxExportController.js';
 
 const router = express.Router();
 const gate = (perm) => [protect, requireOwner, requirePermission(perm)];
 
 router.get('/', ...gate('contracts'), listContracts);
+router.get('/export', ...gate('contracts'), exportContractsXlsx);
 router.get('/bookings', ...gate('contracts'), listBookingsForContracts);
 router.post('/generate', ...gate('contracts'), generateContract);
 router.post('/preview', ...gate('contracts'), previewContractFromBooking);

@@ -19,6 +19,7 @@ import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import { buildOwnerCompletionWaUrl, buildWaMeUrl } from '../../utils/whatsapp'
 import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const emptyFilters = {
   search: '',
@@ -662,31 +663,18 @@ const ManageBookings = () => {
 
   const exportCsv = async () => {
     try {
-      const params = new URLSearchParams()
+      const params = {}
       Object.entries(appliedFilters).forEach(([key, value]) => {
-        if (value) params.set(key, value)
+        if (value) params[key] = value
       })
-      const response = await axios.get(`/api/bookings/owner/export?${params.toString()}`, {
-        responseType: 'blob',
+      await downloadXlsx(axios, '/api/bookings/owner/export', {
+        params,
+        language,
+        fallbackName: 'reservations.xlsx',
       })
-      const contentType = response.headers['content-type'] || ''
-      if (contentType.includes('application/json')) {
-        const text = await response.data.text()
-        const json = JSON.parse(text)
-        toast.error(json.message || 'Export failed')
-        return
-      }
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `reservations-${Date.now()}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-      toast.success('Export downloaded')
+      toast.success(t('admin.common.exportSuccess'))
     } catch (error) {
-      toast.error(getErrorMessage(error))
+      toast.error(getErrorMessage(error) || t('admin.common.exportError'))
     }
   }
 
@@ -764,7 +752,7 @@ const ManageBookings = () => {
               {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.moreFilters')}
             </button>
             <button type="button" onClick={exportCsv} className="admin-btn admin-btn-secondary res-btn">
-              {t('admin.bookings.exportCsv')}
+              {t('admin.common.exportExcel')}
             </button>
           </div>
         </div>

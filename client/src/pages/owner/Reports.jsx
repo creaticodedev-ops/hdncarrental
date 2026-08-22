@@ -4,10 +4,11 @@ import { useAppContext } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/apiError';
+import { downloadXlsx } from '../../utils/downloadXlsx';
 
 const Reports = () => {
   const { axios, currency } = useAppContext();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [analytics, setAnalytics] = useState(null);
   const [exporting, setExporting] = useState('');
 
@@ -20,24 +21,14 @@ const Reports = () => {
   const download = async (type) => {
     setExporting(type);
     try {
-      const response = await axios.get(`/api/owner/reports/export?type=${type}`, { responseType: 'blob' });
-      const contentType = response.headers['content-type'] || '';
-      if (contentType.includes('application/json')) {
-        const text = await response.data.text();
-        const json = JSON.parse(text);
-        toast.error(json.message || 'Export failed');
-        return;
-      }
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${type}-report-${Date.now()}.csv`;
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Report downloaded');
+      await downloadXlsx(axios, '/api/owner/reports/export', {
+        params: { type },
+        language,
+        fallbackName: `${type}-report.xlsx`,
+      });
+      toast.success(t('admin.common.exportSuccess'));
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error) || t('admin.common.exportError'));
     } finally {
       setExporting('');
     }
@@ -87,9 +78,10 @@ const Reports = () => {
 
       <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
-          { type: 'revenue', title: 'Reservations report', desc: 'All bookings with amounts, status, and dates' },
-          { type: 'customers', title: 'Customers report', desc: 'CRM profiles, ratings, VIP/blacklist, spending' },
-          { type: 'fleet', title: 'Fleet & compliance', desc: 'Mileage, service, insurance, registration' },
+          { type: 'revenue', title: t('admin.reports.cardReservations') || 'Reservations report', desc: t('admin.reports.cardReservationsDesc') || 'Bookings with amounts, status, and dates' },
+          { type: 'customers', title: t('admin.reports.cardCustomers') || 'Customers report', desc: t('admin.reports.cardCustomersDesc') || 'CRM profiles, ratings, and spending' },
+          { type: 'fleet', title: t('admin.reports.cardFleet') || 'Fleet report', desc: t('admin.reports.cardFleetDesc') || 'Vehicles, compliance, and rental revenue' },
+          { type: 'analytics', title: t('admin.reports.cardAnalytics') || 'Analytics report', desc: t('admin.reports.cardAnalyticsDesc') || 'Revenue trends by period, status, and channel' },
         ].map((card) => (
           <div key={card.type} className="rounded-xl border border-borderColor bg-white p-5">
             <h3 className="font-semibold text-gray-800">{card.title}</h3>
@@ -100,7 +92,7 @@ const Reports = () => {
               onClick={() => download(card.type)}
               className="mt-4 px-4 py-2 text-sm bg-primary text-white rounded-lg cursor-pointer disabled:opacity-60"
             >
-              {exporting === card.type ? t('admin.reports.exporting') : t('admin.reports.exportCsv')}
+              {exporting === card.type ? t('admin.common.exporting') : t('admin.common.exportExcel')}
             </button>
           </div>
         ))}

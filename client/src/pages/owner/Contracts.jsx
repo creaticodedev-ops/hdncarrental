@@ -10,6 +10,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -19,7 +20,7 @@ const formatDateTime = (value) => {
 
 const Contracts = () => {
   const { axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const [searchParams] = useSearchParams()
   const prefilledBookingId = searchParams.get('bookingId') || ''
   const [contracts, setContracts] = useState([])
@@ -31,6 +32,7 @@ const Contracts = () => {
   const [cin, setCin] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const emptyGenerateForm = {
@@ -530,14 +532,37 @@ const Contracts = () => {
 
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <Title title={t('admin.contracts.title')} subTitle={t('admin.contracts.subtitle')} />
-        <button
-          type="button"
-          disabled={docGen.running}
-          onClick={openGenerate}
-          className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-60"
-        >
-          {t('admin.contracts.generate')}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try {
+                await downloadXlsx(axios, '/api/contracts/export', {
+                  language,
+                  fallbackName: 'contracts.xlsx',
+                })
+                toast.success(t('admin.common.exportSuccess'))
+              } catch (error) {
+                toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+              } finally {
+                setExporting(false)
+              }
+            }}
+            className="px-4 py-2.5 rounded-xl border border-borderColor text-sm font-medium hover:bg-gray-50"
+          >
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
+          </button>
+          <button
+            type="button"
+            disabled={docGen.running}
+            onClick={openGenerate}
+            className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-60"
+          >
+            {t('admin.contracts.generate')}
+          </button>
+        </div>
       </div>
 
       <form onSubmit={runSearch} className="rounded-2xl border border-borderColor bg-white p-4 space-y-4">

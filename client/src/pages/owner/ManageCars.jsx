@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { VEHICLE_CATEGORIES } from '../../utils/vehicleCategories'
 import { formatLocationsDisplay } from '../../utils/carLocations'
+import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const statusBadge = (car) => {
   if (car.status === 'maintenance') {
@@ -27,13 +28,14 @@ const statusLabel = (car) => {
 
 const ManageCars = () => {
   const { isOwner, axios, currency } = useAppContext()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const navigate = useNavigate()
   const fallbackImage = assets.car_image1
 
   const [cars, setCars] = useState([])
   const [branches, setBranches] = useState([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [filters, setFilters] = useState({
     search: '',
     fleetId: '',
@@ -160,6 +162,30 @@ const ManageCars = () => {
         primaryAction={
           <button type="button" onClick={() => navigate('/owner/add-car')} className="admin-btn admin-btn-primary">
             {t('admin.menu.addCar')}
+          </button>
+        }
+        secondaryAction={
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try {
+                await downloadXlsx(axios, '/api/owner/reports/export', {
+                  params: { type: 'fleet' },
+                  language,
+                  fallbackName: 'fleet.xlsx',
+                })
+                toast.success(t('admin.common.exportSuccess'))
+              } catch (error) {
+                toast.error(getErrorMessage(error) || t('admin.common.exportError'))
+              } finally {
+                setExporting(false)
+              }
+            }}
+            className="admin-btn admin-btn-secondary"
+          >
+            {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
           </button>
         }
       />
