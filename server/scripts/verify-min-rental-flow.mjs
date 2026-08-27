@@ -32,8 +32,8 @@ for (const min of [1, 3, 5]) {
     const settings = { ...DEFAULT_BOOKING_SETTINGS, minRentalDays: min };
     const short = assertBookingRules(
       settings,
-      '2026-08-20T10:00',
-      '2026-08-20T18:00',
+      '2027-08-20T10:00',
+      '2027-08-20T18:00',
     );
     if (min > 1) {
       assert.equal(short.ok, false);
@@ -44,8 +44,8 @@ for (const min of [1, 3, 5]) {
     const endDay = String(20 + min).padStart(2, '0');
     const ok = assertBookingRules(
       settings,
-      '2026-08-20T10:00',
-      `2026-08-${endDay}T10:00`,
+      '2027-08-20T10:00',
+      `2027-08-${endDay}T10:00`,
     );
     assert.equal(ok.ok, true, `expected ok for ${min}-day span, got ${JSON.stringify(ok)}`);
     assert.equal(ok.days, min);
@@ -55,16 +55,16 @@ for (const min of [1, 3, 5]) {
 await check('owner isolation: different settings objects do not leak', () => {
   const ownerA = assertBookingRules(
     { ...DEFAULT_BOOKING_SETTINGS, minRentalDays: 5 },
-    '2026-08-20T10:00',
-    '2026-08-23T10:00',
+    '2027-08-20T10:00',
+    '2027-08-23T10:00',
   );
   assert.equal(ownerA.ok, false);
   assert.equal(ownerA.minRentalDays, 5);
 
   const ownerB = assertBookingRules(
     { ...DEFAULT_BOOKING_SETTINGS, minRentalDays: 1 },
-    '2026-08-20T10:00',
-    '2026-08-21T10:00',
+    '2027-08-20T10:00',
+    '2027-08-21T10:00',
   );
   assert.equal(ownerB.ok, true);
 });

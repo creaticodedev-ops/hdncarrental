@@ -6,7 +6,13 @@
 import assert from 'node:assert/strict'
 import { calculateBookingPrice } from '../services/pricingEngine.js'
 import { calcRentalDays } from '../utils/helpers.js'
-import { EXTENDABLE_STATUSES } from '../services/bookingExtensionService.js'
+import { parseAgencyDateTime } from '../utils/moroccoTime.js'
+import { assertBookingRules, DEFAULT_BOOKING_SETTINGS } from '../services/bookingSettingsService.js'
+import {
+  EXTENDABLE_STATUSES,
+  applyExtensionFinancials,
+  buildExtendedBreakdown,
+} from '../services/bookingExtensionService.js'
 
 let passed = 0
 const check = (name, fn) => {
@@ -69,7 +75,6 @@ check('history entry preserves previous snapshot shape', () => {
   assert.ok(entry.newReturnDate > entry.previousReturnDate)
   assert.equal(entry.deltaAmount, entry.newPrice - entry.previousPrice)
   assert.equal(entry.deltaDays, entry.newDays - entry.previousDays)
-  // previous values remain intact (non-destructive)
   assert.equal(entry.previousPrice, 330)
   assert.equal(entry.previousReturnDate.toISOString(), previousReturnDate.toISOString())
 })
@@ -81,10 +86,108 @@ check('extension requires later return (guard)', () => {
 })
 
 check('availability exclude self is required for overlap math', () => {
-  // Documented contract: isCarAvailableForDates(carId, pickup, newReturn, bookingId)
-  // When excluding self, extending past previous return must not collide with itself.
   const excludeBookingId = 'self'
   assert.ok(excludeBookingId)
+})
+
+check('new bookings still reject past pickup', () => {
+  const r = assertBookingRules(
+    DEFAULT_BOOKING_SETTINGS,
+    '2020-08-20T10:00',
+    '2020-08-24T19:00',
+  )
+  assert.equal(r.ok, false)
+  assert.equal(r.code, 'PAST_PICKUP')
+})
+
+check('existing rental extension allows past pickup', () => {
+  const r = assertBookingRules(
+    DEFAULT_BOOKING_SETTINGS,
+    '2020-08-20T10:00',
+    '2020-08-24T19:00',
+    { existingRental: true },
+  )
+  assert.equal(r.ok, true)
+  assert.ok(r.days >= 1)
+})
+
+check('existing rental does not re-check pickup or return hours', () => {
+  const r = assertBookingRules(
+    { ...DEFAULT_BOOKING_SETTINGS, returnHoursStart: '08:00', returnHoursEnd: '18:00' },
+    '2026-08-21T10:00',
+    '2026-08-24T19:00',
+    { existingRental: true },
+  )
+  assert.equal(r.ok, true)
+  const asNewBooking = assertBookingRules(
+    DEFAULT_BOOKING_SETTINGS,
+    '2026-08-21T10:00',
+    '2026-08-24T19:00',
+  )
+  assert.equal(asNewBooking.ok, false)
+  assert.equal(asNewBooking.code, 'PAST_PICKUP')
+})
+
+check('naive datetime-local is Africa/Casablanca wall time', () => {
+  const agency = parseAgencyDateTime('2026-08-24T19:00')
+  assert.equal(agency.toISOString(), '2026-08-24T18:00:00.000Z')
+})
+
+check('paid booking with extra days becomes pending remainder', () => {
+  const booking = {
+    paymentStatus: 'paid',
+    completion: { amountPaid: 1200, amountDue: 1200, paymentComplete: true },
+  }
+  const result = applyExtensionFinancials(booking, 1600)
+  assert.equal(result.amountDue, 1600)
+  assert.equal(result.amountPaid, 1200)
+  assert.equal(result.paymentStatus, 'pending')
+  assert.equal(booking.completion.paymentComplete, false)
+})
+
+check('fully covered extension stays paid', () => {
+  const booking = {
+    paymentStatus: 'paid',
+    completion: { amountPaid: 1600, amountDue: 1200, paymentComplete: true },
+  }
+  const result = applyExtensionFinancials(booking, 1600)
+  assert.equal(result.paymentStatus, 'paid')
+  assert.equal(booking.completion.paymentComplete, true)
+})
+
+check('extra driver fee scales with extended days', () => {
+  const pickup = parseAgencyDateTime('2026-08-20T10:00')
+  const ret1 = parseAgencyDateTime('2026-08-23T19:00')
+  const ret2 = parseAgencyDateTime('2026-08-24T19:00')
+  const booking = {
+    pickupDate: pickup,
+    returnDate: ret1,
+    car: { pricePerDay: 400 },
+    priceBreakdown: { pricePerDay: 400, extraDriverFee: 150 },
+    pricingSnapshot: { extras: { extraDriverEnabled: true, extraDriverFeePerDay: 50 } },
+    secondDriver: { enabled: true },
+  }
+  const breakdown = buildExtendedBreakdown(booking, ret2)
+  assert.ok(breakdown.days > calcRentalDays(pickup, ret1))
+  assert.equal(breakdown.extraDriverFee, 50 * breakdown.days)
+})
+
+check('percentage discount scales with new rental price', () => {
+  const pickup = parseAgencyDateTime('2026-08-20T10:00')
+  const ret1 = parseAgencyDateTime('2026-08-23T19:00')
+  const ret2 = parseAgencyDateTime('2026-08-25T19:00')
+  const booking = {
+    pickupDate: pickup,
+    returnDate: ret1,
+    car: { pricePerDay: 400 },
+    priceBreakdown: {
+      pricePerDay: 400,
+      discounts: [{ label: 'Partner', amount: 160, discountType: 'percentage', discountValue: 10 }],
+    },
+  }
+  const breakdown = buildExtendedBreakdown(booking, ret2)
+  const expectedDiscount = Math.round(400 * breakdown.days * 0.1 * 100) / 100
+  assert.equal(breakdown.discountTotal, expectedDiscount)
 })
 
 console.log(`\n${passed} checks passed`)

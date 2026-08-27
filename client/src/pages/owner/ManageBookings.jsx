@@ -11,6 +11,8 @@ import {
   formatDateTime as formatDt,
   money,
   reservationRef,
+  toAgencyDateTimeLocal,
+  addHoursAgencyLocal,
 } from '../../components/owner/bookings/reservationHelpers'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
@@ -389,19 +391,9 @@ const ManageBookings = () => {
     }
   }
 
-  const toInputDateTimeLocal = (v) => {
-    if (!v) return ''
-    const d = new Date(v)
-    if (Number.isNaN(d.getTime())) return ''
-    const pad = (n) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
-
   const openExtensionModal = (booking) => {
-    const current = new Date(booking.returnDate)
-    current.setDate(current.getDate() + 1)
     setExtensionForm({
-      newReturnDate: toInputDateTimeLocal(current),
+      newReturnDate: addHoursAgencyLocal(booking.returnDate, 24),
       notes: '',
       regenerateContract: true,
     })
@@ -1038,6 +1030,7 @@ const ManageBookings = () => {
                 <input
                   type="datetime-local"
                   required
+                  min={toAgencyDateTimeLocal(selectedBooking.returnDate)}
                   value={extensionForm.newReturnDate}
                   onChange={(e) => {
                     setExtensionPreview(null)

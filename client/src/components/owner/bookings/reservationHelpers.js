@@ -107,6 +107,36 @@ export const extraCalendarDays = (from, to) => {
   return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
 }
 
+export const AGENCY_TIMEZONE = 'Africa/Casablanca'
+
+/** Format an instant as a datetime-local value in Africa/Casablanca. */
+export const toAgencyDateTimeLocal = (value) => {
+  if (!value) return ''
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const parts = {}
+  for (const p of new Intl.DateTimeFormat('en-US', {
+    timeZone: AGENCY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d)) {
+    if (p.type !== 'literal') parts[p.type] = p.value
+  }
+  if (!parts.year) return ''
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+}
+
+export const addHoursAgencyLocal = (value, hours) => {
+  const d = value instanceof Date ? new Date(value.getTime()) : new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  d.setTime(d.getTime() + Number(hours) * 3600000)
+  return toAgencyDateTimeLocal(d)
+}
+
 export const getSignatureStatus = (booking) => {
   if (booking?.completion?.signatureComplete) return 'signed'
   const status = booking?.completion?.requestStatus

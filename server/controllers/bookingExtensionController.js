@@ -46,6 +46,7 @@ export const applyExtension = async (req, res) => {
       extension: result.extension,
       preview: result.preview,
       contract: result.contract,
+      invoice: result.invoice,
     });
   } catch (error) {
     sendError(res, error, 'Failed to extend reservation');

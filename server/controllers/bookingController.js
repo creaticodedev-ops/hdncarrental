@@ -1331,7 +1331,9 @@ export const updateBooking = async (req, res) => {
       }
 
       const settings = await getBookingSettings(booking.owner);
-      const rules = assertBookingRules(settings, dates.picked, dates.returned);
+      const rules = assertBookingRules(settings, dates.picked, dates.returned, {
+        existingRental: true,
+      });
       if (!rules.ok) {
         return res.status(400).json({
           success: false,

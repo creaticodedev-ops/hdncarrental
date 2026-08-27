@@ -175,9 +175,15 @@ export const buildMileagePolicy = (settingsInput, days) => {
  * Validate rental against owner booking settings.
  * Pickup/return hours are evaluated in Africa/Casablanca.
  * Backend is the final authority for customer booking / quote / WhatsApp create.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.existingRental=false] Skip new-booking constraints
+ *   (past pickup, advance window, pickup/return hours). Used when extending or
+ *   editing a reservation whose pickup has already occurred.
  * @returns {{ ok: true, days, settings, timezone } | { ok: false, code?: string, message: string, minRentalDays?: number, maxRentalDays?: number, days?: number, settings }}
  */
-export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
+export const assertBookingRules = (settingsInput, pickupDate, returnDate, options = {}) => {
+  const existingRental = Boolean(options.existingRental);
   const settings = normalizeBookingSettings(settingsInput);
   const picked = parseAgencyDateTime(pickupDate);
   const returned = parseAgencyDateTime(returnDate);
@@ -191,7 +197,7 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
   }
 
   const now = new Date();
-  if (picked < now) {
+  if (!existingRental && picked < now) {
     return {
       ok: false,
       code: 'PAST_PICKUP',
@@ -224,35 +230,37 @@ export const assertBookingRules = (settingsInput, pickupDate, returnDate) => {
     };
   }
 
-  const maxAdvance = new Date(now.getTime() + settings.advanceBookingDays * 24 * 60 * 60 * 1000);
-  if (picked > maxAdvance) {
-    return {
-      ok: false,
-      code: 'ADVANCE_BOOKING',
-      message: `Bookings cannot be made more than ${settings.advanceBookingDays} day(s) in advance`,
-      advanceBookingDays: settings.advanceBookingDays,
-      settings,
-    };
-  }
+  if (!existingRental) {
+    const maxAdvance = new Date(now.getTime() + settings.advanceBookingDays * 24 * 60 * 60 * 1000);
+    if (picked > maxAdvance) {
+      return {
+        ok: false,
+        code: 'ADVANCE_BOOKING',
+        message: `Bookings cannot be made more than ${settings.advanceBookingDays} day(s) in advance`,
+        advanceBookingDays: settings.advanceBookingDays,
+        settings,
+      };
+    }
 
-  const pickupErr = assertWithinHours(
-    picked,
-    settings.pickupHoursStart,
-    settings.pickupHoursEnd,
-    'Pickup time',
-  );
-  if (pickupErr) {
-    return { ok: false, code: 'PICKUP_HOURS', message: pickupErr, settings };
-  }
+    const pickupErr = assertWithinHours(
+      picked,
+      settings.pickupHoursStart,
+      settings.pickupHoursEnd,
+      'Pickup time',
+    );
+    if (pickupErr) {
+      return { ok: false, code: 'PICKUP_HOURS', message: pickupErr, settings };
+    }
 
-  const returnErr = assertWithinHours(
-    returned,
-    settings.returnHoursStart,
-    settings.returnHoursEnd,
-    'Return time',
-  );
-  if (returnErr) {
-    return { ok: false, code: 'RETURN_HOURS', message: returnErr, settings };
+    const returnErr = assertWithinHours(
+      returned,
+      settings.returnHoursStart,
+      settings.returnHoursEnd,
+      'Return time',
+    );
+    if (returnErr) {
+      return { ok: false, code: 'RETURN_HOURS', message: returnErr, settings };
+    }
   }
 
   return { ok: true, days, settings, timezone: AGENCY_TIMEZONE };
