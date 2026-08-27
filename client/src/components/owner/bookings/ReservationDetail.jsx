@@ -83,6 +83,7 @@ const ReservationDetail = ({
   onAssignVehicle,
   onWhatsApp,
   onPrint,
+  onViewContract,
   onDelete,
   onCancelReservation,
   onGenerateInvoice,
@@ -113,6 +114,7 @@ const ReservationDetail = ({
   const days = rentalDayCount(booking.pickupDate, booking.returnDate)
   const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
   const carImage = booking.car?.image || booking.car?.images?.[0] || ''
+  const contractUrl = booking.completion?.contractPdfUrl || ''
   const samsar = entityName(booking.samsar) || t('admin.bookings.notAssigned')
   const chauffeur = entityName(booking.chauffeur) || t('admin.bookings.notAssigned')
   const partner = entityName(booking.partnerCompany) || t('admin.bookings.notAssigned')
@@ -135,6 +137,9 @@ const ReservationDetail = ({
     { key: 'sep2', separator: true },
     { key: 'wa', label: t('admin.bookings.whatsapp'), icon: 'whatsapp', onClick: onWhatsApp },
     { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: onPrint },
+    contractUrl
+      ? { key: 'viewcontract', label: t('admin.bookings.viewContract'), icon: 'contract', onClick: onViewContract }
+      : null,
     hasPermission('contracts')
       ? { key: 'inv', label: t('admin.bookings.generateInvoice'), icon: 'invoice', onClick: onGenerateInvoice }
       : null,
@@ -279,6 +284,11 @@ const ReservationDetail = ({
               {t('admin.bookings.editReservation')}
             </button>
           </div>
+          {contractUrl ? (
+            <button type="button" className="admin-btn admin-btn-secondary res-btn-block" onClick={onViewContract}>
+              {t('admin.bookings.viewContract')}
+            </button>
+          ) : null}
           <ActionMenu
             label={t('admin.bookings.moreActions')}
             trigger="button"

@@ -86,7 +86,7 @@ const ManageBookings = () => {
     confirmationDial: '',
   })
   const [extensionOpen, setExtensionOpen] = useState(false)
-  const [extensionForm, setExtensionForm] = useState({ newReturnDate: '', notes: '', regenerateContract: true })
+  const [extensionForm, setExtensionForm] = useState({ newReturnDate: '', notes: '' })
   const [extensionPreview, setExtensionPreview] = useState(null)
   const [extensionBusy, setExtensionBusy] = useState(false)
   const [extensionError, setExtensionError] = useState('')
@@ -395,7 +395,6 @@ const ManageBookings = () => {
     setExtensionForm({
       newReturnDate: addHoursAgencyLocal(booking.returnDate, 24),
       notes: '',
-      regenerateContract: true,
     })
     setExtensionPreview(null)
     setExtensionError('')
@@ -436,15 +435,20 @@ const ManageBookings = () => {
         bookingId: selectedBooking._id,
         newReturnDate: extensionForm.newReturnDate,
         notes: extensionForm.notes,
-        regenerateContract: extensionForm.regenerateContract,
       })
       if (!data.success) {
         toast.error(data.message || t('admin.bookings.extendApplyError'))
         return
       }
-      toast.success(t('admin.bookings.extensionApplied'))
-      if (data.contract?.reason === 'content_locked') {
-        toast(t('admin.bookings.extensionContractLocked'), { icon: 'ℹ️' })
+      const pdfUrl = data.contract?.pdfUrl || data.booking?.completion?.contractPdfUrl || ''
+      if (data.contract?.regenerated && pdfUrl) {
+        toast.success(t('admin.bookings.extensionContractReady'))
+        window.open(pdfUrl, '_blank', 'noopener,noreferrer')
+      } else {
+        toast.success(t('admin.bookings.extensionApplied'))
+        if (data.contract && !data.contract.regenerated) {
+          toast.error(t('admin.bookings.extensionContractFailed'))
+        }
       }
       setExtensionOpen(false)
       setSelectedBooking(data.booking)
@@ -670,7 +674,14 @@ const ManageBookings = () => {
     }
   }
 
-  const printBooking = (booking) => {
+  const openBookingContract = (booking) => {
+    const url = booking?.completion?.contractPdfUrl
+    if (!url) {
+      toast.error(t('admin.bookings.documentMissing'))
+      return
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
     const reservationId = booking.reservationId || `RES-${booking._id?.toString().slice(-8).toUpperCase()}`
     const vehicle = booking.car ? `${booking.car.brand} ${booking.car.model}` : '-'
     const html = `
@@ -907,6 +918,7 @@ const ManageBookings = () => {
             onSelect={selectBooking}
             onEdit={startEdit}
             onPrint={printBooking}
+            onViewContract={openBookingContract}
             onWhatsApp={openWhatsApp}
             onDelete={(booking) => setConfirmAction({ type: 'delete', bookingId: booking._id })}
             onDownloadLicense={(booking) => downloadDocument(booking._id, 'driving_license')}
@@ -941,6 +953,7 @@ const ManageBookings = () => {
           onAssignVehicle={(carId) => assignVehicle(selectedBooking._id, carId)}
           onWhatsApp={() => openWhatsApp(selectedBooking)}
           onPrint={() => printBooking(selectedBooking)}
+          onViewContract={() => openBookingContract(selectedBooking)}
           onDelete={() => setConfirmAction({ type: 'delete', bookingId: selectedBooking._id })}
           onCancelReservation={() => setConfirmAction({ type: 'cancelBooking', bookingId: selectedBooking._id })}
           onGenerateInvoice={() => generateInvoiceForBooking(selectedBooking)}
@@ -1051,14 +1064,9 @@ const ManageBookings = () => {
                   className={inputClass}
                 />
               </FormField>
-              <label className="sm:col-span-2 flex items-center gap-2 text-sm text-[var(--admin-ink)]">
-                <input
-                  type="checkbox"
-                  checked={extensionForm.regenerateContract}
-                  onChange={(e) => setExtensionForm((f) => ({ ...f, regenerateContract: e.target.checked }))}
-                />
-                {t('admin.bookings.extendRegenContract')}
-              </label>
+              <p className="sm:col-span-2 text-xs text-[var(--admin-muted)]">
+                {t('admin.bookings.extendContractHint')}
+              </p>
             </DrawerSection>
 
             {extensionError ? (

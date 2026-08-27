@@ -24,13 +24,16 @@ const rowMenuItems = (booking, t, handlers) => [
   { key: 'edit', label: t('admin.bookings.edit'), icon: 'edit', onClick: () => handlers.onEdit(booking) },
   { key: 'wa', label: t('admin.bookings.whatsapp'), icon: 'whatsapp', onClick: () => handlers.onWhatsApp(booking) },
   { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: () => handlers.onPrint(booking) },
+  booking?.completion?.contractPdfUrl
+    ? { key: 'viewcontract', label: t('admin.bookings.viewContract'), icon: 'contract', onClick: () => handlers.onViewContract(booking) }
+    : null,
   { key: 'sep1', separator: true },
   { key: 'lic', label: t('admin.bookings.downloadLicense'), icon: 'download', onClick: () => handlers.onDownloadLicense(booking) },
   { key: 'id', label: t('admin.bookings.downloadId'), icon: 'download', onClick: () => handlers.onDownloadId(booking) },
   { key: 'pass', label: t('admin.bookings.downloadPassport'), icon: 'download', onClick: () => handlers.onDownloadPassport(booking) },
   { key: 'sep2', separator: true },
   { key: 'del', label: t('admin.bookings.delete'), icon: 'trash', tone: 'danger', onClick: () => handlers.onDelete(booking) },
-]
+].filter(Boolean)
 
 const ReservationList = ({
   t,
@@ -42,6 +45,7 @@ const ReservationList = ({
   onSelect,
   onEdit,
   onPrint,
+  onViewContract,
   onWhatsApp,
   onDelete,
   onDownloadLicense,
@@ -55,6 +59,7 @@ const ReservationList = ({
   const handlers = {
     onEdit,
     onPrint,
+    onViewContract,
     onWhatsApp,
     onDelete,
     onDownloadLicense,

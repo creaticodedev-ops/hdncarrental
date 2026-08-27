@@ -20,15 +20,64 @@ import {
   archiveRevision,
   buildContractSourceData,
   buildInvoiceSourceData,
+  buildTemplateSnapshot,
   bumpDocumentVersion,
-  clearContentLock,
   cloneSectionsFromTemplate,
   isContentLocked,
+  mergeSignatureFields,
   persistPdfFromInstance,
+  versionedAssetUrl,
 } from './documentInstanceService.js';
 import { getDefaultContractTemplate, getDefaultInvoiceTemplate } from '../utils/resolveExportTemplate.js';
+import { generateContractPdf } from './templatePdfExport.js';
 
 export const EXTENDABLE_STATUSES = ['confirmed', 'ready_for_pickup', 'active'];
+
+/** Booking-derived fields that an extension must refresh on the contract. */
+export const EXTENSION_CONTRACT_SOURCE_KEYS = [
+  'pickup_date',
+  'return_date',
+  'rental_days',
+  'rental_price',
+  'total_price',
+  'price_per_day',
+  'pickup_fee',
+  'dropoff_fee',
+  'discount_total',
+  'payment_status',
+  'booking_status',
+  'pickupDate',
+  'returnDate',
+  'rentalDays',
+  'rentalPrice',
+  'totalPrice',
+  'pricePerDay',
+  'paymentStatus',
+  'bookingStatus',
+  'generated_date',
+  'generated_datetime',
+];
+
+const applyCommercialFields = (existing = {}, fresh = {}) => {
+  const next = { ...(existing || {}) };
+  for (const key of EXTENSION_CONTRACT_SOURCE_KEYS) {
+    if (fresh[key] !== undefined) next[key] = fresh[key];
+  }
+  next._meta = { ...(existing?._meta || {}), ...(fresh?._meta || {}) };
+  return next;
+};
+
+/**
+ * Rebuild contract variables after an extension.
+ * Unlocked docs take a full booking refresh; locked docs keep custom fields
+ * and only overlay dates/price/days + signatures.
+ */
+export const mergeExtensionContractSource = (existing = {}, fresh = {}, { locked = false } = {}) => {
+  const base = locked
+    ? applyCommercialFields(existing, fresh)
+    : { ...fresh, _meta: { ...(existing?._meta || {}), ...(fresh?._meta || {}) } };
+  return mergeSignatureFields(mergeSignatureFields(base, existing), fresh);
+};
 
 const toMoney = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -221,45 +270,124 @@ export const previewBookingExtension = async (ownerId, bookingId, newReturnDateI
   };
 };
 
-const regenerateUnlockedContract = async (booking, actor) => {
-  const doc = await Contract.findOne({ booking: booking._id, owner: booking.owner }).sort({
+const nextContractNumber = async (ownerId) => {
+  const year = new Date().getFullYear().toString().slice(-2);
+  const prefix = `CTR-${year}-`;
+  const last = await Contract.findOne({
+    owner: ownerId,
+    contractNumber: { $regex: `^${prefix}` },
+  })
+    .sort({ contractNumber: -1 })
+    .select('contractNumber')
+    .lean();
+  let seq = 1;
+  if (last?.contractNumber) {
+    const parts = last.contractNumber.split('-');
+    const n = parseInt(parts[parts.length - 1], 10);
+    if (!Number.isNaN(n)) seq = n + 1;
+  }
+  return `${prefix}${String(seq).padStart(4, '0')}`;
+};
+
+const withVersionedPdf = (url, version, updatedAt) =>
+  versionedAssetUrl(url, version, updatedAt || Date.now());
+
+/**
+ * Always refresh the contract after a successful extension.
+ * Locked documents keep custom section HTML and non-commercial fields;
+ * signatures from the booking/completion flow are preserved.
+ */
+const regenerateContractAfterExtension = async (booking, actor) => {
+  const ownerId = booking.owner;
+  let doc = await Contract.findOne({ booking: booking._id, owner: ownerId }).sort({
     createdAt: -1,
   });
-  if (!doc) {
-    return { regenerated: false, reason: 'no_contract' };
-  }
-  if (isContentLocked(doc)) {
-    return { regenerated: false, reason: 'content_locked', contractId: doc._id };
-  }
 
   let template = null;
-  if (doc.template) {
+  if (doc?.template) {
     template = await ExportTemplate.findById(doc.template).lean();
   }
   if (!template) {
-    template = await getDefaultContractTemplate(booking.owner);
+    template = await getDefaultContractTemplate(ownerId);
+  }
+  if (!template && !doc) {
+    return { regenerated: false, reason: 'no_template' };
   }
 
-  const bookingLean = booking.toObject ? booking.toObject() : booking;
-  if (!bookingLean.car || typeof bookingLean.car === 'string') {
-    bookingLean.car = await Car.findById(booking.car._id || booking.car).lean();
+  const bookingLean = await bookingLeanWithCar(booking);
+  const actorDoc = actor || { _id: ownerId };
+
+  if (!doc) {
+    const contractNumber = await nextContractNumber(ownerId);
+    const generated = await generateContractPdf({
+      template,
+      booking: bookingLean,
+      contractNumber,
+      owner: actorDoc,
+      includeCompanyStamp: true,
+    });
+    doc = await Contract.create({
+      owner: ownerId,
+      booking: booking._id,
+      template: template._id,
+      contractNumber,
+      renderedHtml: generated.renderedHtml || '',
+      pdfUrl: generated.pdfUrl,
+      pdfPath: generated.filePath,
+      sourceData: {
+        ...(generated.variables || {}),
+        _meta: {
+          contractNumber,
+          includeCompanyStamp: true,
+          bookingId: String(booking._id),
+          reservationId: booking.reservationId || '',
+          source: 'extension',
+        },
+      },
+      sections: cloneSectionsFromTemplate(template),
+      templateSnapshot: buildTemplateSnapshot(template),
+      generatedBy: actorDoc._id || actorDoc,
+      createdBy: actorDoc._id || actorDoc,
+      updatedBy: actorDoc._id || actorDoc,
+      includeCompanyStamp: true,
+      contentLocked: false,
+      status: 'final',
+      version: 1,
+    });
+    await archiveRevision({
+      owner: ownerId,
+      documentType: 'contract',
+      document: doc,
+      user: actorDoc,
+      note: 'generate',
+    });
+    return {
+      regenerated: true,
+      created: true,
+      contractId: doc._id,
+      version: doc.version,
+      pdfUrl: withVersionedPdf(doc.pdfUrl, doc.version, doc.updatedAt),
+    };
   }
 
-  doc.sections = cloneSectionsFromTemplate(template || {});
-  doc.sourceData = buildContractSourceData({
+  const locked = isContentLocked(doc);
+  const fresh = buildContractSourceData({
     booking: bookingLean,
-    owner: actor,
+    owner: actorDoc,
     template: template || {},
     contractNumber: doc.contractNumber,
     includeCompanyStamp: doc.includeCompanyStamp !== false,
   });
-  doc.template = template?._id || doc.template;
-  clearContentLock(doc);
+  doc.sourceData = mergeExtensionContractSource(doc.sourceData || {}, fresh, { locked });
+  if (!locked) {
+    doc.sections = cloneSectionsFromTemplate(template || doc.sections || {});
+    if (template?._id) doc.template = template._id;
+  }
 
   const pdf = await persistPdfFromInstance({
     sections: doc.sections,
     sourceData: doc.sourceData,
-    owner: actor,
+    owner: actorDoc,
     documentTitle: `Contract ${doc.contractNumber}`,
     filePrefix: `contract-${doc.contractNumber}`,
   });
@@ -268,18 +396,25 @@ const regenerateUnlockedContract = async (booking, actor) => {
   doc.pdfPath = pdf.filePath;
   doc.pdfUrl = pdf.pdfUrl;
   bumpDocumentVersion(doc);
-  doc.updatedBy = actor?._id || actor;
+  doc.updatedBy = actorDoc._id || actorDoc;
   await doc.save();
 
   await archiveRevision({
-    owner: booking.owner,
+    owner: ownerId,
     documentType: 'contract',
     document: doc,
-    user: actor,
+    user: actorDoc,
     note: 'regenerate',
   });
 
-  return { regenerated: true, contractId: doc._id, version: doc.version, pdfUrl: doc.pdfUrl };
+  return {
+    regenerated: true,
+    created: false,
+    locked,
+    contractId: doc._id,
+    version: doc.version,
+    pdfUrl: withVersionedPdf(doc.pdfUrl, doc.version, doc.updatedAt),
+  };
 };
 
 const bookingLeanWithCar = async (booking) => {
@@ -352,7 +487,6 @@ const regenerateUnlockedInvoice = async (booking, actor) => {
     includeCompanyStamp: doc.includeCompanyStamp !== false,
   });
   if (template?._id) doc.template = template._id;
-  clearContentLock(doc);
 
   const pdf = await persistPdfFromInstance({
     sections: doc.sections,
@@ -381,7 +515,7 @@ const regenerateUnlockedInvoice = async (booking, actor) => {
 };
 
 /**
- * Apply extension: history + returnDate + price (+ optional contract regen).
+ * Apply extension: history + returnDate + price, then always regenerate the contract.
  */
 export const applyBookingExtension = async (
   ownerId,
@@ -389,7 +523,6 @@ export const applyBookingExtension = async (
   {
     newReturnDate: newReturnDateInput,
     notes = '',
-    regenerateContract = true,
     actor = null,
   } = {},
 ) => {
@@ -450,15 +583,11 @@ export const applyBookingExtension = async (
   }
 
   let contractResult = { regenerated: false, reason: 'skipped' };
-  if (regenerateContract) {
-    try {
-      contractResult = await regenerateUnlockedContract(booking, actor || { _id: ownerId });
-    } catch (error) {
-      console.error('[extension] contract regenerate', error.message);
-      contractResult = { regenerated: false, reason: error.message || 'regenerate_failed' };
-    }
-  } else {
-    contractResult = { regenerated: false, reason: 'not_requested' };
+  try {
+    contractResult = await regenerateContractAfterExtension(booking, actor || { _id: ownerId });
+  } catch (error) {
+    console.error('[extension] contract regenerate', error.message);
+    contractResult = { regenerated: false, reason: error.message || 'regenerate_failed' };
   }
 
   let invoiceResult = { regenerated: false, reason: 'skipped' };
@@ -528,4 +657,5 @@ export default {
   applyBookingExtension,
   listBookingExtensions,
   applyExtensionFinancials,
+  mergeExtensionContractSource,
 };

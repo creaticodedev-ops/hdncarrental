@@ -12,6 +12,7 @@ import {
   EXTENDABLE_STATUSES,
   applyExtensionFinancials,
   buildExtendedBreakdown,
+  mergeExtensionContractSource,
 } from '../services/bookingExtensionService.js'
 
 let passed = 0
@@ -188,6 +189,37 @@ check('percentage discount scales with new rental price', () => {
   const breakdown = buildExtendedBreakdown(booking, ret2)
   const expectedDiscount = Math.round(400 * breakdown.days * 0.1 * 100) / 100
   assert.equal(breakdown.discountTotal, expectedDiscount)
+})
+
+check('extension contract source refreshes dates on locked docs', () => {
+  const existing = {
+    customer_name: 'Edited Name',
+    pickup_date: '20 Aug 2026, 10:00',
+    return_date: '23 Aug 2026, 19:00',
+    rental_days: '4',
+    total_price: 'MAD 1,200',
+    customer_signature_html: '<img alt="sig" />',
+    _meta: { manuallyEdited: true },
+  }
+  const fresh = {
+    customer_name: 'Booking Name',
+    pickup_date: '20 Aug 2026, 10:00',
+    return_date: '24 Aug 2026, 19:00',
+    rental_days: '5',
+    total_price: 'MAD 1,600',
+    customer_signature_html: '<img alt="new" />',
+    _meta: { bookingId: 'abc' },
+  }
+  const locked = mergeExtensionContractSource(existing, fresh, { locked: true })
+  assert.equal(locked.customer_name, 'Edited Name')
+  assert.equal(locked.return_date, '24 Aug 2026, 19:00')
+  assert.equal(locked.rental_days, '5')
+  assert.equal(locked.total_price, 'MAD 1,600')
+  assert.equal(locked.customer_signature_html, '<img alt="new" />')
+
+  const unlocked = mergeExtensionContractSource(existing, fresh, { locked: false })
+  assert.equal(unlocked.customer_name, 'Booking Name')
+  assert.equal(unlocked.return_date, '24 Aug 2026, 19:00')
 })
 
 console.log(`\n${passed} checks passed`)

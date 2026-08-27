@@ -29,14 +29,13 @@ export const previewExtension = async (req, res) => {
 
 export const applyExtension = async (req, res) => {
   try {
-    const { bookingId, newReturnDate, notes, regenerateContract } = req.body || {};
+    const { bookingId, newReturnDate, notes } = req.body || {};
     if (!bookingId) {
       return res.status(400).json({ success: false, message: 'bookingId is required' });
     }
     const result = await applyBookingExtension(req.user._id, bookingId, {
       newReturnDate,
       notes,
-      regenerateContract: regenerateContract !== false,
       actor: req.user,
     });
     res.json({
