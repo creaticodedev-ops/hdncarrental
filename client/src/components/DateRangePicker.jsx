@@ -295,8 +295,8 @@ const DateRangePicker = ({
       <div
         className={
           isMobile
-            ? 'bg-white rounded-t-3xl p-4 sm:p-5 pb-[max(2rem,env(safe-area-inset-bottom))] max-h-[88svh] overflow-y-auto shadow-2xl'
-            : 'rounded-2xl border border-borderColor bg-white p-4 sm:p-5 shadow-[0_24px_60px_-20px_rgba(22,18,16,0.35)] max-h-[min(560px,calc(100vh-24px))] overflow-y-auto'
+            ? 'hdn-cal bg-white rounded-t-3xl p-4 sm:p-5 pb-[max(2rem,env(safe-area-inset-bottom))] max-h-[88svh] overflow-y-auto shadow-2xl'
+            : 'hdn-cal rounded-2xl border border-borderColor bg-white p-4 sm:p-5 shadow-[0_24px_60px_-20px_rgba(22,18,16,0.35)] max-h-[min(560px,calc(100vh-24px))] overflow-y-auto'
         }
         onClick={(e) => e.stopPropagation()}
       >
@@ -304,45 +304,51 @@ const DateRangePicker = ({
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-borderColor" />
         )}
 
-        <div className="flex items-center justify-between gap-3 mb-5">
+        <div className="hdn-cal-range-ticket">
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-muted font-medium">
+            <p className="hdn-cal-range-kicker">
               {activeField === 'end' ? t('hero.selectReturn') : t('hero.selectPickup')}
             </p>
-            {nights > 0 && (
-              <p className="text-sm text-ink mt-1 font-medium truncate">{t('hero.nights', { count: nights })}</p>
-            )}
+            <p className="hdn-cal-range-title">
+              {start
+                ? `${formatShort(startDate, language)}${end ? ` → ${formatShort(endDate, language)}` : ' → —'}`
+                : t('hero.selectPickup')}
+            </p>
             {span > 1 ? (
-              <p className="mt-1 text-xs leading-snug text-muted">
+              <p className="mt-1 text-[11px] leading-snug text-white/70">
                 {hint || t('carDetails.minRentalGuide', { days: span })}
               </p>
             ) : null}
             {periods.length > 0 ? (
-              <p className="mt-1 text-xs leading-snug text-muted">{t('carDetails.unavailableLegend')}</p>
+              <p className="mt-1 text-[11px] leading-snug text-white/70">{t('carDetails.unavailableLegend')}</p>
             ) : null}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setViewMonth((m) => addMonths(m, -1))}
-              className="h-9 w-9 rounded-xl border border-borderColor hover:bg-sand flex items-center justify-center cursor-pointer"
-              aria-label={t('calendar.prevMonth')}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMonth((m) => addMonths(m, 1))}
-              className="h-9 w-9 rounded-xl border border-borderColor hover:bg-sand flex items-center justify-center cursor-pointer"
-              aria-label={t('calendar.nextMonth')}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-          </div>
+          {nights > 0 ? (
+            <span className="hdn-cal-range-nights">{t('hero.nights', { count: nights })}</span>
+          ) : null}
+        </div>
+
+        <div className="mb-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMonth((m) => addMonths(m, -1))}
+            className="hdn-cal-icon-btn"
+            aria-label={t('calendar.prevMonth')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMonth((m) => addMonths(m, 1))}
+            className="hdn-cal-icon-btn"
+            aria-label={t('calendar.nextMonth')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">

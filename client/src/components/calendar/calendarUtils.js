@@ -4,6 +4,9 @@ export const WEEKDAYS = {
   es: ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'],
 }
 
+/** Common pickup / return hours for a rental desk. */
+export const TIME_PRESETS = [8, 10, 12, 14, 16, 18]
+
 export const MONTHS = {
   en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
   fr: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
@@ -118,3 +121,14 @@ export const formatDisplay = (value, language, mode) => {
 }
 
 export const dateLocale = (language) => (language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB')
+
+export const formatTicketParts = (date, language) => {
+  if (!date) return { day: '—', weekday: '', monthYear: '', monthShort: '' }
+  const locale = dateLocale(language)
+  return {
+    day: String(date.getDate()),
+    weekday: date.toLocaleDateString(locale, { weekday: 'long' }),
+    monthYear: date.toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
+    monthShort: date.toLocaleDateString(locale, { month: 'short' }).replace('.', ''),
+  }
+}

@@ -4,8 +4,10 @@ import { useI18n } from '../../i18n/I18nContext'
 import CalendarGrid, { monthLabel } from './CalendarGrid'
 import {
   MONTHS,
+  TIME_PRESETS,
   addMonths,
   formatDisplay,
+  formatTicketParts,
   minuteOptions,
   pad,
   parseBound,
@@ -43,6 +45,7 @@ const TimeColumn = ({ label, values, selected, disabledAt, onPick, listRef }) =>
   <div className="hdn-cal-time-col">
     <p className="hdn-cal-time-label">{label}</p>
     <div className="hdn-cal-time-list" ref={listRef}>
+      <div className="hdn-cal-time-spacer" aria-hidden />
       {values.map((n) => {
         const disabled = disabledAt?.(n)
         return (
@@ -58,6 +61,7 @@ const TimeColumn = ({ label, values, selected, disabledAt, onPick, listRef }) =>
           </button>
         )
       })}
+      <div className="hdn-cal-time-spacer" aria-hidden />
     </div>
   </div>
 )
@@ -97,6 +101,7 @@ const DateField = ({
   const maxDay = maxBound ? startOfDay(maxBound) : null
   const months = MONTHS[language] || MONTHS.en
   const hasTime = mode === 'datetime' || mode === 'time'
+  const ticket = formatTicketParts(parsed.date, language)
 
   useEffect(() => {
     const next = parseFieldValue(value)
@@ -149,7 +154,7 @@ const DateField = ({
     return false
   }
 
-  const panelWidth = mode === 'datetime' ? 392 : mode === 'time' ? 188 : 292
+  const panelWidth = mode === 'datetime' ? 428 : mode === 'time' ? 220 : 308
 
   const updatePosition = () => {
     if (!wrapRef.current || isMobile) {
@@ -162,7 +167,7 @@ const DateField = ({
     if (left + panelWidth > window.innerWidth - gutter) left = window.innerWidth - panelWidth - gutter
     left = Math.max(gutter, left)
     const spaceBelow = window.innerHeight - rect.bottom
-    const openUp = spaceBelow < 360 && rect.top > spaceBelow
+    const openUp = spaceBelow < 420 && rect.top > spaceBelow
     setPanelStyle({
       position: 'fixed',
       left,
@@ -211,8 +216,11 @@ const DateField = ({
       const item = node?.querySelector('[data-selected="1"]')
       item?.scrollIntoView({ block: 'center' })
     }
-    scrollSelected(hourListRef.current)
-    scrollSelected(minuteListRef.current)
+    const id = window.requestAnimationFrame(() => {
+      scrollSelected(hourListRef.current)
+      scrollSelected(minuteListRef.current)
+    })
+    return () => window.cancelAnimationFrame(id)
   }, [open, hours, minutes])
 
   const closePanel = () => {
@@ -232,12 +240,16 @@ const DateField = ({
     if (mode === 'date') closePanel()
   }
 
+  const pickTime = (h, m) => {
+    setHours(h)
+    setMinutes(m)
+    if (mode === 'time' || selected) emit(selected, h, m)
+  }
+
   const pickToday = () => {
     const now = new Date()
     if (mode === 'time') {
-      setHours(now.getHours())
-      setMinutes(now.getMinutes())
-      emit(null, now.getHours(), now.getMinutes())
+      pickTime(now.getHours(), now.getMinutes())
       return
     }
     const today = startOfDay(now)
@@ -275,7 +287,7 @@ const DateField = ({
     >
       <div
         ref={panelRef}
-        className={`hdn-cal hdn-cal-panel${mode === 'datetime' ? ' is-datetime' : ''}${mode === 'time' ? ' is-time' : ''}`}
+        className={`hdn-cal hdn-cal-panel is-${mode}`}
         style={isMobile ? undefined : panelStyle}
         role="dialog"
         aria-label={emptyLabel}
@@ -283,108 +295,149 @@ const DateField = ({
       >
         {isMobile ? <div className="hdn-cal-sheet-handle" /> : null}
 
-        {mode !== 'time' ? (
-          <div>
-            <div className="hdn-cal-nav">
-              <button
-                type="button"
-                className="hdn-cal-nav-title"
-                onClick={() => setView((v) => (v === 'days' ? 'months' : v === 'months' ? 'years' : 'days'))}
-              >
-              <span className="hdn-cal-month">{monthLabel(viewMonth, language)}</span>
-              <span className="hdn-cal-year">{viewMonth.getFullYear()}</span>
-              <svg className="hdn-cal-nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-              </button>
-              <div className="hdn-cal-nav-btns">
-                <button type="button" className="hdn-cal-icon-btn" onClick={() => shiftView(-1)} aria-label={t('calendar.prevMonth')}>
-                  <Chevron dir="prev" />
-                </button>
-                <button type="button" className="hdn-cal-icon-btn" onClick={() => shiftView(1)} aria-label={t('calendar.nextMonth')}>
-                  <Chevron dir="next" />
-                </button>
+        <header className="hdn-cal-ticket">
+          {mode !== 'time' ? (
+            <div className="hdn-cal-ticket-date">
+              <span className="hdn-cal-ticket-num">{ticket.day}</span>
+              <div className="hdn-cal-ticket-meta">
+                <p className="hdn-cal-ticket-weekday">{ticket.weekday || t('calendar.chooseDate')}</p>
+                <p className="hdn-cal-ticket-monthyear">{ticket.monthYear || monthLabel(viewMonth, language)}</p>
               </div>
             </div>
+          ) : (
+            <p className="hdn-cal-ticket-weekday">{t('calendar.pickTime')}</p>
+          )}
+          {hasTime ? (
+            <p className="hdn-cal-ticket-clock" aria-hidden>
+              <span>{pad(hours)}</span>
+              <span className="hdn-cal-ticket-colon">:</span>
+              <span>{pad(minutes)}</span>
+            </p>
+          ) : null}
+        </header>
 
-            {view === 'days' ? (
-              <CalendarGrid
-                viewMonth={viewMonth}
-                language={language}
-                selected={selected}
-                minDate={minDay}
-                maxDate={maxDay}
-                onSelect={pickDay}
+        <div className="hdn-cal-main">
+          {mode !== 'time' ? (
+            <div className="hdn-cal-cal">
+              <div className="hdn-cal-nav">
+                <button
+                  type="button"
+                  className="hdn-cal-nav-title"
+                  onClick={() => setView((v) => (v === 'days' ? 'months' : v === 'months' ? 'years' : 'days'))}
+                >
+                  <span className="hdn-cal-month">{monthLabel(viewMonth, language)}</span>
+                  <span className="hdn-cal-year">{viewMonth.getFullYear()}</span>
+                  <svg className="hdn-cal-nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <div className="hdn-cal-nav-btns">
+                  <button type="button" className="hdn-cal-icon-btn" onClick={() => shiftView(-1)} aria-label={t('calendar.prevMonth')}>
+                    <Chevron dir="prev" />
+                  </button>
+                  <button type="button" className="hdn-cal-icon-btn" onClick={() => shiftView(1)} aria-label={t('calendar.nextMonth')}>
+                    <Chevron dir="next" />
+                  </button>
+                </div>
+              </div>
+
+              {view === 'days' ? (
+                <CalendarGrid
+                  viewMonth={viewMonth}
+                  language={language}
+                  selected={selected}
+                  minDate={minDay}
+                  maxDate={maxDay}
+                  onSelect={pickDay}
+                />
+              ) : null}
+
+              {view === 'months' ? (
+                <div className="hdn-cal-month-grid">
+                  {months.map((label, idx) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className={`hdn-cal-chip${idx === viewMonth.getMonth() ? ' is-selected' : ''}`}
+                      onClick={() => {
+                        setViewMonth(new Date(viewMonth.getFullYear(), idx, 1))
+                        setView('days')
+                      }}
+                    >
+                      {label.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {view === 'years' ? (
+                <div className="hdn-cal-year-grid">
+                  {Array.from({ length: 12 }, (_, i) => yearStart + i).map((year) => (
+                    <button
+                      key={year}
+                      type="button"
+                      className={`hdn-cal-chip${year === viewMonth.getFullYear() ? ' is-selected' : ''}`}
+                      onClick={() => {
+                        setViewMonth(new Date(year, viewMonth.getMonth(), 1))
+                        setView('months')
+                      }}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {hasTime ? (
+            <div className="hdn-cal-time">
+              <div className="hdn-cal-time-window" aria-hidden />
+              <TimeColumn
+                label={t('calendar.hour')}
+                values={[...Array(24).keys()]}
+                selected={hours}
+                disabledAt={(h) => timeDisabled(h, minutes)}
+                onPick={(h) => pickTime(h, minutes)}
+                listRef={hourListRef}
               />
-            ) : null}
-
-            {view === 'months' ? (
-              <div className="hdn-cal-month-grid">
-                {months.map((label, idx) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`hdn-cal-chip${idx === viewMonth.getMonth() ? ' is-selected' : ''}`}
-                    onClick={() => {
-                      setViewMonth(new Date(viewMonth.getFullYear(), idx, 1))
-                      setView('days')
-                    }}
-                  >
-                    {label.slice(0, 3)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {view === 'years' ? (
-              <div className="hdn-cal-year-grid">
-                {Array.from({ length: 12 }, (_, i) => yearStart + i).map((year) => (
-                  <button
-                    key={year}
-                    type="button"
-                    className={`hdn-cal-chip${year === viewMonth.getFullYear() ? ' is-selected' : ''}`}
-                    onClick={() => {
-                      setViewMonth(new Date(year, viewMonth.getMonth(), 1))
-                      setView('months')
-                    }}
-                  >
-                    {year}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+              <TimeColumn
+                label={t('calendar.minute')}
+                values={minuteOptions(minutes)}
+                selected={minutes}
+                disabledAt={(m) => timeDisabled(hours, m)}
+                onPick={(m) => pickTime(hours, m)}
+                listRef={minuteListRef}
+              />
+            </div>
+          ) : null}
+        </div>
 
         {hasTime ? (
-          <div className="hdn-cal-time">
-            <TimeColumn
-              label={t('calendar.hour')}
-              values={[...Array(24).keys()]}
-              selected={hours}
-              disabledAt={(h) => timeDisabled(h, minutes)}
-              onPick={(h) => {
-                setHours(h)
-                if (mode === 'time' || selected) emit(selected, h, minutes)
-              }}
-              listRef={hourListRef}
-            />
-            <TimeColumn
-              label={t('calendar.minute')}
-              values={minuteOptions(minutes)}
-              selected={minutes}
-              disabledAt={(m) => timeDisabled(hours, m)}
-              onPick={(m) => {
-                setMinutes(m)
-                if (mode === 'time' || selected) emit(selected, hours, m)
-              }}
-              listRef={minuteListRef}
-            />
+          <div className="hdn-cal-presets">
+            <p className="hdn-cal-presets-label">{t('calendar.suggested')}</p>
+            <div className="hdn-cal-presets-row">
+              {TIME_PRESETS.map((h) => {
+                const disabled = timeDisabled(h, 0)
+                const active = hours === h && minutes === 0
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    disabled={disabled}
+                    className={`hdn-cal-preset${active ? ' is-selected' : ''}`}
+                    onClick={() => !disabled && pickTime(h, 0)}
+                  >
+                    {pad(h)}:00
+                  </button>
+                )
+              })}
+            </div>
           </div>
         ) : null}
 
         <div className="hdn-cal-foot">
-          <div>
+          <div className="hdn-cal-foot-links">
             {!required ? (
               <button type="button" className="hdn-cal-link" onClick={() => { onChange?.(''); closePanel() }}>
                 {t('calendar.clear')}
@@ -413,7 +466,16 @@ const DateField = ({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {mode === 'time' ? <ClockIcon /> : <CalIcon />}
+        {mode === 'time' ? (
+          <ClockIcon />
+        ) : selected ? (
+          <span className="hdn-cal-trigger-badge" aria-hidden>
+            <span className="hdn-cal-trigger-badge-mo">{ticket.monthShort}</span>
+            <span className="hdn-cal-trigger-badge-dy">{ticket.day}</span>
+          </span>
+        ) : (
+          <CalIcon />
+        )}
         <span className={`hdn-cal-trigger-value${display ? '' : ' is-empty'}`}>
           {display || emptyLabel}
         </span>

@@ -72,6 +72,7 @@ const CalendarGrid = ({
                   'hdn-cal-day',
                   inMonth ? '' : ' is-outside',
                   isToday ? ' is-today' : '',
+                  (date.getDay() === 0 || date.getDay() === 6) ? ' is-weekend' : '',
                   extra,
                 ].join('')}
                 onClick={() => !disabled && onSelect?.(date)}

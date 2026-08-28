@@ -454,6 +454,8 @@ export const en = {
     minute: 'Min',
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
+    suggested: 'Popular times',
+    chooseDate: 'Choose a date',
   },
 };
 
@@ -913,6 +915,8 @@ export const fr = {
     minute: 'Min',
     prevMonth: 'Mois précédent',
     nextMonth: 'Mois suivant',
+    suggested: 'Horaires fréquents',
+    chooseDate: 'Choisir une date',
   },
 };
 
@@ -1372,5 +1376,7 @@ export const es = {
     minute: 'Min',
     prevMonth: 'Mes anterior',
     nextMonth: 'Mes siguiente',
+    suggested: 'Horarios habituales',
+    chooseDate: 'Elige una fecha',
   },
 };
