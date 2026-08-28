@@ -2,7 +2,7 @@ import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'reac
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 
-const MENU_WIDTH = 220
+const MENU_WIDTH = 248
 const MOBILE_MQ = '(max-width: 639px)'
 
 const MoreIcon = () => (
@@ -73,7 +73,24 @@ const ICONS = {
       <path strokeLinecap="round" d="M8 3.5V7M16 3.5V7M3.5 10h17" />
     </svg>
   ),
+  refresh: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0112.4-5.7L19 8.5M19.5 12a7.5 7.5 0 01-12.4 5.7L5 15.5M19 4.5v4h-4M5 19.5v-4h4" />
+    </svg>
+  ),
+  eye: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="2.4" />
+    </svg>
+  ),
 }
+
+const CaretIcon = () => (
+  <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+  </svg>
+)
 
 const getPortalRoot = () =>
   (typeof document !== 'undefined' && document.querySelector('.admin-shell')) ||
@@ -90,6 +107,7 @@ const ActionMenu = ({
   align = 'right',
   iconOnly = false,
   trigger = 'icon',
+  caret = false,
   className = '',
 }) => {
   const [open, setOpen] = useState(false)
@@ -283,8 +301,9 @@ const ActionMenu = ({
           setOpen((v) => !v)
         }}
       >
-        <MoreIcon />
+        {caret ? null : <MoreIcon />}
         {trigger === 'button' || !iconOnly ? <span>{label}</span> : null}
+        {caret ? <CaretIcon /> : null}
       </button>
       {open && portalRoot
         ? createPortal(

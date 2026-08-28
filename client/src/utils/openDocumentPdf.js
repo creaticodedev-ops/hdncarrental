@@ -12,7 +12,7 @@ const messageFromBlob = async (blob, fallback = 'PDF not available') => {
  * Open an authenticated document PDF endpoint as a blob tab.
  * Avoids hitting ephemeral /uploads URLs that 404/500 after deploys.
  */
-export async function openDocumentPdf(axios, apiPath, { filename = 'document.pdf' } = {}) {
+export async function openDocumentPdf(axios, apiPath, { filename = 'document.pdf', download = false } = {}) {
   let response
   try {
     response = await axios.get(apiPath, {
@@ -34,6 +34,18 @@ export async function openDocumentPdf(axios, apiPath, { filename = 'document.pdf
 
   const blob = new Blob([response.data], { type: 'application/pdf' })
   const objectUrl = URL.createObjectURL(blob)
+
+  if (download) {
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000)
+    return objectUrl
+  }
+
   const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer')
   if (!opened) {
     // Popup blocked — fall back to download

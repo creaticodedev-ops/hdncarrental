@@ -27,6 +27,8 @@ import {
   mergeSignatureFields,
   persistPdfFromInstance,
   versionedAssetUrl,
+  captureSignedSnapshotIfNeeded,
+  bookingLooksSigned,
 } from './documentInstanceService.js';
 import { getDefaultContractTemplate, getDefaultInvoiceTemplate } from '../utils/resolveExportTemplate.js';
 import { generateContractPdf } from './templatePdfExport.js';
@@ -371,6 +373,9 @@ const regenerateContractAfterExtension = async (booking, actor) => {
   }
 
   const locked = isContentLocked(doc);
+  if (bookingLooksSigned(booking)) {
+    await captureSignedSnapshotIfNeeded(doc);
+  }
   const fresh = buildContractSourceData({
     booking: bookingLean,
     owner: actorDoc,

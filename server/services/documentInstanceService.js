@@ -1,7 +1,9 @@
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import DocumentRevision from '../models/DocumentRevision.js';
 import Contract from '../models/Contract.js';
+import { resolveLocalUploadPath } from '../utils/uploadPaths.js';
 import {
   buildDocumentHtml,
   buildImageHtml,
@@ -209,6 +211,57 @@ export const renderInstance = ({ sections, sourceData, documentTitle, includeCom
   const templateLike = toTemplateLike(sections, documentTitle);
   const variables = enrichSourceDataWithSectionAssets(sections, sourceData, { includeCompanyStamp });
   return buildDocumentHtml(templateLike, variables);
+};
+
+export const bookingLooksSigned = (booking) =>
+  Boolean(
+    booking?.completion?.signatureComplete
+    || booking?.completion?.requestStatus === 'signed',
+  );
+
+const resolveExistingPdfFile = (pdfPath, pdfUrl) => {
+  if (pdfPath && fs.existsSync(pdfPath)) return pdfPath;
+  const fromUrl = resolveLocalUploadPath(pdfUrl);
+  if (fromUrl && fs.existsSync(fromUrl)) return fromUrl;
+  return null;
+};
+
+/**
+ * Copy the current PDF aside as the immutable signed original.
+ * No-op if a signed snapshot already exists. Does not persist — caller must save.
+ */
+export const captureSignedSnapshotIfNeeded = async (doc) => {
+  if (!doc || doc.signedPdfUrl) return false;
+
+  const src = resolveExistingPdfFile(doc.pdfPath, doc.pdfUrl);
+  const version = Number(doc.version || 1);
+  const safeNumber = String(doc.contractNumber || 'contract').replace(/[^a-zA-Z0-9-_]/g, '');
+
+  if (src) {
+    const dest = path.join(path.dirname(src), `${safeNumber}-signed-v${version}.pdf`);
+    try {
+      if (path.resolve(src) !== path.resolve(dest)) {
+        await fs.promises.copyFile(src, dest);
+        doc.signedPdfPath = dest;
+        doc.signedPdfUrl = publicUploadUrl(dest);
+      } else {
+        doc.signedPdfPath = src;
+        doc.signedPdfUrl = doc.pdfUrl || publicUploadUrl(src);
+      }
+    } catch {
+      doc.signedPdfPath = src;
+      doc.signedPdfUrl = doc.pdfUrl || publicUploadUrl(src);
+    }
+  } else if (doc.pdfUrl) {
+    doc.signedPdfPath = doc.pdfPath || '';
+    doc.signedPdfUrl = doc.pdfUrl;
+  } else {
+    return false;
+  }
+
+  doc.signedAt = doc.signedAt || new Date();
+  if (doc.signedVersion == null) doc.signedVersion = version;
+  return true;
 };
 
 export const persistPdfFromInstance = async ({
@@ -495,6 +548,7 @@ export const upsertContractFromCompletion = async ({
   };
 
   const existing = await Contract.findOne({ owner: ownerId, booking: booking._id }).sort({ createdAt: -1 });
+  const looksSigned = bookingLooksSigned(booking);
 
   if (existing) {
     if (isContentLocked(existing)) {
@@ -512,6 +566,7 @@ export const upsertContractFromCompletion = async ({
       existing.pdfUrl = pdf.pdfUrl;
       bumpDocumentVersion(existing);
       existing.updatedBy = user?._id || user || existing.updatedBy;
+      if (looksSigned) await captureSignedSnapshotIfNeeded(existing);
       await existing.save();
       await archiveRevision({
         owner: ownerId,
@@ -533,6 +588,7 @@ export const upsertContractFromCompletion = async ({
     existing.templateSnapshot = buildTemplateSnapshot(template || {});
     bumpDocumentVersion(existing);
     existing.updatedBy = user?._id || user || existing.updatedBy;
+    if (looksSigned) await captureSignedSnapshotIfNeeded(existing);
     await existing.save();
     await archiveRevision({
       owner: ownerId,
@@ -564,6 +620,11 @@ export const upsertContractFromCompletion = async ({
     status: 'final',
     version: 1,
   });
+
+  if (looksSigned) {
+    await captureSignedSnapshotIfNeeded(contract);
+    await contract.save();
+  }
 
   await archiveRevision({
     owner: ownerId,
@@ -599,5 +660,7 @@ export default {
   mergeSignatureFields,
   versionedAssetUrl,
   upsertContractFromCompletion,
+  captureSignedSnapshotIfNeeded,
+  bookingLooksSigned,
   OptimisticLockError,
 };

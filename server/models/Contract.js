@@ -39,6 +39,14 @@ const contractSchema = new mongoose.Schema({
   includeCompanyStamp: { type: Boolean, default: true },
   /** When true, booking/completion/template sync must not overwrite sourceData/sections */
   contentLocked: { type: Boolean, default: false, index: true },
+  /**
+   * Frozen signed artifact. Never overwritten by generate/regenerate/extension.
+   * Current working PDF stays on pdfUrl; this is historical evidence.
+   */
+  signedPdfUrl: { type: String, default: '' },
+  signedPdfPath: { type: String, default: '' },
+  signedAt: { type: Date, default: null },
+  signedVersion: { type: Number, default: null },
   status: {
     type: String,
     enum: ['draft', 'final'],

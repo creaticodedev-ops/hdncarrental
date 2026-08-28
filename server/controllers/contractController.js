@@ -32,6 +32,8 @@ import {
   clearContentLock,
   renderInstance,
   versionedAssetUrl,
+  captureSignedSnapshotIfNeeded,
+  bookingLooksSigned,
 } from '../services/documentInstanceService.js';
 
 const generateContractNumber = async (ownerId) => {
@@ -54,6 +56,14 @@ const generateContractNumber = async (ownerId) => {
   }
 
   return `${prefix}${String(seq).padStart(4, '0')}`;
+};
+
+const syncBookingContractPdf = async (bookingId, pdfUrl) => {
+  if (!bookingId || !pdfUrl) return;
+  await Booking.updateOne(
+    { _id: bookingId },
+    { $set: { 'completion.contractPdfUrl': pdfUrl } },
+  );
 };
 
 const createInvoiceForBooking = async ({ owner, booking, user, includeCompanyStamp = true }) => {
@@ -207,13 +217,18 @@ export const hydrateContractIfNeeded = async (contract, user, { persist = true }
 
 export const listContracts = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', customerName = '', cin = '', phone = '' } = req.query;
+    const { page = 1, limit = 20, search = '', customerName = '', cin = '', phone = '', bookingId = '' } = req.query;
     const pg = Math.max(1, parseInt(page, 10) || 1);
     const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pg - 1) * lim;
+    const summary = String(req.query.summary || '') === '1';
 
     const query = { owner: req.user._id };
     const bookingQuery = [];
+
+    if (bookingId && mongoose.isValidObjectId(bookingId)) {
+      query.booking = bookingId;
+    }
 
     if (search?.trim()) {
       const term = search.trim();
@@ -249,22 +264,29 @@ export const listContracts = async (req, res) => {
       }
     }
 
-    if (bookingIds.length) {
+    if (bookingIds.length && !query.booking) {
       query.booking = { $in: bookingIds };
     }
 
+    let find = Contract.find(query)
+      .populate({
+        path: 'booking',
+        select: 'reservationId customerName customerPhone pickupDate returnDate price status car',
+        populate: { path: 'car', select: 'brand model year' },
+      })
+      .populate('template', 'name type')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(lim);
+
+    if (summary) {
+      find = find.select(
+        'contractNumber status version pdfUrl pdfPath signedPdfUrl signedPdfPath signedVersion signedAt contentLocked updatedAt booking template',
+      );
+    }
+
     const [contracts, total] = await Promise.all([
-      Contract.find(query)
-        .populate({
-          path: 'booking',
-          select: 'reservationId customerName customerPhone pickupDate returnDate price status car',
-          populate: { path: 'car', select: 'brand model year' },
-        })
-        .populate('template', 'name type')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(lim)
-        .lean(),
+      find.lean(),
       Contract.countDocuments(query),
     ]);
 
@@ -325,6 +347,17 @@ export const generateContract = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const existing = await Contract.findOne({ owner: req.user._id, booking: booking._id })
+      .sort({ createdAt: -1 });
+    if (existing) {
+      return res.json({
+        success: true,
+        message: 'Contract already exists',
+        alreadyExists: true,
+        contract: existing,
+      });
     }
 
     await ensureDefaultTemplates(req.user._id);
@@ -392,6 +425,8 @@ export const generateContract = async (req, res) => {
       details: `Contract ${contractNumber} generated for ${booking.reservationId}`,
     });
 
+    await syncBookingContractPdf(booking._id, pdfUrl);
+
     res.status(201).json({
       success: true,
       message: 'Contract generated successfully',
@@ -423,6 +458,11 @@ export const updateContract = async (req, res) => {
     const live = await Contract.findOne({ _id: req.params.id, owner: req.user._id });
     if (!live) {
       return res.status(404).json({ success: false, message: 'Contract not found' });
+    }
+
+    const signedBooking = await Booking.findById(live.booking).select('completion').lean();
+    if (bookingLooksSigned(signedBooking)) {
+      await captureSignedSnapshotIfNeeded(live);
     }
 
     assertOptimisticLock(live, expectedUpdatedAt);
@@ -530,8 +570,13 @@ export const regenerateContract = async (req, res) => {
 
     if (expectedUpdatedAt) assertOptimisticLock(doc, expectedUpdatedAt);
 
+    const linkedBooking = await Booking.findById(doc.booking).populate('car');
+    if (bookingLooksSigned(linkedBooking)) {
+      await captureSignedSnapshotIfNeeded(doc);
+    }
+
     if (fromBooking) {
-      const booking = await Booking.findById(doc.booking).populate('car').lean();
+      const booking = linkedBooking?.toObject ? linkedBooking.toObject() : linkedBooking;
       if (!booking) {
         return res.status(404).json({ success: false, message: 'Linked booking not found' });
       }
@@ -598,6 +643,8 @@ export const regenerateContract = async (req, res) => {
       .populate({ path: 'booking', populate: { path: 'car' } })
       .populate('template')
       .lean();
+
+    await syncBookingContractPdf(doc.booking, populated?.pdfUrl || doc.pdfUrl);
 
     res.json({
       success: true,
@@ -776,6 +823,38 @@ export const downloadContractPdf = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Contract not found' });
     }
 
+    const variant = String(req.query.variant || '').toLowerCase();
+    const asDownload = String(req.query.download || '') === '1';
+    const safeName = String(contract.contractNumber || 'contract').replace(/"/g, '');
+    const disposition = asDownload ? 'attachment' : 'inline';
+
+    if (variant === 'signed') {
+      const { resolveExistingPdfPath } = await import('../utils/ensureDocumentPdf.js');
+      let signedPath = resolveExistingPdfPath(contract.signedPdfPath, contract.signedPdfUrl);
+      if (!signedPath && contract.signedVersion) {
+        const versions = await listRevisions({
+          owner: req.user._id,
+          documentType: 'contract',
+          documentId: contract._id,
+          limit: 50,
+        });
+        const signedRev = (versions || []).find(
+          (item) => Number(item.version) === Number(contract.signedVersion),
+        );
+        signedPath = resolveExistingPdfPath(
+          signedRev?.snapshot?.pdfPath,
+          signedRev?.snapshot?.pdfUrl,
+        );
+      }
+      if (!signedPath) {
+        return res.status(404).json({ success: false, message: 'Signed contract PDF not found' });
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}-signed.pdf"`);
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.sendFile(signedPath);
+    }
+
     contract = await hydrateContractIfNeeded(contract, req.user);
 
     const { ensureInstancePdfFile } = await import('../utils/ensureDocumentPdf.js');
@@ -801,10 +880,7 @@ export const downloadContractPdf = async (req, res) => {
     }
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${String(contract.contractNumber || 'contract').replace(/"/g, '')}.pdf"`,
-    );
+    res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}.pdf"`);
     res.setHeader('Cache-Control', 'private, no-store');
     return res.sendFile(filePath);
   } catch (error) {

@@ -3,6 +3,7 @@ import { StatusBadge } from '../../../admin/ui'
 import {
   bookingStatusTone,
   contractTone,
+  getContractLifecycle,
   getContractStatus,
   getPaymentDisplay,
   getSignatureStatus,
@@ -34,8 +35,10 @@ export const PaymentBadge = ({ booking, t }) => {
   )
 }
 
-export const ContractBadge = ({ booking, t }) => {
-  const status = getContractStatus(booking)
+export const ContractBadge = ({ booking, contract, t }) => {
+  const status = contract !== undefined
+    ? getContractLifecycle(booking, contract)
+    : getContractStatus(booking)
   return (
     <StatusBadge tone={contractTone(status)}>
       {t(`admin.bookings.contractLabels.${status}`)}

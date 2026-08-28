@@ -1,5 +1,6 @@
 import React, { useRef } from 'react'
 import ActionMenu from './ActionMenu'
+import ContractActions from './ContractActions'
 import {
   BookingStatusBadge,
   ContractBadge,
@@ -84,6 +85,14 @@ const ReservationDetail = ({
   onWhatsApp,
   onPrint,
   onViewContract,
+  onGenerateContract,
+  onDownloadContract,
+  onEditContract,
+  onRegenerateContract,
+  onViewSignedContract,
+  contract = null,
+  contractLoading = false,
+  contractBusy = false,
   onDelete,
   onCancelReservation,
   onGenerateInvoice,
@@ -114,7 +123,6 @@ const ReservationDetail = ({
   const days = rentalDayCount(booking.pickupDate, booking.returnDate)
   const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
   const carImage = booking.car?.image || booking.car?.images?.[0] || ''
-  const contractUrl = booking.completion?.contractPdfUrl || ''
   const samsar = entityName(booking.samsar) || t('admin.bookings.notAssigned')
   const chauffeur = entityName(booking.chauffeur) || t('admin.bookings.notAssigned')
   const partner = entityName(booking.partnerCompany) || t('admin.bookings.notAssigned')
@@ -137,14 +145,8 @@ const ReservationDetail = ({
     { key: 'sep2', separator: true },
     { key: 'wa', label: t('admin.bookings.whatsapp'), icon: 'whatsapp', onClick: onWhatsApp },
     { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: onPrint },
-    contractUrl
-      ? { key: 'viewcontract', label: t('admin.bookings.viewContract'), icon: 'contract', onClick: onViewContract }
-      : null,
     hasPermission('contracts')
       ? { key: 'inv', label: t('admin.bookings.generateInvoice'), icon: 'invoice', onClick: onGenerateInvoice }
-      : null,
-    hasPermission('contracts') && booking.status !== 'cancelled'
-      ? { key: 'contract', label: t('admin.bookings.generateContract'), icon: 'contract', href: `/owner/contracts?bookingId=${booking._id}` }
       : null,
     { key: 'sep3', separator: true },
     { key: 'lic', label: t('admin.bookings.downloadLicense'), icon: 'download', onClick: onDownloadLicense },
@@ -257,14 +259,31 @@ const ReservationDetail = ({
           </div>
           <div className="res-status-cell">
             <span className="res-status-label">{t('admin.bookings.contract')}</span>
-            <ContractBadge booking={booking} t={t} />
+            <ContractBadge booking={booking} contract={contract} t={t} />
           </div>
           <div className="res-status-cell">
             <span className="res-status-label">{t('admin.bookings.signature')}</span>
             <SignatureBadge booking={booking} t={t} />
           </div>
         </div>
+      </header>
 
+      <div className="res-inspector-actions">
+        <ContractActions
+          t={t}
+          booking={booking}
+          contract={contract}
+          loading={contractLoading}
+          busy={contractBusy}
+          canManage={hasPermission('contracts')}
+          onGenerate={onGenerateContract}
+          onView={onViewContract}
+          onDownload={onDownloadContract}
+          onEdit={onEditContract}
+          onRegenerate={onRegenerateContract}
+          onRequestSignature={onRequestSignature}
+          onViewSigned={onViewSignedContract}
+        />
         <div className="res-action-stack">
           {showSignatureCta ? (
             <button type="button" className="admin-btn admin-btn-primary res-btn-block" onClick={onRequestSignature}>
@@ -284,11 +303,6 @@ const ReservationDetail = ({
               {t('admin.bookings.editReservation')}
             </button>
           </div>
-          {contractUrl ? (
-            <button type="button" className="admin-btn admin-btn-secondary res-btn-block" onClick={onViewContract}>
-              {t('admin.bookings.viewContract')}
-            </button>
-          ) : null}
           <ActionMenu
             label={t('admin.bookings.moreActions')}
             trigger="button"
@@ -296,7 +310,7 @@ const ReservationDetail = ({
             items={moreItems}
           />
         </div>
-      </header>
+      </div>
 
       <div className="res-inspector-body">
         <Fold title={t('admin.bookings.customerDetails')} defaultOpen>

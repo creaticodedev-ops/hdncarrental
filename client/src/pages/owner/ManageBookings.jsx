@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Title from '../../components/owner/Title'
 import ConfirmDialog from '../../components/owner/ConfirmDialog'
 import ReservationList from '../../components/owner/bookings/ReservationList'
@@ -9,10 +9,12 @@ import {
   customerEmail,
   extraCalendarDays,
   formatDateTime as formatDt,
+  hasSignedContractArchive,
   money,
   reservationRef,
   toAgencyDateTimeLocal,
   addHoursAgencyLocal,
+  getSignatureStatus,
 } from '../../components/owner/bookings/reservationHelpers'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
@@ -22,6 +24,9 @@ import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import { buildOwnerCompletionWaUrl, buildWaMeUrl } from '../../utils/whatsapp'
 import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
+import { openDocumentPdf } from '../../utils/openDocumentPdf'
+import DocumentGenerationOverlay from '../../components/DocumentGenerationOverlay'
+import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
 
 const emptyFilters = {
   search: '',
@@ -64,6 +69,7 @@ const toInputDateTime = (value) => {
 const ManageBookings = () => {
   const { currency, axios, hasPermission } = useAppContext()
   const { t, language } = useI18n()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [bookings, setBookings] = useState([])
@@ -95,6 +101,9 @@ const ManageBookings = () => {
   const [confirmAction, setConfirmAction] = useState(null)
   const [sigFilter, setSigFilter] = useState('')
   const [contractFilter, setContractFilter] = useState('')
+  const [inspectorContract, setInspectorContract] = useState(null)
+  const [contractLoading, setContractLoading] = useState(false)
+  const docGen = useDocumentGeneration()
   const selectedIdRef = useRef(null)
   selectedIdRef.current = selectedBooking?._id
 
@@ -197,6 +206,32 @@ const ManageBookings = () => {
       setSelectedBooking(found)
     }
   }, [bookings, searchParams])
+
+  useEffect(() => {
+    const bookingId = selectedBooking?._id
+    if (!bookingId || !hasPermission('contracts')) {
+      setInspectorContract(null)
+      setContractLoading(false)
+      return undefined
+    }
+    let cancelled = false
+    setContractLoading(true)
+    axios
+      .get(`/api/contracts?bookingId=${bookingId}&limit=1&summary=1`)
+      .then(({ data }) => {
+        if (cancelled) return
+        setInspectorContract(data.success ? data.contracts?.[0] || null : null)
+      })
+      .catch(() => {
+        if (!cancelled) setInspectorContract(null)
+      })
+      .finally(() => {
+        if (!cancelled) setContractLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedBooking?._id, selectedBooking?.updatedAt, axios, hasPermission])
 
   const compatibleVehicles = useMemo(() => {
     if (!selectedBooking?.car) return []
@@ -674,7 +709,39 @@ const ManageBookings = () => {
     }
   }
 
+  const openContractPdf = async (contract, { download = false, signed = false } = {}) => {
+    if (!contract?._id) {
+      const url = selectedBooking?.completion?.contractPdfUrl
+      if (!url) {
+        toast.error(t('admin.bookings.contractPdfMissing'))
+        return
+      }
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
+    try {
+      const params = new URLSearchParams()
+      if (signed) params.set('variant', 'signed')
+      if (download) params.set('download', '1')
+      const qs = params.toString()
+      await openDocumentPdf(
+        axios,
+        `/api/contracts/${contract._id}/pdf${qs ? `?${qs}` : ''}`,
+        {
+          filename: `${contract.contractNumber || 'contract'}${signed ? '-signed' : ''}.pdf`,
+          download,
+        },
+      )
+    } catch (error) {
+      toast.error(getErrorMessage(error) || t('admin.bookings.contractPdfMissing'))
+    }
+  }
+
   const openBookingContract = (booking) => {
+    if (inspectorContract?._id && booking?._id === selectedBooking?._id) {
+      openContractPdf(inspectorContract)
+      return
+    }
     const url = booking?.completion?.contractPdfUrl
     if (!url) {
       toast.error(t('admin.bookings.documentMissing'))
@@ -682,6 +749,72 @@ const ManageBookings = () => {
     }
     window.open(url, '_blank', 'noopener,noreferrer')
   }
+
+  const generateInspectorContract = async () => {
+    if (!selectedBooking?._id || docGen.running) return
+    try {
+      await docGen.run(
+        async () => {
+          const { data } = await axios.post('/api/contracts/generate', {
+            bookingId: selectedBooking._id,
+            includeCompanyStamp: true,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'generate',
+          axios,
+          extractPdfApiPath: (data) => (data?.contract?._id ? `/api/contracts/${data.contract._id}/pdf` : ''),
+          extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
+          onSuccess: async (data) => {
+            setInspectorContract(data.contract || null)
+            toast.success(data.alreadyExists ? data.message : t('admin.bookings.contractGenerated'))
+            fetchOwnerBookings()
+            if (data.contract?._id) {
+              await openContractPdf(data.contract)
+            }
+          },
+        },
+      )
+    } catch (error) {
+      if (!docGen.open) toast.error(getErrorMessage(error))
+    }
+  }
+
+  const regenerateInspectorContract = async () => {
+    if (!inspectorContract?._id || docGen.running) return
+    try {
+      await docGen.run(
+        async () => {
+          const { data } = await axios.post(`/api/contracts/${inspectorContract._id}/regenerate`, {
+            fromBooking: true,
+          })
+          if (!data.success) throw new Error(data.message)
+          return data
+        },
+        {
+          mode: 'regenerate',
+          axios,
+          extractPdfApiPath: (data) => (data?.contract?._id ? `/api/contracts/${data.contract._id}/pdf` : ''),
+          extractPdfUrl: (data) => data?.contract?.pdfUrl || '',
+          onSuccess: async (data) => {
+            setInspectorContract(data.contract || inspectorContract)
+            toast.success(t('admin.bookings.contractRegenerated'))
+            fetchOwnerBookings()
+            if (data.contract?._id) {
+              await openContractPdf(data.contract)
+            }
+          },
+        },
+      )
+    } catch (error) {
+      if (!docGen.open) toast.error(getErrorMessage(error))
+    }
+  }
+
+  const printBooking = (booking) => {
+    if (!booking) return
     const reservationId = booking.reservationId || `RES-${booking._id?.toString().slice(-8).toUpperCase()}`
     const vehicle = booking.car ? `${booking.car.brand} ${booking.car.model}` : '-'
     const html = `
@@ -734,6 +867,7 @@ const ManageBookings = () => {
     if (action.type === 'delete') deleteBooking(action.bookingId)
     if (action.type === 'cancelLink') cancelCompletionLink(action.bookingId)
     if (action.type === 'cancelBooking') changeBookingStatus(action.bookingId, 'cancelled')
+    if (action.type === 'regenerateContract') regenerateInspectorContract()
   }
 
   const liveExtraDays = selectedBooking
@@ -743,7 +877,19 @@ const ManageBookings = () => {
   const inputClass = 'admin-input'
 
   return (
-    <div className={`res-module admin-page-pad w-full min-w-0 ${selectedBooking ? 'has-selection' : ''}`}>
+    <div className={`res-module admin-page-pad w-full min-w-0 relative ${selectedBooking ? 'has-selection' : ''}`}>
+      <DocumentGenerationOverlay
+        open={docGen.open}
+        status={docGen.status}
+        mode={docGen.mode}
+        error={docGen.error}
+        pdfUrl={docGen.pdfUrl}
+        onRetry={() => docGen.retry()}
+        onDismiss={() => docGen.close()}
+        autoDismissMs={docGen.status === 'success' ? 850 : 0}
+        embedPdf={false}
+        position="fixed"
+      />
       <div className="res-chrome">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <Title title={t('admin.bookings.title')} subTitle={t('admin.bookings.subtitle')} />
@@ -953,7 +1099,23 @@ const ManageBookings = () => {
           onAssignVehicle={(carId) => assignVehicle(selectedBooking._id, carId)}
           onWhatsApp={() => openWhatsApp(selectedBooking)}
           onPrint={() => printBooking(selectedBooking)}
-          onViewContract={() => openBookingContract(selectedBooking)}
+          onViewContract={() => openContractPdf(inspectorContract)}
+          onGenerateContract={generateInspectorContract}
+          onDownloadContract={() => openContractPdf(inspectorContract, { download: true })}
+          onEditContract={() => {
+            if (inspectorContract?._id) navigate(`/owner/contracts?edit=${inspectorContract._id}`)
+          }}
+          onRegenerateContract={() => {
+            const signedCurrent = getSignatureStatus(selectedBooking) === 'signed'
+              && !hasSignedContractArchive(inspectorContract)
+            setConfirmAction({ type: 'regenerateContract', signed: signedCurrent })
+          }}
+          onViewSignedContract={() => openContractPdf(inspectorContract, {
+            signed: Boolean(inspectorContract?.signedPdfUrl),
+          })}
+          contract={inspectorContract}
+          contractLoading={contractLoading}
+          contractBusy={docGen.running}
           onDelete={() => setConfirmAction({ type: 'delete', bookingId: selectedBooking._id })}
           onCancelReservation={() => setConfirmAction({ type: 'cancelBooking', bookingId: selectedBooking._id })}
           onGenerateInvoice={() => generateInvoiceForBooking(selectedBooking)}
@@ -1214,17 +1376,30 @@ const ManageBookings = () => {
             ? t('admin.bookings.delete')
             : confirmAction?.type === 'cancelLink'
               ? t('admin.bookings.cancelLink')
-              : t('admin.bookings.cancelReservation')
+              : confirmAction?.type === 'regenerateContract'
+                ? (confirmAction.signed
+                  ? t('admin.bookings.newVersionConfirmTitle')
+                  : t('admin.bookings.regenerateConfirmTitle'))
+                : t('admin.bookings.cancelReservation')
         }
         message={
           confirmAction?.type === 'delete'
             ? t('admin.bookings.deleteConfirm')
             : confirmAction?.type === 'cancelLink'
               ? t('admin.bookings.cancelLinkConfirm')
-              : t('admin.bookings.cancelReservationConfirm')
+              : confirmAction?.type === 'regenerateContract'
+                ? (confirmAction.signed
+                  ? t('admin.bookings.newVersionConfirmMessage')
+                  : t('admin.bookings.regenerateConfirmMessage'))
+                : t('admin.bookings.cancelReservationConfirm')
         }
-        confirmText={t('admin.bookings.confirm')}
+        confirmText={
+          confirmAction?.type === 'regenerateContract' && confirmAction.signed
+            ? t('admin.bookings.createContractVersion')
+            : t('admin.bookings.confirm')
+        }
         cancelText={t('admin.common.cancel')}
+        variant={confirmAction?.type === 'regenerateContract' ? 'primary' : 'danger'}
         onConfirm={runConfirm}
         onCancel={() => setConfirmAction(null)}
       />

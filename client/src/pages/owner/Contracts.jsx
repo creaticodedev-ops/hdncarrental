@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Title from '../../components/owner/Title'
 import DocumentEditPanel, { inputClass } from '../../components/owner/DocumentEditPanel'
@@ -358,6 +358,14 @@ const Contracts = () => {
       setVersionsLoading(false)
     }
   }
+
+  const editParam = searchParams.get('edit') || ''
+  const openedEditRef = useRef('')
+  useEffect(() => {
+    if (!editParam || openedEditRef.current === editParam) return
+    openedEditRef.current = editParam
+    openEdit({ _id: editParam })
+  }, [editParam])
 
   const saveEdit = async ({ regeneratePdf = true } = {}) => {
     if (!editing || docGen.running || editSaving) return

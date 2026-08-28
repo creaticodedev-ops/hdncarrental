@@ -219,6 +219,31 @@ export const getContractStatus = (booking) => {
   return 'none'
 }
 
+export const hasSignedContractArchive = (contract) => {
+  if (!contract?.signedPdfUrl) return false
+  const signedVersion = Number(contract.signedVersion) || 0
+  const currentVersion = Number(contract.version) || 1
+  return signedVersion > 0 && currentVersion > signedVersion
+}
+
+/** Inspector lifecycle: draft | generated | signature_requested | signed | expired | cancelled | none */
+export const getContractLifecycle = (booking, contract) => {
+  if (!booking) return 'none'
+  if (booking.status === 'cancelled') return 'cancelled'
+
+  const sig = getSignatureStatus(booking)
+  const hasDoc = Boolean(contract?._id || booking?.completion?.contractPdfUrl)
+  const archivedSigned = hasSignedContractArchive(contract)
+  const currentIsSigned = sig === 'signed' && !archivedSigned
+
+  if (currentIsSigned) return 'signed'
+  if (sig === 'expired') return 'expired'
+  if (sig === 'pending') return 'signature_requested'
+  if (contract?.status === 'draft') return 'draft'
+  if (hasDoc) return 'generated'
+  return 'none'
+}
+
 export const bookingStatusTone = (status) => {
   if (status === 'confirmed' || status === 'ready_for_pickup') return 'success'
   if (status === 'active') return 'info'
@@ -242,8 +267,10 @@ export const paymentTone = (status) => {
 }
 
 export const contractTone = (status) => {
-  if (status === 'ready') return 'success'
-  if (status === 'in_progress') return 'info'
+  if (status === 'ready' || status === 'signed' || status === 'generated') return 'success'
+  if (status === 'signature_requested') return 'warn'
+  if (status === 'in_progress' || status === 'draft') return 'info'
+  if (status === 'expired' || status === 'cancelled') return 'danger'
   return 'neutral'
 }
 
