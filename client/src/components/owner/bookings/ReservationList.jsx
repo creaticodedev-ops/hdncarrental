@@ -9,6 +9,7 @@ import {
   SignatureBadge,
 } from './ReservationBadges'
 import {
+  bookingPaymentFigures,
   customerEmail,
   customerInitials,
   formatCompactDate,
@@ -127,6 +128,7 @@ const ReservationList = ({
               {bookings.map((booking) => {
                 const selected = selectedId === booking._id
                 const days = rentalDayCount(booking.pickupDate, booking.returnDate)
+                const figures = bookingPaymentFigures(booking)
                 return (
                   <tr
                     key={booking._id}
@@ -191,7 +193,12 @@ const ReservationList = ({
                       <ContractBadge booking={booking} t={t} />
                     </td>
                     <td>
-                      <p className="res-total">{money(currency, booking.price)}</p>
+                      <p className="res-total">{money(currency, figures.total)}</p>
+                      {figures.remaining > 0 ? (
+                        <p className="res-due-line">{t('admin.bookings.remainingAmount', { amount: money(currency, figures.remaining) })}</p>
+                      ) : (
+                        <p className="res-id-secondary">{t('admin.bookings.paidInFullShort')}</p>
+                      )}
                     </td>
                     <td className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="res-row-actions">
@@ -261,7 +268,9 @@ const ReservationList = ({
   )
 }
 
-const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => (
+const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => {
+  const figures = bookingPaymentFigures(booking)
+  return (
   <button
     type="button"
     className={`res-card${selected ? ' is-selected' : ''}`}
@@ -275,7 +284,7 @@ const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => (
           <BookingStatusBadge status={booking.status} t={t} />
         </div>
       </div>
-      <span className="res-total">{money(currency, booking.price)}</span>
+      <span className="res-total">{money(currency, figures.total)}</span>
     </div>
     <div className="res-card-body">
       <p className="res-id-primary">{booking.customerName || t('admin.common.guest')}</p>
@@ -283,6 +292,11 @@ const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => (
       <p className="res-id-secondary">
         {formatCompactDate(booking.pickupDate, language)} → {formatCompactDate(booking.returnDate, language)}
       </p>
+      {figures.remaining > 0 ? (
+        <p className="res-due-line mt-1">
+          {t('admin.bookings.remainingAmount', { amount: money(currency, figures.remaining) })}
+        </p>
+      ) : null}
     </div>
     <div className="flex flex-wrap gap-1">
       <PaymentBadge booking={booking} t={t} />
@@ -290,6 +304,7 @@ const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => (
       <ContractBadge booking={booking} t={t} />
     </div>
   </button>
-)
+  )
+}
 
 export default ReservationList

@@ -1098,6 +1098,19 @@ const ManageBookings = () => {
           onChangePayment={(status) => changePaymentStatus(selectedBooking._id, status)}
           onAssignVehicle={(carId) => assignVehicle(selectedBooking._id, carId)}
           onWhatsApp={() => openWhatsApp(selectedBooking)}
+          onEmail={() => resendCompletionLink(selectedBooking._id)}
+          onCopyLink={() => copyCompletionLink(selectedBooking)}
+          onSetAmountPaid={async (amountPaid) => {
+            try {
+              const { data } = await axios.put(`/api/bookings/owner/${selectedBooking._id}/payments`, { amountPaid })
+              if (!data.success) throw new Error(data.message)
+              toast.success(t('admin.walkInReady.paidSaved'))
+              if (data.booking) setSelectedBooking(data.booking)
+              fetchOwnerBookings()
+            } catch (error) {
+              toast.error(getErrorMessage(error))
+            }
+          }}
           onPrint={() => printBooking(selectedBooking)}
           onViewContract={() => openContractPdf(inspectorContract)}
           onGenerateContract={generateInspectorContract}

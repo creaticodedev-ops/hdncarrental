@@ -576,7 +576,7 @@
 
 .res-stat-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem 0.65rem;
   margin-top: 0.7rem;
   padding: 0.55rem 0.6rem;
@@ -596,6 +596,244 @@
 .res-price {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+}
+
+.res-pay-strip {
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.6rem 0.5rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 12%, var(--admin-border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--admin-primary) 4%, var(--admin-surface-2)), var(--admin-surface-2));
+}
+
+.res-pay-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.res-pay-cell {
+  min-width: 0;
+  padding: 0.4rem 0.45rem 0.45rem;
+  border-radius: 0.55rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+}
+
+.res-pay-cell span,
+.res-pay-cell label {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.res-pay-cell strong {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.82rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-ink);
+}
+
+.res-pay-cell.is-due strong {
+  color: var(--admin-danger);
+}
+
+.res-pay-cell.is-ok strong {
+  color: var(--admin-success);
+}
+
+.res-pay-cell.is-paid.is-edit {
+  border-color: color-mix(in srgb, var(--admin-success) 30%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-success) 7%, var(--admin-surface));
+  cursor: text;
+}
+
+.res-pay-cell.is-paid.is-edit:focus-within {
+  border-color: var(--admin-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-success) 16%, transparent);
+}
+
+.res-pay-input {
+  display: flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  margin-top: 0.1rem;
+}
+
+.res-pay-input span {
+  display: inline;
+  font-size: 0.82rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--admin-success);
+}
+
+.res-pay-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-success);
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.res-pay-input input::-webkit-outer-spin-button,
+.res-pay-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.res-pay-banner {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.res-pay-banner.is-due {
+  color: var(--admin-danger);
+}
+
+.res-pay-banner.is-ok {
+  color: var(--admin-success);
+}
+
+.res-due-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--admin-danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.res-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.res-dock-kicker {
+  margin: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.res-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.res-dock-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  min-height: 3.4rem;
+  padding: 0.4rem 0.15rem 0.42rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+  color: var(--admin-ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.res-dock-tile:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--admin-border));
+  background: var(--admin-surface);
+  transform: translateY(-1px);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.res-dock-tile:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+.res-dock-tile.is-disabled,
+.res-dock-tile:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.res-dock-tile.is-wa .res-dock-icon {
+  color: #0f8a72;
+}
+
+.res-dock-tile.is-due {
+  border-color: color-mix(in srgb, var(--admin-danger) 28%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-danger) 7%, var(--admin-surface));
+}
+
+.res-dock-tile.is-due .res-dock-icon {
+  color: var(--admin-danger);
+}
+
+.res-dock-icon {
+  display: flex;
+  color: var(--admin-primary);
+}
+
+.res-dock-svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.res-dock-caption {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.15;
+  max-width: 100%;
+  padding: 0 0.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.res-dock-overflow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.res-dock-more.res-menu-trigger-btn,
+.res-dock-more {
+  width: auto !important;
+  min-height: 1.7rem !important;
+  padding: 0.15rem 0.45rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--admin-muted) !important;
+  font-size: 0.7rem !important;
+  font-weight: 650 !important;
+}
+
+.res-dock-more:hover,
+.res-dock-more.res-menu-trigger-btn:hover {
+  color: var(--admin-ink) !important;
+  background: var(--admin-surface-2) !important;
 }
 
 .res-status-grid {
@@ -727,6 +965,9 @@
 }
 
 @media (max-width: 420px) {
+  .res-dock-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .res-contract-actions {
     grid-template-columns: 1fr;
   }
@@ -1059,7 +1300,7 @@
     grid-template-columns: 1fr;
   }
   .res-stat-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
   }
   .res-inspector-head {
     padding: 0.7rem 0.75rem 0.75rem;

@@ -213,6 +213,14 @@ export const collectedPaidTotal = (booking) => {
   return 0
 }
 
+export const bookingPaymentFigures = (booking) => {
+  const total = Number(booking?.price || 0)
+  const paid = collectedPaidTotal(booking)
+  const remaining = Math.max(0, Math.round((total - paid) * 100) / 100)
+  const overpaid = Math.max(0, Math.round((paid - total) * 100) / 100)
+  return { total, paid, remaining, overpaid }
+}
+
 export const getPaymentDisplayFromAmounts = (paid, due, paymentStatus) => {
   const ps = paymentStatus || 'pending'
   if (ps === 'failed') return 'failed'

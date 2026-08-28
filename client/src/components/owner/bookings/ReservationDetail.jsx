@@ -1,6 +1,7 @@
-import React, { useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import ActionMenu from './ActionMenu'
 import ContractActions from './ContractActions'
+import InspectorDock from './InspectorDock'
 import {
   BookingStatusBadge,
   ContractBadge,
@@ -8,6 +9,7 @@ import {
   SignatureBadge,
 } from './ReservationBadges'
 import {
+  bookingPaymentFigures,
   canExtend,
   canRequestSignature,
   customerEmail,
@@ -83,6 +85,9 @@ const ReservationDetail = ({
   onChangePayment,
   onAssignVehicle,
   onWhatsApp,
+  onEmail,
+  onCopyLink,
+  onSetAmountPaid,
   onPrint,
   onViewContract,
   onGenerateContract,
@@ -104,6 +109,15 @@ const ReservationDetail = ({
   onUpload,
 }) => {
   const assignmentRef = useRef(null)
+  const paidFieldRef = useRef(null)
+  const [paidInput, setPaidInput] = useState('')
+  const pay = bookingPaymentFigures(booking)
+
+  useEffect(() => {
+    if (!booking) return
+    if (paidFieldRef.current && document.activeElement === paidFieldRef.current) return
+    setPaidInput(pay.paid ? String(pay.paid) : '')
+  }, [booking, pay.paid])
 
   if (!booking) {
     return (
@@ -122,6 +136,11 @@ const ReservationDetail = ({
   const carBits = vehicleMeta(booking.car)
   const days = rentalDayCount(booking.pickupDate, booking.returnDate)
   const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
+  const email = customerEmail(booking)
+  const typedPaid = paidInput === '' ? 0 : Number(paidInput)
+  const livePaid = Number.isFinite(typedPaid) && typedPaid >= 0 ? typedPaid : pay.paid
+  const liveRemaining = Math.max(0, pay.total - livePaid)
+  const liveOver = Math.max(0, livePaid - pay.total)
   const carImage = booking.car?.image || booking.car?.images?.[0] || ''
   const samsar = entityName(booking.samsar) || t('admin.bookings.notAssigned')
   const chauffeur = entityName(booking.chauffeur) || t('admin.bookings.notAssigned')
@@ -143,7 +162,6 @@ const ReservationDetail = ({
       ? { key: 'cancelsig', label: t('admin.bookings.cancelLink'), icon: 'cancel', tone: 'danger', onClick: onCancelSignature }
       : null,
     { key: 'sep2', separator: true },
-    { key: 'wa', label: t('admin.bookings.whatsapp'), icon: 'whatsapp', onClick: onWhatsApp },
     { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: onPrint },
     walkIn
       ? { key: 'center', label: t('admin.walkInReady.titleExisting'), icon: 'contract', href: `/owner/walk-in/${booking._id}` }
@@ -161,6 +179,23 @@ const ReservationDetail = ({
       : null,
     { key: 'del', label: t('admin.bookings.delete'), icon: 'trash', tone: 'danger', onClick: onDelete },
   ].filter(Boolean)
+
+  const savePaidAmount = async () => {
+    const next = paidInput === '' ? 0 : Number(paidInput)
+    if (!Number.isFinite(next) || next < 0) {
+      setPaidInput(pay.paid ? String(pay.paid) : '')
+      return
+    }
+    const rounded = Math.round(next * 100) / 100
+    if (rounded === Math.round(Number(pay.paid || 0) * 100) / 100) return
+    await onSetAmountPaid?.(rounded)
+  }
+
+  const focusPaid = () => {
+    paidFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    paidFieldRef.current?.focus()
+    paidFieldRef.current?.select?.()
+  }
 
   const mobileMore = [
     !showSignatureCta && extendable
@@ -249,10 +284,50 @@ const ReservationDetail = ({
             <p className="res-mini-label">{t('admin.bookings.duration')}</p>
             <p className="res-stat-value">{t('admin.bookings.daysCount', { count: days })}</p>
           </div>
-          <div>
-            <p className="res-mini-label">{t('admin.bookings.total')}</p>
-            <p className="res-stat-value res-price">{money(currency, booking.price)}</p>
+        </div>
+
+        <div className="res-pay-strip">
+          <div className="res-pay-figures">
+            <div className="res-pay-cell">
+              <span>{t('admin.bookings.total')}</span>
+              <strong>{money(currency, pay.total)}</strong>
+            </div>
+            <div
+              className="res-pay-cell is-paid is-edit"
+              onClick={() => paidFieldRef.current?.focus()}
+            >
+              <label htmlFor="res-amount-paid">{t('admin.walkInReady.paymentAmount')}</label>
+              <div className="res-pay-input">
+                <span>{currency}</span>
+                <input
+                  id="res-amount-paid"
+                  ref={paidFieldRef}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={paidInput}
+                  onChange={(e) => setPaidInput(e.target.value)}
+                  onBlur={savePaidAmount}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur()
+                  }}
+                />
+              </div>
+            </div>
+            <div className={`res-pay-cell${liveRemaining > 0 ? ' is-due' : ' is-ok'}`}>
+              <span>{t('admin.bookings.remaining')}</span>
+              <strong>{money(currency, liveRemaining)}</strong>
+            </div>
           </div>
+          <p className={`res-pay-banner${liveRemaining > 0 ? ' is-due' : ' is-ok'}`}>
+            {liveOver > 0
+              ? t('admin.walkInReady.overpaidHint', { amount: money(currency, liveOver) })
+              : liveRemaining > 0
+                ? t('admin.bookings.remainingAmount', { amount: money(currency, liveRemaining) })
+                : t('admin.bookings.paidInFull')}
+          </p>
         </div>
 
         <div className="res-status-grid">
@@ -287,32 +362,27 @@ const ReservationDetail = ({
           onRequestSignature={onRequestSignature}
           onViewSigned={onViewSignedContract}
         />
-        <div className="res-action-stack">
-          {showSignatureCta ? (
-            <button type="button" className="admin-btn admin-btn-primary res-btn-block" onClick={onRequestSignature}>
-              <PenIcon />
-              {t('admin.bookings.requestSignature')}
-            </button>
-          ) : null}
-          <div className={`res-action-pair${extendable ? '' : ' is-single'}`}>
-            {extendable ? (
-              <button type="button" className="admin-btn admin-btn-secondary res-btn-block" onClick={onExtend}>
-                <CalendarIcon />
-                {t('admin.bookings.extendContract')}
-              </button>
-            ) : null}
-            <button type="button" className="admin-btn admin-btn-secondary res-btn-block" onClick={onEdit}>
-              <PencilIcon />
-              {t('admin.bookings.editReservation')}
-            </button>
-          </div>
-          <ActionMenu
-            label={t('admin.bookings.moreActions')}
-            trigger="button"
-            className="w-full"
-            items={moreItems}
-          />
-        </div>
+        {showSignatureCta ? (
+          <button type="button" className="admin-btn admin-btn-primary res-btn-block" onClick={onRequestSignature}>
+            <PenIcon />
+            {t('admin.bookings.requestSignature')}
+          </button>
+        ) : null}
+        <InspectorDock
+          t={t}
+          remaining={liveRemaining}
+          hasEmail={Boolean(email)}
+          hasContract={Boolean(contract?._id || booking?.completion?.contractPdfUrl)}
+          extendable={extendable}
+          onWhatsApp={onWhatsApp}
+          onEmail={onEmail}
+          onCopyLink={onCopyLink}
+          onAddPayment={focusPaid}
+          onEdit={onEdit}
+          onExtend={onExtend}
+          onDownloadContract={onDownloadContract}
+          moreItems={moreItems}
+        />
       </div>
 
       <div className="res-inspector-body">
