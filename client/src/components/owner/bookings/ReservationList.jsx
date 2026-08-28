@@ -1,14 +1,20 @@
 import React from 'react'
 import { EmptyState, SkeletonBlock } from '../../../admin/ui'
 import ActionMenu from './ActionMenu'
-import { BookingStatusBadge } from './ReservationBadges'
+import {
+  BookingStatusBadge,
+  ChannelChip,
+  PaymentBadge,
+} from './ReservationBadges'
 import {
   bookingPaymentFigures,
-  formatRelativeWhen,
-  getNextDeskAction,
-  getOpsFlags,
+  customerEmail,
+  customerInitials,
+  formatCompactDate,
+  formatDay,
+  formatTime,
   money,
-  nextDeskActionLabel,
+  rentalDayCount,
   reservationRef,
   vehicleLabel,
 } from './reservationHelpers'
@@ -36,7 +42,6 @@ const ReservationList = ({
   loading,
   selectedId,
   onSelect,
-  onNextAction,
   onEdit,
   onPrint,
   onViewContract,
@@ -49,8 +54,6 @@ const ReservationList = ({
   onPrev,
   onNext,
   onPageSize,
-  emptyTitle,
-  emptyDescription,
 }) => {
   const handlers = {
     onEdit,
@@ -75,10 +78,7 @@ const ReservationList = ({
 
   if (!bookings.length) {
     return (
-      <EmptyState
-        title={emptyTitle || t('admin.bookings.emptyTitle')}
-        description={emptyDescription || t('admin.bookings.emptyDescription')}
-      />
+      <EmptyState title={t('admin.bookings.emptyTitle')} description={t('admin.bookings.emptyDescription')} />
     )
   }
 
@@ -105,88 +105,108 @@ const ReservationList = ({
         ))}
       </div>
 
-      <div className="res-work hidden lg:flex">
-        <div className="res-work-scroll">
-          <div className="res-work-head">
-            <span>{t('admin.bookings.customer')}</span>
-            <span className="res-hide-md">{t('admin.bookings.vehicle')}</span>
-            <span>{t('admin.bookings.dates')}</span>
-            <span>{t('admin.bookings.total')}</span>
-            <span>{t('admin.bookings.actions')}</span>
-            <span />
-          </div>
-          {bookings.map((booking) => {
-            const selected = selectedId === booking._id
-            const figures = bookingPaymentFigures(booking)
-            const flags = getOpsFlags(booking)
-            const action = getNextDeskAction(booking)
-            const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
-            return (
-              <div
-                key={booking._id}
-                role="button"
-                tabIndex={0}
-                className={`res-work-row${selected ? ' is-selected' : ''}${flags.due ? ' is-due' : ''}`}
-                onClick={() => onSelect(booking)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onSelect(booking)
-                  }
-                }}
-              >
-                <div className="min-w-0">
-                  <p className="res-work-name">{booking.customerName || t('admin.common.guest')}</p>
-                  <p className="res-work-meta">
-                    {reservationRef(booking)}
-                    {' · '}
-                    {walkIn ? 'Walk-in' : 'Online'}
-                    {' · '}
-                    {t(`admin.bookings.statuses.${booking.status}`)}
-                  </p>
-                </div>
-                <div className="res-hide-md min-w-0">
-                  <p className="res-work-name">{vehicleLabel(booking.car)}</p>
-                  <p className="res-work-meta">{booking.car?.licensePlate || '—'}</p>
-                </div>
-                <div className="res-work-when">
-                  <strong className={flags.departingToday ? 'is-today' : ''}>
-                    {formatRelativeWhen(booking.pickupDate, language, t)}
-                    {' → '}
-                    {formatRelativeWhen(booking.returnDate, language, t)}
-                  </strong>
-                  {flags.departingToday ? (
-                    <span className="res-moment is-out">{t('admin.bookings.departing')}</span>
-                  ) : flags.returningToday ? (
-                    <span className="res-moment is-in">{t('admin.bookings.returning')}</span>
-                  ) : null}
-                </div>
-                <div className={`res-work-money${flags.due ? ' is-due' : ''}`}>
-                  {flags.due ? money(currency, figures.remaining) : money(currency, figures.total)}
-                  {flags.due ? (
-                    <span className="res-muted-amt">{t('admin.bookings.remaining')}</span>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  className={`res-work-cta${action.id === 'collect' ? ' is-due' : ''}${action.id === 'sign' ? ' is-sign' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onNextAction?.(booking, action)
-                  }}
-                >
-                  {nextDeskActionLabel(action, t, currency)}
-                </button>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <ActionMenu
-                    label={t('admin.bookings.more')}
-                    iconOnly
-                    items={rowMenuItems(booking, t, handlers)}
-                  />
-                </div>
-              </div>
-            )
-          })}
+      <div className="res-table-shell hidden lg:block">
+        <div className="table-scroll">
+          <table className="res-ops-table">
+            <thead>
+              <tr>
+                <th>{t('admin.bookings.reservation')}</th>
+                <th>{t('admin.bookings.customer')}</th>
+                <th className="res-hide-md">{t('admin.bookings.vehicle')}</th>
+                <th>{t('admin.bookings.dates')}</th>
+                <th>{t('admin.bookings.status')}</th>
+                <th>{t('admin.bookings.payment')}</th>
+                <th>{t('admin.bookings.total')}</th>
+                <th className="text-right">{t('admin.bookings.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((booking) => {
+                const selected = selectedId === booking._id
+                const days = rentalDayCount(booking.pickupDate, booking.returnDate)
+                const figures = bookingPaymentFigures(booking)
+                return (
+                  <tr
+                    key={booking._id}
+                    className={selected ? 'is-selected' : ''}
+                    onClick={() => onSelect(booking)}
+                  >
+                    <td>
+                      <p className="res-ref-cell">{reservationRef(booking)}</p>
+                      <ChannelChip channel={booking.channel} />
+                    </td>
+                    <td>
+                      <div className="res-identity">
+                        <span className="res-avatar" aria-hidden>
+                          {customerInitials(booking.customerName)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="res-id-primary">
+                            {booking.customerName || t('admin.common.guest')}
+                          </p>
+                          <p className="res-id-secondary">
+                            {booking.customerPhone || customerEmail(booking) || '—'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="res-hide-md">
+                      <p className="res-id-primary">{vehicleLabel(booking.car)}</p>
+                      {booking.car?.year ? (
+                        <p className="res-id-secondary">({booking.car.year})</p>
+                      ) : null}
+                      {booking.car?.licensePlate ? (
+                        <p className="res-id-secondary">{booking.car.licensePlate}</p>
+                      ) : null}
+                    </td>
+                    <td>
+                      <p className="res-id-primary">
+                        {formatDay(booking.pickupDate, language)}
+                        {' '}
+                        <span className="res-time">{formatTime(booking.pickupDate, language)}</span>
+                      </p>
+                      <p className="res-id-primary">
+                        {formatDay(booking.returnDate, language)}
+                        {' '}
+                        <span className="res-time">{formatTime(booking.returnDate, language)}</span>
+                      </p>
+                      <p className="res-id-secondary">
+                        {t('admin.bookings.daysCount', { count: days })}
+                      </p>
+                    </td>
+                    <td>
+                      <BookingStatusBadge status={booking.status} t={t} />
+                    </td>
+                    <td>
+                      <PaymentBadge booking={booking} t={t} />
+                    </td>
+                    <td>
+                      <p className="res-total">{money(currency, figures.total)}</p>
+                      {figures.remaining > 0 ? (
+                        <p className="res-due-line">{t('admin.bookings.remainingAmount', { amount: money(currency, figures.remaining) })}</p>
+                      ) : null}
+                    </td>
+                    <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="res-row-actions">
+                        <button
+                          type="button"
+                          className="res-link-btn"
+                          onClick={() => onSelect(booking)}
+                        >
+                          {t('admin.bookings.view')}
+                        </button>
+                        <ActionMenu
+                          label={t('admin.bookings.more')}
+                          iconOnly
+                          items={rowMenuItems(booking, t, handlers)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -236,43 +256,36 @@ const ReservationList = ({
 
 const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => {
   const figures = bookingPaymentFigures(booking)
-  const flags = getOpsFlags(booking)
-  const action = getNextDeskAction(booking)
   return (
-    <button
-      type="button"
-      className={`res-card${selected ? ' is-selected' : ''}`}
-      onClick={() => onSelect(booking)}
-    >
-      <div className="res-card-top">
-        <div className="min-w-0">
-          <p className="res-work-name">{booking.customerName || t('admin.common.guest')}</p>
-          <p className="res-work-meta">{reservationRef(booking)}</p>
+  <button
+    type="button"
+    className={`res-card${selected ? ' is-selected' : ''}`}
+    onClick={() => onSelect(booking)}
+  >
+    <div className="res-card-top">
+      <div className="min-w-0">
+        <p className="res-ref-cell">{reservationRef(booking)}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <ChannelChip channel={booking.channel} />
+          <BookingStatusBadge status={booking.status} t={t} />
         </div>
-        <span className={`res-total${flags.due ? ' res-due-line' : ''}`}>
-          {flags.due ? money(currency, figures.remaining) : money(currency, figures.total)}
-        </span>
       </div>
-      <div className="res-card-body">
-        <p className="res-id-secondary">{vehicleLabel(booking.car)}</p>
-        <p className="res-id-secondary">
-          {formatRelativeWhen(booking.pickupDate, language, t)}
-          {' → '}
-          {formatRelativeWhen(booking.returnDate, language, t)}
+      <span className="res-total">{money(currency, figures.total)}</span>
+    </div>
+    <div className="res-card-body">
+      <p className="res-id-primary">{booking.customerName || t('admin.common.guest')}</p>
+      <p className="res-id-secondary">{vehicleLabel(booking.car)}</p>
+      <p className="res-id-secondary">
+        {formatCompactDate(booking.pickupDate, language)} → {formatCompactDate(booking.returnDate, language)}
+      </p>
+      {figures.remaining > 0 ? (
+        <p className="res-due-line mt-1">
+          {t('admin.bookings.remainingAmount', { amount: money(currency, figures.remaining) })}
         </p>
-        {flags.departingToday ? (
-          <span className="res-moment is-out">{t('admin.bookings.departing')}</span>
-        ) : flags.returningToday ? (
-          <span className="res-moment is-in">{t('admin.bookings.returning')}</span>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <BookingStatusBadge status={booking.status} t={t} />
-        <span className={`res-card-cta${action.id === 'collect' ? ' is-due' : ''}`}>
-          {nextDeskActionLabel(action, t, currency)}
-        </span>
-      </div>
-    </button>
+      ) : null}
+    </div>
+    <PaymentBadge booking={booking} t={t} />
+  </button>
   )
 }
 

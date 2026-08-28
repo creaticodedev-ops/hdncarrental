@@ -88,28 +88,9 @@ export const formatAgencyDateTimeLocal = (date) => {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
 };
 
-export const moroccoYmd = (date = new Date()) => {
-  const p = moroccoParts(date instanceof Date ? date : new Date(date));
-  if (!Number.isFinite(p.year)) return '';
-  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
-};
-
-/** Start/end instants of the given calendar day in Africa/Casablanca. */
-export const moroccoDayBounds = (date = new Date()) => {
-  const ymd = moroccoYmd(date);
-  if (!ymd) return { start: new Date(NaN), end: new Date(NaN), ymd: '' };
-  return {
-    ymd,
-    start: parseAgencyDateTime(`${ymd}T00:00:00`),
-    end: parseAgencyDateTime(`${ymd}T23:59:59`),
-  };
-};
-
 export default {
   AGENCY_TIMEZONE,
   moroccoMinutesOfDay,
   parseAgencyDateTime,
   formatAgencyDateTimeLocal,
-  moroccoYmd,
-  moroccoDayBounds,
 };

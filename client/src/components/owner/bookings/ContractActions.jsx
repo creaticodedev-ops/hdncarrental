@@ -40,7 +40,6 @@ const ContractActions = ({
   onRegenerate,
   onRequestSignature,
   onViewSigned,
-  hideLead = false,
 }) => {
   if (!booking) return null
 
@@ -94,7 +93,7 @@ const ContractActions = ({
         </p>
       ) : null}
 
-      {leadSignature && !hideLead ? (
+      {leadSignature ? (
         <>
           <button
             type="button"

@@ -10,14 +10,10 @@ import {
   customerEmail,
   entityName,
   formatCompactDate,
-  formatRelativeWhen,
-  getOpsFlags,
   getSignatureStatus,
   money,
-  nextStatusInRail,
   rentalDayCount,
   reservationRef,
-  STATUS_RAIL,
   vehicleLabel,
   vehicleMeta,
 } from './reservationHelpers'
@@ -104,7 +100,6 @@ const ReservationDetail = ({
   onDownloadId,
   onDownloadPassport,
   onUpload,
-  intent = '',
 }) => {
   const assignmentRef = useRef(null)
   const paidFieldRef = useRef(null)
@@ -115,26 +110,20 @@ const ReservationDetail = ({
     if (!booking) return
     if (paidFieldRef.current && document.activeElement === paidFieldRef.current) return
     setPaidInput(pay.paid ? String(pay.paid) : '')
-    if (intent === 'collect') {
-      requestAnimationFrame(() => paidFieldRef.current?.focus())
-    }
-  }, [booking, pay.paid, intent])
+  }, [booking, pay.paid])
 
   if (!booking) {
     return (
       <aside className="res-inspector res-inspector-empty" aria-label={t('admin.bookings.details')}>
         <div className="res-inspector-empty-inner">
-          <p className="res-inspector-empty-title">{t('admin.bookings.emptyBriefTitle')}</p>
-          <p className="res-inspector-empty-copy">{t('admin.bookings.emptyBriefCopy')}</p>
-          <p className="res-kbd-hint">{t('admin.bookings.keyboardHint')}</p>
+          <p className="res-inspector-empty-title">{t('admin.bookings.details')}</p>
+          <p className="res-inspector-empty-copy">{t('admin.bookings.selectHint')}</p>
         </div>
       </aside>
     )
   }
 
   const sig = getSignatureStatus(booking)
-  const flags = getOpsFlags(booking)
-  const nextStatus = nextStatusInRail(booking.status)
   const showSignatureCta = canRequestSignature(booking)
   const extendable = canExtend(booking)
   const carBits = vehicleMeta(booking.car)
@@ -234,32 +223,24 @@ const ReservationDetail = ({
 
         <div className="res-summary-top">
           <div className="min-w-0">
+            <p className="res-ref">{reservationRef(booking)}</p>
             <p className="res-who">{booking.customerName || t('admin.common.guest')}</p>
             {booking.customerPhone ? (
               <p className="res-trip-line">{booking.customerPhone}</p>
             ) : null}
             <p className="res-trip-line">
-              {reservationRef(booking)}
-              {' · '}
               {vehicleLabel(booking.car)}
               {booking.car?.licensePlate ? ` · ${booking.car.licensePlate}` : ''}
             </p>
+            <p className="res-trip-line">
+              {formatCompactDate(booking.pickupDate, language)}
+              {' → '}
+              {formatCompactDate(booking.returnDate, language)}
+              {' · '}
+              {t('admin.bookings.daysCount', { count: days })}
+            </p>
           </div>
           <BookingStatusBadge status={booking.status} t={t} />
-        </div>
-
-        <div className="res-timeline">
-          <div className={`res-tl-node${flags.departingToday ? ' is-live' : ''}`}>
-            <p>{t('admin.bookings.tripPickup')}</p>
-            <strong>{formatRelativeWhen(booking.pickupDate, language, t)}</strong>
-          </div>
-          <div className="res-tl-span">
-            <span>{t('admin.bookings.daysCount', { count: days })}</span>
-          </div>
-          <div className={`res-tl-node${flags.returningToday ? ' is-live' : ''}`}>
-            <p>{t('admin.bookings.tripReturn')}</p>
-            <strong>{formatRelativeWhen(booking.returnDate, language, t)}</strong>
-          </div>
         </div>
 
         <div className={`res-money${liveRemaining > 0 ? ' is-due' : ' is-ok'}`}>
@@ -299,9 +280,6 @@ const ReservationDetail = ({
               />
             </label>
           </div>
-          {flags.due && flags.unsigned ? (
-            <p className="res-hint-line">{t('admin.bookings.alsoUnsigned')}</p>
-          ) : null}
         </div>
       </header>
 
@@ -335,29 +313,6 @@ const ReservationDetail = ({
       </div>
 
       <div className="res-inspector-body">
-        {booking.status !== 'cancelled' ? (
-          <div className="res-rail-wrap">
-            <p className="res-mini-label">{t('admin.bookings.advanceStatus')}</p>
-            <div className="res-rail">
-              {STATUS_RAIL.map((step) => {
-                const current = step === booking.status
-                const isNext = step === nextStatus
-                return (
-                  <button
-                    key={step}
-                    type="button"
-                    className={`res-rail-step${current ? ' is-current' : ''}${isNext ? ' is-next' : ''}`}
-                    disabled={!isNext}
-                    onClick={() => isNext && onChangeStatus(step)}
-                  >
-                    {t(`admin.bookings.statuses.${step}`)}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ) : null}
-
         <Fold title={t('admin.bookings.customerDetails')}>
           <Line label={t('admin.bookings.email')}>{email || '—'}</Line>
           <Line label={t('admin.bookings.phone')}>{booking.customerPhone || '—'}</Line>

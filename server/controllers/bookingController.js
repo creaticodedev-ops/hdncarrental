@@ -50,7 +50,6 @@ import {
   isModelAvailableForDates,
   publicUnavailablePayload,
 } from "../services/availabilityService.js";
-import { moroccoDayBounds } from "../utils/moroccoTime.js";
 
 const BOOKING_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'active', 'completed', 'cancelled'];
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
@@ -67,11 +66,6 @@ const generateReservationId = async () => {
     if (!exists) return reservationId;
   }
   return `RES-${Date.now().toString(36).toUpperCase()}`;
-};
-
-const pushAnd = (query, clause) => {
-  if (!query.$and) query.$and = [];
-  query.$and.push(clause);
 };
 
 const buildBookingQuery = (ownerId, filters = {}) => {
@@ -131,39 +125,12 @@ const buildBookingQuery = (ownerId, filters = {}) => {
 
   if (filters.search) {
     const term = escapeRegex(filters.search);
-    pushAnd(query, {
-      $or: [
-        { customerName: { $regex: term, $options: 'i' } },
-        { customerEmail: { $regex: term, $options: 'i' } },
-        { customerPhone: { $regex: term, $options: 'i' } },
-        { reservationId: { $regex: term, $options: 'i' } },
-      ],
-    });
-  }
-
-  if (filters.opsQueue === 'today') {
-    const { start, end } = moroccoDayBounds(new Date());
-    pushAnd(query, {
-      $or: [
-        { pickupDate: { $gte: start, $lte: end } },
-        { returnDate: { $gte: start, $lte: end } },
-      ],
-    });
-    if (!filters.status) {
-      query.status = { $nin: ['cancelled'] };
-    }
-  } else if (filters.opsQueue === 'attention') {
-    if (!filters.status) {
-      query.status = { $nin: ['cancelled', 'completed'] };
-    }
-    pushAnd(query, {
-      $or: [
-        { paymentStatus: { $in: ['pending', 'failed'] } },
-        { 'completion.signatureComplete': { $ne: true } },
-      ],
-    });
-  } else if (filters.opsQueue === 'on_rent') {
-    if (!filters.status) query.status = 'active';
+    query.$or = [
+      { customerName: { $regex: term, $options: 'i' } },
+      { customerEmail: { $regex: term, $options: 'i' } },
+      { customerPhone: { $regex: term, $options: 'i' } },
+      { reservationId: { $regex: term, $options: 'i' } },
+    ];
   }
 
   return query;
@@ -244,7 +211,6 @@ const parseFilters = (query) => ({
   createdTo: query.createdTo,
   category: query.category,
   licensePlate: query.licensePlate,
-  opsQueue: query.opsQueue,
 });
 
 export const checkAvailabilityOfCar = async (req, res) => {
@@ -1069,11 +1035,8 @@ export const getOwnerBookings = async (req, res) => {
     const filters = parseFilters(req.query);
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
-    const queued = filters.opsQueue && filters.opsQueue !== 'all';
-    const sortBy = queued
-      ? (filters.opsQueue === 'on_rent' ? 'returnDate' : 'pickupDate')
-      : getSortField(req.query.sortBy);
-    const sortOrder = queued ? 1 : (req.query.sortOrder === 'asc' ? 1 : -1);
+    const sortBy = getSortField(req.query.sortBy);
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
 
     const query = buildBookingQuery(req.user._id, filters);
