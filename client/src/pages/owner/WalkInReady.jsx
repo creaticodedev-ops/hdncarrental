@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import ConfirmDialog from '../../components/owner/ConfirmDialog'
 import DocumentGenerationOverlay from '../../components/DocumentGenerationOverlay'
 import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
-import { StatusBadge, SkeletonBlock, ErrorState } from '../../admin/ui'
+import { CurrencyInput, FormField, StatusBadge, SkeletonBlock, ErrorState } from '../../admin/ui'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
@@ -13,30 +13,57 @@ import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import { buildOwnerCompletionWaUrl, createExternalTabOpener } from '../../utils/whatsapp'
 import { customerEmail } from '../../utils/customerEmail'
 import {
+  collectedPaidTotal,
   customerInitials,
   formatDateTime,
+  formatDay,
   getPaymentDisplay,
   getSignatureStatus,
   money,
   paymentTone,
   rentalDayCount,
   reservationRef,
+  toAgencyDateTimeLocal,
   vehicleLabel,
 } from '../../components/owner/bookings/reservationHelpers'
 import './walkInReady.css'
+
+const LEDGER_METHODS = ['cash', 'card', 'bank_transfer', 'check', 'other']
 
 const fade = {
   hidden: { opacity: 0, y: 10 },
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
 }
 
+const agencyDateInput = (value = new Date()) => {
+  const local = toAgencyDateTimeLocal(value)
+  return local ? local.slice(0, 10) : ''
+}
+
 const paymentFigures = (booking) => {
   const total = Number(booking?.price || 0)
-  const recorded = Number(booking?.completion?.amountPaid || 0)
-  const paid = recorded > 0 ? recorded : booking?.paymentStatus === 'paid' ? total : 0
+  const paid = collectedPaidTotal(booking)
   const remaining = Math.max(0, total - paid)
+  const overpaid = Math.max(0, paid - total)
   const deposit = Number(booking?.franchiseAmount || 0)
-  return { total, paid, remaining, deposit }
+  return { total, paid, remaining, overpaid, deposit }
+}
+
+const visibleLedger = (booking) => {
+  const ledger = [...(booking?.paymentLedger || [])]
+  if (ledger.length) {
+    return ledger.sort((a, b) => new Date(a.paidAt || 0) - new Date(b.paidAt || 0))
+  }
+  const paid = collectedPaidTotal(booking)
+  if (paid <= 0) return []
+  return [{
+    _id: 'opening',
+    amount: paid,
+    method: 'other',
+    paidAt: booking?.completion?.paymentCompletedAt || booking?.createdAt,
+    note: '',
+    source: 'opening',
+  }]
 }
 
 const workflowOf = (booking, contract) => {
@@ -69,6 +96,8 @@ const WalkInReady = () => {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [whatsappDials, setWhatsappDials] = useState({ confirmationDial: '' })
+  const [payFormOpen, setPayFormOpen] = useState(false)
+  const [payForm, setPayForm] = useState({ amount: '', method: 'cash', paidAt: '', note: '' })
 
   const canContracts = hasPermission('contracts')
   const linkUrl = booking?.completion?.shareableCompletionUrl || ''
@@ -78,6 +107,11 @@ const WalkInReady = () => {
   const paidRatio = pay.total > 0 ? Math.min(100, Math.round((pay.paid / pay.total) * 100)) : 0
   const days = rentalDayCount(booking?.pickupDate, booking?.returnDate)
   const payLabel = getPaymentDisplay(booking)
+  const ledger = useMemo(() => visibleLedger(booking), [booking])
+  const draftAmount = Number(payForm.amount) || 0
+  const nextPaid = pay.paid + (payFormOpen ? draftAmount : 0)
+  const nextRemain = Math.max(0, pay.total - nextPaid)
+  const nextOver = Math.max(0, nextPaid - pay.total)
 
   const loadBooking = useCallback(async () => {
     const { data } = await axios.get(`/api/bookings/owner/${bookingId}`)
@@ -291,6 +325,39 @@ const WalkInReady = () => {
       setBusy('')
     }
   }
+
+  const openPayForm = () => {
+    setPayForm({
+      amount: pay.remaining > 0 ? String(pay.remaining) : '',
+      method: 'cash',
+      paidAt: agencyDateInput(),
+      note: '',
+    })
+    setPayFormOpen(true)
+  }
+
+  const recordPayment = async (event) => {
+    event.preventDefault()
+    setBusy('pay')
+    try {
+      const { data } = await axios.post(`/api/bookings/owner/${bookingId}/payments`, {
+        amount: Number(payForm.amount),
+        method: payForm.method,
+        paidAt: payForm.paidAt,
+        note: payForm.note,
+      })
+      if (!data.success) throw new Error(data.message)
+      setBooking(data.booking)
+      setPayFormOpen(false)
+      toast.success(t('admin.walkInReady.paymentRecorded'))
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setBusy('')
+    }
+  }
+
+  if (loading) {
 
   if (loading && !booking) {
     return (
@@ -531,6 +598,108 @@ const WalkInReady = () => {
                 <strong>{pay.deposit ? money(currency, pay.deposit) : '—'}</strong>
               </div>
             </div>
+            {pay.overpaid > 0 ? (
+              <p className="wir-pay-hint">
+                {t('admin.walkInReady.overpaidHint', { amount: money(currency, pay.overpaid) })}
+              </p>
+            ) : null}
+
+            {ledger.length ? (
+              <ul className="wir-pay-list">
+                {ledger.map((entry, index) => {
+                  const paymentNo = ledger.slice(0, index + 1).filter((item) => item.source !== 'opening').length
+                  return (
+                  <li key={entry._id || `${entry.paidAt}-${index}`} className="wir-pay-row">
+                    <div>
+                      <p className="wir-pay-row-title">
+                        {entry.source === 'opening'
+                          ? t('admin.walkInReady.openingBalance')
+                          : t('admin.walkInReady.paymentN', { n: paymentNo })}
+                      </p>
+                      <p className="wir-pay-row-meta">
+                        {t(`admin.walkInReady.methods.${entry.method || 'other'}`)}
+                        {entry.paidAt ? ` · ${formatDay(entry.paidAt, language)}` : ''}
+                        {entry.note ? ` · ${entry.note}` : ''}
+                      </p>
+                    </div>
+                    <strong className="wir-pay-row-amt">{money(currency, entry.amount)}</strong>
+                  </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="wir-pay-empty">{t('admin.walkInReady.noPayments')}</p>
+            )}
+
+            {payFormOpen ? (
+              <form className="wir-pay-form" onSubmit={recordPayment}>
+                <FormField label={t('admin.walkInReady.paymentAmount')} required className="wir-pay-span">
+                  <CurrencyInput
+                    currency={currency}
+                    value={payForm.amount}
+                    onChange={(value) => setPayForm((prev) => ({ ...prev, amount: value }))}
+                    required
+                    min="0.01"
+                  />
+                </FormField>
+                <FormField label={t('admin.accounting.paymentMethod')} required>
+                  <select
+                    className="admin-input"
+                    value={payForm.method}
+                    onChange={(e) => setPayForm((prev) => ({ ...prev, method: e.target.value }))}
+                  >
+                    {LEDGER_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {t(`admin.walkInReady.methods.${method}`)}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label={t('admin.walkInReady.paymentDate')} required>
+                  <input
+                    type="date"
+                    className="admin-input"
+                    required
+                    value={payForm.paidAt}
+                    onChange={(e) => setPayForm((prev) => ({ ...prev, paidAt: e.target.value }))}
+                  />
+                </FormField>
+                <FormField label={t('admin.walkInReady.paymentNote')} hint={t('admin.walkInReady.paymentNoteHint')} className="wir-pay-span">
+                  <input
+                    type="text"
+                    className="admin-input"
+                    maxLength={300}
+                    value={payForm.note}
+                    onChange={(e) => setPayForm((prev) => ({ ...prev, note: e.target.value }))}
+                  />
+                </FormField>
+                <div className="wir-pay-preview">
+                  <span>{t('admin.walkInReady.afterThis')}</span>
+                  <strong>
+                    {nextOver > 0
+                      ? `${t('admin.walkInReady.overpaidAfter')} ${money(currency, nextOver)}`
+                      : `${t('admin.walkInReady.remainingAfter')} ${money(currency, nextRemain)}`}
+                  </strong>
+                </div>
+                <div className="wir-pay-form-actions">
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary"
+                    disabled={busy === 'pay'}
+                    onClick={() => setPayFormOpen(false)}
+                  >
+                    {t('admin.common.cancel')}
+                  </button>
+                  <button type="submit" className="admin-btn admin-btn-primary" disabled={busy === 'pay' || draftAmount <= 0}>
+                    {busy === 'pay' ? t('admin.common.saving') : t('admin.walkInReady.recordPayment')}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button type="button" className="admin-btn admin-btn-primary wir-pay-add" onClick={openPayForm}>
+                {t('admin.walkInReady.addPayment')}
+              </button>
+            )}
           </section>
         </div>
 

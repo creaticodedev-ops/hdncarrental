@@ -11,6 +11,7 @@ import {
   getCalendarBookings,
   getOwnerBookings,
   getOwnerBookingById,
+  addOwnerBookingPayment,
   quoteBooking,
   updateBooking
 } from "../controllers/bookingController.js";
@@ -46,6 +47,7 @@ bookingRouter.post('/owner/completion/ensure-link', ...bookingsGate, ensureCompl
 bookingRouter.post('/owner/extend/preview', ...bookingsGate, previewExtension);
 bookingRouter.post('/owner/extend', ...bookingsGate, applyExtension);
 bookingRouter.get('/owner/:bookingId/extensions', ...bookingsGate, getExtensionHistory);
+bookingRouter.post('/owner/:bookingId/payments', ...bookingsGate, addOwnerBookingPayment);
 bookingRouter.get('/owner/:bookingId', ...bookingsGate, getOwnerBookingById);
 bookingRouter.post('/change-status', ...bookingsGate, changeBookingStatus);
 bookingRouter.post('/change-payment-status', ...bookingsGate, changePaymentStatus);

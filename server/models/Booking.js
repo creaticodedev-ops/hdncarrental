@@ -172,6 +172,26 @@ const bookingSchema = new mongoose.Schema({
     default: "pending",
   },
   /**
+   * Installments collected against this reservation.
+   * Sum feeds completion.amountPaid; remaining is max(0, price − paid).
+   */
+  paymentLedger: [{
+    amount: { type: Number, required: true },
+    method: {
+      type: String,
+      enum: ["cash", "bank_transfer", "check", "card", "other"],
+      default: "cash",
+    },
+    paidAt: { type: Date, default: Date.now },
+    note: { type: String, default: "", maxlength: 300 },
+    recordedBy: { type: ObjectId, ref: "User", default: null },
+    source: {
+      type: String,
+      enum: ["desk", "opening", "walk_in"],
+      default: "desk",
+    },
+  }],
+  /**
    * Reservation origin:
    * online   — guest booking from public site
    * walk_in  — created by staff at the agency desk

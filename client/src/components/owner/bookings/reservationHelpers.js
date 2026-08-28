@@ -202,14 +202,26 @@ export const getCompletionMode = (booking) => {
   return 'full'
 }
 
+export const collectedPaidTotal = (booking) => {
+  const ledger = booking?.paymentLedger || []
+  if (ledger.length) {
+    return ledger.reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+  }
+  const recorded = Number(booking?.completion?.amountPaid || 0)
+  if (recorded > 0) return recorded
+  if (booking?.paymentStatus === 'paid') return Number(booking?.price || 0)
+  return 0
+}
+
 export const getPaymentDisplay = (booking) => {
   const ps = booking?.paymentStatus || 'pending'
-  if (ps === 'paid') return 'paid'
   if (ps === 'failed') return 'failed'
   if (ps === 'refunded') return 'refunded'
-  const paid = Number(booking?.completion?.amountPaid || 0)
+  const paid = collectedPaidTotal(booking)
   const due = Number(booking?.completion?.amountDue || booking?.price || 0)
+  if (due > 0 && paid > due) return 'overpaid'
   if (paid > 0 && due > paid) return 'partial'
+  if (ps === 'paid' || (due > 0 && paid >= due)) return 'paid'
   return 'unpaid'
 }
 
@@ -262,6 +274,7 @@ export const signatureTone = (status) => {
 export const paymentTone = (status) => {
   if (status === 'paid') return 'success'
   if (status === 'partial') return 'warn'
+  if (status === 'overpaid') return 'info'
   if (status === 'failed' || status === 'refunded' || status === 'unpaid') return 'danger'
   return 'neutral'
 }

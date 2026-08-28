@@ -35,6 +35,7 @@ import {
   computeCancellationFee,
 } from "../services/bookingSettingsService.js";
 import { initiateBookingCompletion, generateCompletionLink } from "../services/bookingCompletionService.js";
+import { addBookingPayment } from "../services/bookingPaymentLedger.js";
 import {
   carServesCity,
   locationAvailabilityFilter,
@@ -926,8 +927,19 @@ export const createWalkInBooking = async (req, res) => {
       },
       status,
       paymentStatus,
+      paymentLedger: paymentStatus === 'paid'
+        ? [{
+            amount: price,
+            method: 'cash',
+            paidAt: new Date(),
+            note: '',
+            recordedBy: ownerId,
+            source: 'walk_in',
+          }]
+        : [],
       completion: {
         paymentComplete: paymentStatus === 'paid',
+        amountDue: price,
         amountPaid: paymentStatus === 'paid' ? price : 0,
         paymentType: paymentStatus === 'paid' ? 'full' : '',
         paymentCompletedAt: paymentStatus === 'paid' ? new Date() : null,
@@ -1227,6 +1239,56 @@ export const changeBookingStatus = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to update status' });
+  }
+};
+
+export const addOwnerBookingPayment = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { amount, method, paidAt, note } = req.body;
+
+    if (!mongoose.isValidObjectId(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid reservation ID' });
+    }
+
+    const booking = await Booking.findOne({ _id: bookingId, owner: req.user._id });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Reservation not found' });
+    }
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot record a payment on a cancelled reservation' });
+    }
+
+    const figures = await addBookingPayment(booking, {
+      amount,
+      method: method || 'cash',
+      paidAt,
+      note,
+      recordedBy: req.user._id,
+    });
+
+    try {
+      await logAudit({
+        owner: req.user._id,
+        actor: req.user._id,
+        action: 'booking.payment_recorded',
+        entityType: 'Booking',
+        entityId: booking._id,
+        details: `Recorded ${Number(amount)} on ${booking.reservationId || bookingId} (${method || 'cash'})`,
+      });
+    } catch {
+      /* ignore */
+    }
+
+    const live = await Booking.findById(booking._id).populate('car').lean();
+    res.json({ success: true, booking: live, figures });
+  } catch (error) {
+    const status = error.status || 500;
+    console.error(error.message);
+    res.status(status).json({
+      success: false,
+      message: error.status ? error.message : 'Failed to record payment',
+    });
   }
 };
 
