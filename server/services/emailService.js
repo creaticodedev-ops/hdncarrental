@@ -258,28 +258,36 @@ export const sendCompletionInviteEmail = async ({
   returnDate,
   total,
   currency = "MAD",
+  mode = "full",
 }) => {
   const agency = defaultAgencyName();
-  const subject = `${agency} — Complete your reservation ${reservationId}`;
-  const html = `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#161210">
-      <h1 style="font-size:22px;color:#8F1F1F">${agency}</h1>
-      <p>Hello ${customerName || "Customer"},</p>
-      <p>Your reservation <strong>${reservationId}</strong> has been confirmed.</p>
+  const signatureOnly = mode === "signature_only";
+  const subject = signatureOnly
+    ? `${agency} — Please sign your rental contract ${reservationId}`
+    : `${agency} — Complete your reservation ${reservationId}`;
+  const actionLabel = signatureOnly ? "Review and sign your contract" : "Complete your booking securely";
+  const intro = signatureOnly
+    ? `<p>Your reservation <strong>${reservationId}</strong> is ready. Please review the rental contract and sign it digitally — no other steps are required.</p>`
+    : `<p>Your reservation <strong>${reservationId}</strong> has been confirmed.</p>
       <p>Please complete the following to finalize your booking:</p>
       <ul>
         <li>Upload your driving license</li>
         <li>Upload a national ID or passport</li>
         <li>Pay the deposit or full amount online</li>
         <li>Sign the rental agreement digitally</li>
-      </ul>
+      </ul>`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#161210">
+      <h1 style="font-size:22px;color:#8F1F1F">${agency}</h1>
+      <p>Hello ${customerName || "Customer"},</p>
+      ${intro}
       <p><strong>Vehicle:</strong> ${vehicle || "—"}<br/>
       <strong>Pickup:</strong> ${pickupDate || "—"}<br/>
       <strong>Return:</strong> ${returnDate || "—"}<br/>
       <strong>Total:</strong> ${currency}${total ?? "—"}</p>
       <p style="margin:28px 0">
         <a href="${completionUrl}" style="background:#8F1F1F;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;display:inline-block">
-          Complete your booking securely
+          ${actionLabel}
         </a>
       </p>
       <p style="font-size:12px;color:#6B6560">This secure link expires in a few days. If you did not make this reservation, ignore this email.</p>

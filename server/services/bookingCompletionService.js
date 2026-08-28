@@ -340,6 +340,7 @@ export const initiateBookingCompletion = async (bookingId, { resend = false } = 
       returnDate: formatDt(booking.returnDate),
       total: booking.price,
       currency,
+      mode: resolveCompletionMode(booking),
     });
   } catch (emailErr) {
     console.error("[email] Completion invite threw:", emailErr.message);

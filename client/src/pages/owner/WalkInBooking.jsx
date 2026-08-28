@@ -312,6 +312,8 @@ const WalkInBooking = () => {
         toast.success(data.message)
         if (data.booking?._id) {
           await uploadPendingDocuments(data.booking._id)
+          navigate(`/owner/walk-in/${data.booking._id}`, { state: { justCreated: true } })
+          return
         }
         setCreated(data)
         setForm(emptyForm)

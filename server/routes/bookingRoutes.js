@@ -10,6 +10,7 @@ import {
   exportOwnerBookings,
   getCalendarBookings,
   getOwnerBookings,
+  getOwnerBookingById,
   quoteBooking,
   updateBooking
 } from "../controllers/bookingController.js";
@@ -45,6 +46,7 @@ bookingRouter.post('/owner/completion/ensure-link', ...bookingsGate, ensureCompl
 bookingRouter.post('/owner/extend/preview', ...bookingsGate, previewExtension);
 bookingRouter.post('/owner/extend', ...bookingsGate, applyExtension);
 bookingRouter.get('/owner/:bookingId/extensions', ...bookingsGate, getExtensionHistory);
+bookingRouter.get('/owner/:bookingId', ...bookingsGate, getOwnerBookingById);
 bookingRouter.post('/change-status', ...bookingsGate, changeBookingStatus);
 bookingRouter.post('/change-payment-status', ...bookingsGate, changePaymentStatus);
 bookingRouter.post('/update', ...bookingsGate, updateBooking);

@@ -145,6 +145,9 @@ const ReservationDetail = ({
     { key: 'sep2', separator: true },
     { key: 'wa', label: t('admin.bookings.whatsapp'), icon: 'whatsapp', onClick: onWhatsApp },
     { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: onPrint },
+    walkIn
+      ? { key: 'center', label: t('admin.walkInReady.titleExisting'), icon: 'contract', href: `/owner/walk-in/${booking._id}` }
+      : null,
     hasPermission('contracts')
       ? { key: 'inv', label: t('admin.bookings.generateInvoice'), icon: 'invoice', onClick: onGenerateInvoice }
       : null,

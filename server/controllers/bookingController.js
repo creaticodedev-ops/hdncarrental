@@ -1054,6 +1054,25 @@ export const getOwnerBookings = async (req, res) => {
   }
 };
 
+export const getOwnerBookingById = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    if (!mongoose.isValidObjectId(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid reservation ID' });
+    }
+    const booking = await Booking.findOne({ _id: bookingId, owner: req.user._id })
+      .populate('car')
+      .lean();
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Reservation not found' });
+    }
+    res.json({ success: true, booking });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ success: false, message: 'Failed to load reservation' });
+  }
+};
+
 export const changeBookingStatus = async (req, res) => {
   try {
     const { _id } = req.user;

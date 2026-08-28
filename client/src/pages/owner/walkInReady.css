@@ -1,0 +1,472 @@
+/* Walk-in Contract Center — premium post-create workspace */
+
+.wir-page {
+  --wir-accent: var(--admin-primary);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+
+.wir-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  padding: 1.5rem 1.4rem 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 18%, var(--admin-border));
+  background:
+    radial-gradient(1200px 280px at 8% -20%, color-mix(in srgb, var(--admin-primary) 16%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--admin-surface) 0%, var(--admin-surface-2) 100%);
+  box-shadow: var(--admin-shadow);
+}
+
+.wir-hero-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.wir-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--admin-primary);
+}
+
+.wir-kicker-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 99px;
+  background: var(--admin-success);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--admin-success) 22%, transparent);
+}
+
+.wir-hero h1 {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: clamp(1.85rem, 3.4vw, 2.65rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  color: var(--admin-ink);
+}
+
+.wir-hero-sub {
+  margin: 0.45rem 0 0;
+  max-width: 36rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--admin-muted);
+}
+
+.wir-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--admin-ink);
+  background: var(--admin-sand);
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+}
+
+.wir-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 1.25rem;
+}
+
+.wir-rail-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 3.15rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--admin-border);
+  background: color-mix(in srgb, var(--admin-surface) 80%, transparent);
+}
+
+.wir-rail-step.is-done {
+  border-color: color-mix(in srgb, var(--admin-success) 35%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-success) 8%, var(--admin-surface));
+}
+
+.wir-rail-step.is-active {
+  border-color: color-mix(in srgb, var(--admin-primary) 40%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
+}
+
+.wir-rail-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--admin-muted);
+  background: var(--admin-sand);
+  flex-shrink: 0;
+}
+
+.wir-rail-step.is-done .wir-rail-index,
+.wir-rail-step.is-active .wir-rail-index {
+  color: #fff;
+  background: var(--admin-primary);
+}
+
+.wir-rail-step.is-done .wir-rail-index {
+  background: var(--admin-success);
+}
+
+.wir-rail-copy {
+  min-width: 0;
+}
+
+.wir-rail-copy strong {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--admin-ink);
+}
+
+.wir-rail-copy span {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--admin-muted);
+}
+
+.wir-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.9fr);
+  gap: 1rem;
+  margin-top: 1.1rem;
+}
+
+.wir-card {
+  border-radius: 1.15rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+  padding: 1.15rem 1.2rem 1.2rem;
+}
+
+.wir-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.95rem;
+}
+
+.wir-card-kicker {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.wir-card-title {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.45rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--admin-ink);
+}
+
+.wir-timeline {
+  list-style: none;
+  margin: 0 0 1.1rem;
+  padding: 0;
+}
+
+.wir-timeline li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 0.7rem;
+  position: relative;
+  padding-bottom: 0.85rem;
+}
+
+.wir-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.wir-timeline li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 0.42rem;
+  top: 1.05rem;
+  bottom: 0;
+  width: 1px;
+  background: var(--admin-border);
+}
+
+.wir-dot {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.15rem;
+  border-radius: 99px;
+  border: 2px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.wir-timeline li.is-done .wir-dot {
+  border-color: var(--admin-success);
+  background: var(--admin-success);
+}
+
+.wir-timeline li.is-active .wir-dot {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--admin-primary) 18%, transparent);
+}
+
+.wir-timeline strong {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--admin-ink);
+}
+
+.wir-timeline span {
+  font-size: 0.75rem;
+  color: var(--admin-muted);
+}
+
+.wir-link-box {
+  display: flex;
+  gap: 0.45rem;
+  align-items: stretch;
+  margin: 0.15rem 0 0.85rem;
+}
+
+.wir-link-box input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.wir-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.wir-actions .admin-btn {
+  min-height: 2.15rem;
+}
+
+.wir-signed {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.9rem;
+  background: var(--admin-success-soft);
+  border: 1px solid color-mix(in srgb, var(--admin-success) 28%, transparent);
+  color: var(--admin-success);
+}
+
+.wir-signed p {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--admin-ink-secondary);
+}
+
+.wir-pay-bar {
+  height: 0.45rem;
+  border-radius: 99px;
+  background: var(--admin-sand);
+  overflow: hidden;
+  margin-bottom: 0.95rem;
+}
+
+.wir-pay-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--admin-primary), color-mix(in srgb, var(--admin-primary) 65%, #c4a574));
+  transition: width 0.5s ease;
+}
+
+.wir-pay-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.wir-pay-tile {
+  padding: 0.7rem 0.75rem 0.75rem;
+  border-radius: 0.8rem;
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-border);
+}
+
+.wir-pay-tile span {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.wir-pay-tile strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-ink);
+}
+
+.wir-pay-tile.is-remain strong {
+  color: var(--admin-danger);
+}
+
+.wir-pay-tile.is-paid strong {
+  color: var(--admin-success);
+}
+
+.wir-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.wir-kv {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.wir-kv-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.wir-kv-row span {
+  color: var(--admin-muted);
+}
+
+.wir-kv-row strong {
+  text-align: right;
+  color: var(--admin-ink);
+  font-weight: 650;
+  word-break: break-word;
+}
+
+.wir-person {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.85rem;
+}
+
+.wir-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--admin-primary) 12%, var(--admin-sand));
+  color: var(--admin-primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.wir-person p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--admin-ink);
+}
+
+.wir-person span {
+  font-size: 0.75rem;
+  color: var(--admin-muted);
+}
+
+.wir-preview {
+  margin-top: 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--admin-border);
+  overflow: hidden;
+  background: var(--admin-sand);
+}
+
+.wir-preview iframe,
+.wir-preview .wir-preview-html {
+  width: 100%;
+  min-height: 280px;
+  border: 0;
+  background: #fff;
+}
+
+.wir-preview-html {
+  max-height: 360px;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+.wir-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+}
+
+.wir-error,
+.wir-empty {
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.wir-error {
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
+}
+
+.wir-empty {
+  background: var(--admin-surface-2);
+  color: var(--admin-muted);
+}
+
+.wir-skel {
+  height: 14rem;
+  border-radius: 1.15rem;
+}
+
+@media (max-width: 960px) {
+  .wir-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .wir-hero {
+    padding: 1.15rem 1rem 1.1rem;
+  }
+  .wir-rail {
+    grid-template-columns: 1fr;
+  }
+  .wir-pay-tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+}

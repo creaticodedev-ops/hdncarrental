@@ -107,11 +107,16 @@ export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD', dial
 }
 
 /** Owner dashboard — open WhatsApp to agency with message to forward to customer */
-export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = 'MAD', dial } = {}) => {
+export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = 'MAD', dial, signatureOnly } = {}) => {
   const reservationId = booking.reservationId || `RES-${booking._id?.toString().slice(-8).toUpperCase()}`
   const vehicle = booking.car
     ? `${booking.car.brand} ${booking.car.model}${booking.car.licensePlate ? ` (${booking.car.licensePlate})` : ''}`
     : booking.carName || '—'
+  const signOnly = signatureOnly
+    ?? ['walk_in', 'walk-in', 'walkin'].includes(String(booking.channel || '').toLowerCase())
+  const cta = signOnly
+    ? 'Please review and sign your rental contract here:'
+    : 'Complete your booking securely here:'
 
   const lines = [
     `${BRAND_NAME} — booking confirmation (message for customer):`,
@@ -125,7 +130,7 @@ export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = '
     `Return: ${formatDateTime(booking.returnDate)} — ${booking.returnLocation || '—'}`,
     `Total: ${currency}${booking.price ?? '—'}`,
     '',
-    'Complete your booking securely here:',
+    cta,
     completionUrl,
     '',
     `(Customer: ${booking.customerPhone || '—'})`,
