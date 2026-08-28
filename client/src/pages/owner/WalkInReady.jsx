@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion as Motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -17,7 +17,7 @@ import {
   customerInitials,
   formatDateTime,
   formatDay,
-  getPaymentDisplay,
+  getPaymentDisplayFromAmounts,
   getSignatureStatus,
   money,
   paymentTone,
@@ -98,18 +98,24 @@ const WalkInReady = () => {
   const [whatsappDials, setWhatsappDials] = useState({ confirmationDial: '' })
   const [payFormOpen, setPayFormOpen] = useState(false)
   const [payForm, setPayForm] = useState({ amount: '', method: 'cash', paidAt: '', note: '' })
+  const [paidInput, setPaidInput] = useState('')
+  const paidFieldRef = useRef(null)
 
   const canContracts = hasPermission('contracts')
   const linkUrl = booking?.completion?.shareableCompletionUrl || ''
   const workflow = workflowOf(booking, contract)
   const signed = workflow === 'signed'
   const pay = useMemo(() => paymentFigures(booking), [booking])
-  const paidRatio = pay.total > 0 ? Math.min(100, Math.round((pay.paid / pay.total) * 100)) : 0
+  const typedPaid = paidInput === '' ? 0 : Number(paidInput)
+  const livePaid = Number.isFinite(typedPaid) && typedPaid >= 0 ? typedPaid : pay.paid
+  const liveRemaining = Math.max(0, pay.total - livePaid)
+  const liveOver = Math.max(0, livePaid - pay.total)
+  const paidRatio = pay.total > 0 ? Math.min(100, Math.round((livePaid / pay.total) * 100)) : 0
   const days = rentalDayCount(booking?.pickupDate, booking?.returnDate)
-  const payLabel = getPaymentDisplay(booking)
+  const payLabel = getPaymentDisplayFromAmounts(livePaid, pay.total, booking?.paymentStatus)
   const ledger = useMemo(() => visibleLedger(booking), [booking])
   const draftAmount = Number(payForm.amount) || 0
-  const nextPaid = pay.paid + (payFormOpen ? draftAmount : 0)
+  const nextPaid = livePaid + (payFormOpen ? draftAmount : 0)
   const nextRemain = Math.max(0, pay.total - nextPaid)
   const nextOver = Math.max(0, nextPaid - pay.total)
 
@@ -192,6 +198,7 @@ const WalkInReady = () => {
   useEffect(() => {
     if (!booking || signed) return undefined
     const timer = window.setInterval(() => {
+      if (paidFieldRef.current && document.activeElement === paidFieldRef.current) return
       loadBooking().catch(() => {})
     }, 8000)
     return () => window.clearInterval(timer)
@@ -328,7 +335,7 @@ const WalkInReady = () => {
 
   const openPayForm = () => {
     setPayForm({
-      amount: pay.remaining > 0 ? String(pay.remaining) : '',
+      amount: liveRemaining > 0 ? String(liveRemaining) : '',
       method: 'cash',
       paidAt: agencyDateInput(),
       note: '',
@@ -357,7 +364,36 @@ const WalkInReady = () => {
     }
   }
 
-  if (loading) {
+  useEffect(() => {
+    if (paidFieldRef.current && document.activeElement === paidFieldRef.current) return
+    setPaidInput(pay.paid ? String(pay.paid) : '')
+  }, [pay.paid])
+
+  const savePaidAmount = async () => {
+    if (!booking) return
+    const next = paidInput === '' ? 0 : Number(paidInput)
+    if (!Number.isFinite(next) || next < 0) {
+      setPaidInput(pay.paid ? String(pay.paid) : '')
+      toast.error(t('admin.walkInReady.paidInvalid'))
+      return
+    }
+    const rounded = Math.round(next * 100) / 100
+    if (rounded === Math.round(Number(pay.paid || 0) * 100) / 100) return
+    setBusy('paid')
+    try {
+      const { data } = await axios.put(`/api/bookings/owner/${bookingId}/payments`, {
+        amountPaid: rounded,
+      })
+      if (!data.success) throw new Error(data.message)
+      setBooking(data.booking)
+      toast.success(t('admin.walkInReady.paidSaved'))
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+      setPaidInput(pay.paid ? String(pay.paid) : '')
+    } finally {
+      setBusy('')
+    }
+  }
 
   if (loading && !booking) {
     return (
@@ -585,22 +621,48 @@ const WalkInReady = () => {
                 <span>{t('admin.walkInReady.total')}</span>
                 <strong>{money(currency, pay.total)}</strong>
               </div>
-              <div className="wir-pay-tile is-paid">
-                <span>{t('admin.walkInReady.paid')}</span>
-                <strong>{money(currency, pay.paid)}</strong>
+              <div
+                className="wir-pay-tile is-paid is-edit"
+                onClick={() => paidFieldRef.current?.focus()}
+              >
+                <label htmlFor="wir-amount-paid">{t('admin.walkInReady.paymentAmount')}</label>
+                <div className="wir-pay-input">
+                  <span>{currency}</span>
+                  <input
+                    id="wir-amount-paid"
+                    ref={paidFieldRef}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0"
+                    disabled={busy === 'paid'}
+                    value={paidInput}
+                    onChange={(e) => setPaidInput(e.target.value)}
+                    onBlur={savePaidAmount}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                    }}
+                    aria-label={t('admin.walkInReady.paymentAmount')}
+                  />
+                </div>
               </div>
-              <div className={`wir-pay-tile${pay.remaining > 0 ? ' is-remain' : ''}`}>
+              <div className={`wir-pay-tile${liveRemaining > 0 ? ' is-remain' : ''}`}>
                 <span>{t('admin.walkInReady.remaining')}</span>
-                <strong>{money(currency, pay.remaining)}</strong>
+                <strong>{money(currency, liveRemaining)}</strong>
               </div>
               <div className="wir-pay-tile">
                 <span>{t('admin.walkInReady.deposit')}</span>
                 <strong>{pay.deposit ? money(currency, pay.deposit) : '—'}</strong>
               </div>
             </div>
-            {pay.overpaid > 0 ? (
+            <p className="wir-pay-hint">
+              {t('admin.walkInReady.paidFormula')}
+              {busy === 'paid' ? ` · ${t('admin.common.saving')}` : ''}
+            </p>
+            {liveOver > 0 ? (
               <p className="wir-pay-hint">
-                {t('admin.walkInReady.overpaidHint', { amount: money(currency, pay.overpaid) })}
+                {t('admin.walkInReady.overpaidHint', { amount: money(currency, liveOver) })}
               </p>
             ) : null}
 
@@ -627,9 +689,7 @@ const WalkInReady = () => {
                   )
                 })}
               </ul>
-            ) : (
-              <p className="wir-pay-empty">{t('admin.walkInReady.noPayments')}</p>
-            )}
+            ) : null}
 
             {payFormOpen ? (
               <form className="wir-pay-form" onSubmit={recordPayment}>

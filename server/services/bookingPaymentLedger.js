@@ -155,3 +155,80 @@ export const addBookingPayment = async (booking, { amount, method, paidAt, note,
 
   return figures;
 };
+
+/** Set the running collected total. Remaining and status are derived from this. */
+export const setCollectedAmount = async (booking, { amountPaid, method, recordedBy }) => {
+  const target = toMoney(amountPaid);
+  if (!Number.isFinite(target) || target < 0) {
+    const err = new Error('Enter a valid amount paid');
+    err.status = 400;
+    throw err;
+  }
+  if (target > 1_000_000) {
+    const err = new Error('Amount is too large');
+    err.status = 400;
+    throw err;
+  }
+
+  const resolvedMethod = PAYMENT_METHODS.includes(method) ? method : 'cash';
+  ensureLegacyLedger(booking);
+  if (!Array.isArray(booking.paymentLedger)) booking.paymentLedger = [];
+
+  const current = ledgerPaidTotal(booking);
+  const delta = toMoney(target - current);
+
+  if (delta === 0 && toMoney(booking.completion?.amountPaid) === target) {
+    return applyCollectedToBooking(booking);
+  }
+
+  if (booking.paymentLedger.length <= 1) {
+    if (target <= 0) {
+      booking.paymentLedger = [];
+    } else if (booking.paymentLedger.length === 1) {
+      booking.paymentLedger[0].amount = target;
+      if (!booking.paymentLedger[0].method) booking.paymentLedger[0].method = resolvedMethod;
+    } else {
+      booking.paymentLedger.push({
+        amount: target,
+        method: resolvedMethod,
+        paidAt: new Date(),
+        note: '',
+        recordedBy: recordedBy || null,
+        source: 'desk',
+      });
+    }
+  } else if (delta > 0) {
+    booking.paymentLedger.push({
+      amount: delta,
+      method: resolvedMethod,
+      paidAt: new Date(),
+      note: '',
+      recordedBy: recordedBy || null,
+      source: 'desk',
+    });
+  } else {
+    let need = toMoney(-delta);
+    while (need > 0 && booking.paymentLedger.length) {
+      const last = booking.paymentLedger[booking.paymentLedger.length - 1];
+      const lastAmt = toMoney(last.amount);
+      if (lastAmt <= need) {
+        need = toMoney(need - lastAmt);
+        booking.paymentLedger.pop();
+      } else {
+        last.amount = toMoney(lastAmt - need);
+        need = 0;
+      }
+    }
+  }
+
+  const figures = applyCollectedToBooking(booking);
+  await booking.save();
+
+  try {
+    await syncBookingPaymentRecord(booking);
+  } catch (error) {
+    console.error('[payment ledger] Payment sync', error.message);
+  }
+
+  return figures;
+};

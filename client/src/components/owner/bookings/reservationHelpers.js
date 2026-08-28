@@ -213,17 +213,25 @@ export const collectedPaidTotal = (booking) => {
   return 0
 }
 
-export const getPaymentDisplay = (booking) => {
-  const ps = booking?.paymentStatus || 'pending'
+export const getPaymentDisplayFromAmounts = (paid, due, paymentStatus) => {
+  const ps = paymentStatus || 'pending'
   if (ps === 'failed') return 'failed'
   if (ps === 'refunded') return 'refunded'
-  const paid = collectedPaidTotal(booking)
-  const due = Number(booking?.completion?.amountDue || booking?.price || 0)
-  if (due > 0 && paid > due) return 'overpaid'
-  if (paid > 0 && due > paid) return 'partial'
-  if (ps === 'paid' || (due > 0 && paid >= due)) return 'paid'
+  const collected = Number(paid || 0)
+  const total = Number(due || 0)
+  if (total > 0 && collected > total) return 'overpaid'
+  if (collected > 0 && total > collected) return 'partial'
+  if (ps === 'paid' || (total > 0 && collected >= total)) return 'paid'
   return 'unpaid'
 }
+
+export const getPaymentDisplay = (booking) => (
+  getPaymentDisplayFromAmounts(
+    collectedPaidTotal(booking),
+    booking?.completion?.amountDue || booking?.price || 0,
+    booking?.paymentStatus,
+  )
+)
 
 export const getContractStatus = (booking) => {
   if (booking?.completion?.contractPdfUrl) return 'ready'

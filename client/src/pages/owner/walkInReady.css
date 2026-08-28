@@ -340,6 +340,68 @@
   color: var(--admin-success);
 }
 
+.wir-pay-tile.is-edit {
+  border-color: color-mix(in srgb, var(--admin-success) 32%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-success) 7%, var(--admin-surface-2));
+  cursor: text;
+}
+
+.wir-pay-tile.is-edit:focus-within {
+  border-color: var(--admin-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-success) 18%, transparent);
+}
+
+.wir-pay-tile label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.wir-pay-input {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.wir-pay-input span {
+  display: inline;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--admin-success);
+}
+
+.wir-pay-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-success);
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.wir-pay-input input::-webkit-outer-spin-button,
+.wir-pay-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.wir-pay-input input:disabled {
+  opacity: 0.65;
+}
+
 .wir-pay-hint,
 .wir-pay-empty {
   margin: 0.7rem 0 0;
