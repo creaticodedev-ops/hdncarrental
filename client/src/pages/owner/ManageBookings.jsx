@@ -12,6 +12,7 @@ import {
   hasSignedContractArchive,
   money,
   reservationRef,
+  sortTodayDesk,
   toAgencyDateTimeLocal,
   addHoursAgencyLocal,
   getSignatureStatus,
@@ -73,7 +74,7 @@ const ManageBookings = () => {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [bookings, setBookings] = useState([])
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 })
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 })
   const [filters, setFilters] = useState(emptyFilters)
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters)
   const [selectedBooking, setSelectedBooking] = useState(null)
@@ -101,6 +102,9 @@ const ManageBookings = () => {
   const [confirmAction, setConfirmAction] = useState(null)
   const [sigFilter, setSigFilter] = useState('')
   const [contractFilter, setContractFilter] = useState('')
+  const [opsQueue, setOpsQueue] = useState('today')
+  const [deskIntent, setDeskIntent] = useState('')
+  const searchRef = useRef(null)
   const [inspectorContract, setInspectorContract] = useState(null)
   const [contractLoading, setContractLoading] = useState(false)
   const docGen = useDocumentGeneration()
@@ -123,12 +127,13 @@ const ManageBookings = () => {
     Object.entries(appliedFilters).forEach(([key, value]) => {
       if (value) params.set(key, value)
     })
+    if (opsQueue && opsQueue !== 'all' && !appliedFilters.search) params.set('opsQueue', opsQueue)
     params.set('page', String(pagination.page))
     params.set('limit', String(pagination.limit))
     params.set('sortBy', 'createdAt')
     params.set('sortOrder', 'desc')
     return params.toString()
-  }, [appliedFilters, pagination.page, pagination.limit])
+  }, [appliedFilters, pagination.page, pagination.limit, opsQueue])
 
   const fetchOwnerBookings = async () => {
     setLoading(true)
@@ -175,7 +180,8 @@ const ManageBookings = () => {
       .catch(() => {})
   }, [axios])
 
-  const selectBooking = (booking) => {
+  const selectBooking = (booking, intent = '') => {
+    setDeskIntent(intent || '')
     setSelectedBooking(booking)
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -191,6 +197,7 @@ const ManageBookings = () => {
   const clearSelection = () => {
     setSelectedBooking(null)
     setSignatureOpen(false)
+    setDeskIntent('')
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       next.delete('bookingId')
@@ -262,22 +269,39 @@ const ManageBookings = () => {
     setAppliedFilters(emptyFilters)
     setSigFilter('')
     setContractFilter('')
-    setPagination((prev) => ({ ...prev, page: 1 }))
-  }
-
-  const setQuickFilter = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }))
-    setAppliedFilters((prev) => ({ ...prev, [key]: value }))
+    setOpsQueue('all')
     setPagination((prev) => ({ ...prev, page: 1 }))
   }
 
   const applySearch = () => {
+    const q = filters.search || ''
     setPagination((prev) => ({ ...prev, page: 1 }))
-    setAppliedFilters((prev) => ({ ...prev, search: filters.search || '' }))
+    setAppliedFilters((prev) => ({ ...prev, search: q }))
+    if (q) setOpsQueue('all')
+  }
+
+  const changeOpsQueue = (queue) => {
+    setOpsQueue(queue)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+    setFilters((prev) => ({ ...prev, search: '', status: '', paymentStatus: '' }))
+    setAppliedFilters((prev) => ({ ...prev, search: '', status: '', paymentStatus: '' }))
+  }
+
+  const handleNextAction = (booking, action) => {
+    if (action?.id === 'sign') {
+      selectBooking(booking)
+      setSignatureOpen(true)
+      return
+    }
+    if (action?.id === 'collect') {
+      selectBooking(booking, 'collect')
+      return
+    }
+    selectBooking(booking)
   }
 
   const visibleBookings = useMemo(() => {
-    return bookings.filter((booking) => {
+    const filtered = bookings.filter((booking) => {
       if (sigFilter) {
         const status = booking?.completion?.signatureComplete
           ? 'signed'
@@ -296,7 +320,37 @@ const ManageBookings = () => {
       }
       return true
     })
-  }, [bookings, sigFilter, contractFilter])
+    return opsQueue === 'today' ? sortTodayDesk(filtered) : filtered
+  }, [bookings, sigFilter, contractFilter, opsQueue])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target
+      const typing = el
+        && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+      if (e.key === '/' && !typing) {
+        e.preventDefault()
+        searchRef.current?.focus()
+        return
+      }
+      if (typing) return
+      if (e.key === 'Escape' && selectedBooking) {
+        e.preventDefault()
+        clearSelection()
+        return
+      }
+      if ((e.key === 'j' || e.key === 'ArrowDown' || e.key === 'k' || e.key === 'ArrowUp') && visibleBookings.length) {
+        e.preventDefault()
+        const idx = visibleBookings.findIndex((b) => b._id === selectedBooking?._id)
+        const delta = (e.key === 'j' || e.key === 'ArrowDown') ? 1 : -1
+        const next = visibleBookings[Math.min(visibleBookings.length - 1, Math.max(0, (idx < 0 ? 0 : idx) + delta))]
+        if (next) selectBooking(next)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [visibleBookings, selectedBooking])
 
   const changeBookingStatus = async (bookingId, status) => {
     try {
@@ -897,6 +951,44 @@ const ManageBookings = () => {
             <Link to="/owner/walk-in" className="admin-btn admin-btn-primary res-btn">
               + {t('admin.bookings.newReservation')}
             </Link>
+          </div>
+        </div>
+
+        <div className="res-desk-bar">
+          <div className="res-queues" role="tablist" aria-label={t('admin.bookings.filters')}>
+            {[
+              ['all', t('admin.bookings.queuesAll')],
+              ['today', t('admin.bookings.queuesToday')],
+              ['attention', t('admin.bookings.queuesAttention')],
+              ['on_rent', t('admin.bookings.queuesOnRent')],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={opsQueue === id}
+                className={`res-queue${opsQueue === id ? ' is-active' : ''}`}
+                onClick={() => changeOpsQueue(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="res-search-wrap">
+            <input
+              ref={searchRef}
+              className="admin-input res-filter-search"
+              value={filters.search}
+              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applySearch()
+              }}
+              placeholder={t('admin.bookings.quickSearchPlaceholder')}
+              aria-label={t('admin.bookings.searchShortcut')}
+            />
+            <span className="res-search-kbd" aria-hidden>/</span>
+          </div>
+          <div className="res-desk-actions">
             <button type="button" onClick={() => setShowFilters((v) => !v)} className="admin-btn admin-btn-secondary res-btn">
               {showFilters ? t('admin.bookings.hideFilters') : t('admin.bookings.moreFilters')}
             </button>
@@ -904,47 +996,6 @@ const ManageBookings = () => {
               {t('admin.common.exportExcel')}
             </button>
           </div>
-        </div>
-
-        <div className="res-filter-bar">
-          <input
-            className="admin-input res-filter-search"
-            value={filters.search}
-            onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') applySearch()
-            }}
-            placeholder={t('admin.bookings.quickSearchPlaceholder')}
-          />
-          <select
-            className="res-filter-chip"
-            value={filters.status}
-            onChange={(e) => setQuickFilter('status', e.target.value)}
-            aria-label={t('admin.bookings.status')}
-          >
-            <option value="">{t('admin.bookings.status')}: {t('admin.bookings.filterAll')}</option>
-            <option value="pending">{t('admin.bookings.statuses.pending')}</option>
-            <option value="confirmed">{t('admin.bookings.statuses.confirmed')}</option>
-            <option value="ready_for_pickup">{t('admin.bookings.statuses.ready_for_pickup')}</option>
-            <option value="active">{t('admin.bookings.statuses.active')}</option>
-            <option value="completed">{t('admin.bookings.statuses.completed')}</option>
-            <option value="cancelled">{t('admin.bookings.statuses.cancelled')}</option>
-          </select>
-          <select
-            className="res-filter-chip"
-            value={filters.paymentStatus}
-            onChange={(e) => setQuickFilter('paymentStatus', e.target.value)}
-            aria-label={t('admin.bookings.payment')}
-          >
-            <option value="">{t('admin.bookings.payment')}: {t('admin.bookings.filterAll')}</option>
-            <option value="pending">{t('admin.bookings.paymentLabels.unpaid')}</option>
-            <option value="paid">{t('admin.bookings.paymentLabels.paid')}</option>
-            <option value="failed">{t('admin.bookings.paymentLabels.failed')}</option>
-            <option value="refunded">{t('admin.bookings.paymentLabels.refunded')}</option>
-          </select>
-          <button type="button" className="admin-btn admin-btn-secondary res-btn shrink-0" onClick={applySearch}>
-            {t('admin.bookings.applyFilters')}
-          </button>
         </div>
 
         {showFilters && (
@@ -1058,6 +1109,7 @@ const ManageBookings = () => {
             loading={loading}
             selectedId={selectedBooking?._id}
             onSelect={selectBooking}
+            onNextAction={handleNextAction}
             onEdit={startEdit}
             onPrint={printBooking}
             onViewContract={openBookingContract}
@@ -1070,6 +1122,17 @@ const ManageBookings = () => {
             onPrev={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
             onNext={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
             onPageSize={(limit) => setPagination((p) => ({ ...p, page: 1, limit }))}
+            emptyDescription={
+              appliedFilters.search
+                ? t('admin.bookings.emptyDescription')
+                : opsQueue === 'today'
+                  ? t('admin.bookings.emptyToday')
+                  : opsQueue === 'attention'
+                    ? t('admin.bookings.emptyAttention')
+                    : opsQueue === 'on_rent'
+                      ? t('admin.bookings.emptyOnRent')
+                      : t('admin.bookings.emptyDescription')
+            }
           />
         </div>
 
@@ -1132,6 +1195,7 @@ const ManageBookings = () => {
           onDownloadId={() => downloadDocument(selectedBooking._id, 'identity')}
           onDownloadPassport={() => downloadDocument(selectedBooking._id, 'passport')}
           onUpload={(file, docType) => uploadDocument(selectedBooking._id, file, docType)}
+          intent={deskIntent}
         />
       </div>
 
