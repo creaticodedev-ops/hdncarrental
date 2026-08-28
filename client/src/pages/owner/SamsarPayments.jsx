@@ -1,6 +1,7 @@
 import React from 'react'
 import AccountingLedgerPage, { toInputDate } from './AccountingLedgerPage'
 import { CurrencyInput, DrawerSection, FormField, SearchSelect, SegmentedControl } from '../../admin/ui'
+import DateField from '../../components/calendar/DateField'
 
 const config = {
   listPath: '/api/owner/accounting/samsar-payments',
@@ -86,7 +87,7 @@ const config = {
           <CurrencyInput currency={currency} value={form.amount} onChange={(v) => setField('amount', v)} required />
         </FormField>
         <FormField label={t('admin.accounting.date')} required>
-          <input type="date" required className="admin-input" value={form.paymentDate} onChange={(e) => setField('paymentDate', e.target.value)} />
+          <DateField required className="admin-input" value={form.paymentDate} onChange={(paymentDate) => setField('paymentDate', paymentDate)} />
         </FormField>
         <FormField label={t('admin.accounting.bookingIdOptional')} className="sm:col-span-2" hint={t('admin.accounting.bookingIdOptional')}>
           <input className="admin-input" value={form.booking} onChange={(e) => setField('booking', e.target.value)} />

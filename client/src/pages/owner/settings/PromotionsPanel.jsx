@@ -12,6 +12,7 @@ import {
   StatusPill,
   settingsUi,
 } from './settingsUi'
+import DateField from '../../../components/calendar/DateField'
 
 const OCCASIONS = [
   'custom', 'summer', 'winter', 'new_year', 'ramadan', 'eid',
@@ -484,20 +485,20 @@ const PromotionsPanel = ({ axios, t, currency }) => {
                     value={form.discountValue} onChange={(e) => set('discountValue', e.target.value)} />
                 </Field>
                 <Field label={t('admin.settings.startAt')} className="min-w-0">
-                  <input
-                    type="datetime-local"
-                    className={`${settingsUi.input} [color-scheme:light]`}
+                  <DateField
+                    mode="datetime"
+                    className={settingsUi.input}
                     value={form.startAt}
-                    onChange={(e) => set('startAt', e.target.value)}
+                    onChange={(startAt) => set('startAt', startAt)}
                     required
                   />
                 </Field>
                 <Field label={t('admin.settings.endAt')} className="min-w-0">
-                  <input
-                    type="datetime-local"
-                    className={`${settingsUi.input} [color-scheme:light]`}
+                  <DateField
+                    mode="datetime"
+                    className={settingsUi.input}
                     value={form.endAt}
-                    onChange={(e) => set('endAt', e.target.value)}
+                    onChange={(endAt) => set('endAt', endAt)}
                     required
                   />
                 </Field>

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import DateRangePicker, { toISODate, parseISODate } from '../DateRangePicker'
+import DateField from '../calendar/DateField'
 import { useI18n } from '../../i18n/I18nContext'
 import { booking } from '../ui/bookingUi'
 import { earliestReturnIsoDate } from '../../utils/bookingDuration'
@@ -31,39 +32,35 @@ const ALL_TIME_OPTIONS = (() => {
   return out
 })()
 
-const TimeSelect = ({ label, value, onChange, id, options }) => {
-  const { t } = useI18n()
-  const slots = options?.length ? options : ALL_TIME_OPTIONS
-  const safeValue = slots.includes(value) ? value : (slots[0] || value)
-
-  return (
-    <div>
-      <label htmlFor={id} className={`mb-2 block ${booking.label}`}>
-        {label}
-      </label>
-      <div className={booking.fieldShell}>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </span>
-        <select
-          id={id}
-          value={safeValue}
-          onChange={(e) => onChange(e.target.value)}
-          className="min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-2.5 text-[15px] leading-none text-ink focus:outline-none focus:ring-0"
-        >
-          {slots.map((slot) => (
-            <option key={slot} value={slot}>
-              {slot}
-            </option>
-          ))}
-        </select>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted/70">{t('carDetails.timeLabel')}</span>
-      </div>
-    </div>
-  )
+const timeInWindow = (time, start, end) => {
+  if (!time || !start || !end) return true
+  const toM = (hm) => {
+    const [h, m] = String(hm).split(':').map(Number)
+    return h * 60 + m
+  }
+  const mins = toM(time)
+  const a = toM(start)
+  const b = toM(end)
+  if ([mins, a, b].some((n) => Number.isNaN(n))) return true
+  return a <= b ? mins >= a && mins <= b : mins >= a || mins <= b
 }
+
+const TimeField = ({ label, value, onChange, id, min, max }) => (
+  <div>
+    <label htmlFor={id} className={`mb-2 block ${booking.label}`}>
+      {label}
+    </label>
+    <DateField
+      id={id}
+      mode="time"
+      value={value}
+      min={min}
+      max={max}
+      onChange={onChange}
+      className={booking.fieldShell}
+    />
+  </div>
+)
 
 /** Premium date range (calendar) + pickup/return time selectors */
 export default function ReservationDateTimes({
@@ -110,10 +107,10 @@ export default function ReservationDateTimes({
   // Keep selected times inside allowed hour windows when settings load/change.
   React.useEffect(() => {
     if (!spanReady) return
-    if (pickup.date && pickup.time && !pickupTimes.includes(pickup.time) && pickupTimes[0]) {
+    if (pickup.date && pickup.time && !timeInWindow(pickup.time, pickupHoursStart, pickupHoursEnd) && pickupTimes[0]) {
       setPickupDate(mergeDateTime(pickup.date, pickupTimes[0]))
     }
-    if (ret.date && ret.time && !returnTimes.includes(ret.time) && returnTimes[0]) {
+    if (ret.date && ret.time && !timeInWindow(ret.time, returnHoursStart, returnHoursEnd) && returnTimes[0]) {
       setReturnDate(mergeDateTime(ret.date, returnTimes[0]))
     }
   }, [
@@ -122,6 +119,10 @@ export default function ReservationDateTimes({
     pickup.time,
     ret.date,
     ret.time,
+    pickupHoursStart,
+    pickupHoursEnd,
+    returnHoursStart,
+    returnHoursEnd,
     pickupTimes,
     returnTimes,
     setPickupDate,
@@ -186,20 +187,22 @@ export default function ReservationDateTimes({
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <TimeSelect
+        <TimeField
           id="pickup-time"
           label={t('carDetails.pickupTime')}
           value={pickup.time}
-          options={pickupTimes}
+          min={pickupHoursStart}
+          max={pickupHoursEnd}
           onChange={(time) => {
             if (pickup.date) setPickupDate(mergeDateTime(pickup.date, time))
           }}
         />
-        <TimeSelect
+        <TimeField
           id="return-time"
           label={t('carDetails.returnTime')}
           value={ret.time}
-          options={returnTimes}
+          min={returnHoursStart}
+          max={returnHoursEnd}
           onChange={(time) => {
             if (ret.date) setReturnDate(mergeDateTime(ret.date, time))
           }}

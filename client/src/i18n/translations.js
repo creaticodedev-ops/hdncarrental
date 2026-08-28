@@ -442,6 +442,19 @@ export const en = {
     loading: 'Loading...',
     close: 'Close',
   },
+  calendar: {
+    pickDate: 'Select a date',
+    pickDateTime: 'Select date and time',
+    pickTime: 'Select a time',
+    today: 'Today',
+    now: 'Now',
+    clear: 'Clear',
+    done: 'Done',
+    hour: 'Hour',
+    minute: 'Min',
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
+  },
 };
 
 export const fr = {
@@ -888,6 +901,19 @@ export const fr = {
     loading: 'Chargement...',
     close: 'Fermer',
   },
+  calendar: {
+    pickDate: 'Choisir une date',
+    pickDateTime: 'Choisir date et heure',
+    pickTime: 'Choisir une heure',
+    today: "Aujourd'hui",
+    now: 'Maintenant',
+    clear: 'Effacer',
+    done: 'Valider',
+    hour: 'Heure',
+    minute: 'Min',
+    prevMonth: 'Mois précédent',
+    nextMonth: 'Mois suivant',
+  },
 };
 
 export const es = {
@@ -1333,5 +1359,18 @@ export const es = {
   common: {
     loading: 'Cargando...',
     close: 'Cerrar',
+  },
+  calendar: {
+    pickDate: 'Selecciona una fecha',
+    pickDateTime: 'Selecciona fecha y hora',
+    pickTime: 'Selecciona una hora',
+    today: 'Hoy',
+    now: 'Ahora',
+    clear: 'Borrar',
+    done: 'Listo',
+    hour: 'Hora',
+    minute: 'Min',
+    prevMonth: 'Mes anterior',
+    nextMonth: 'Mes siguiente',
   },
 };

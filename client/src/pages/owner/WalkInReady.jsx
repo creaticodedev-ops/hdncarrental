@@ -12,6 +12,7 @@ import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import { buildOwnerCompletionWaUrl, createExternalTabOpener } from '../../utils/whatsapp'
 import { customerEmail } from '../../utils/customerEmail'
+import DateField from '../../components/calendar/DateField'
 import {
   collectedPaidTotal,
   customerInitials,
@@ -716,12 +717,11 @@ const WalkInReady = () => {
                   </select>
                 </FormField>
                 <FormField label={t('admin.walkInReady.paymentDate')} required>
-                  <input
-                    type="date"
+                  <DateField
                     className="admin-input"
                     required
                     value={payForm.paidAt}
-                    onChange={(e) => setPayForm((prev) => ({ ...prev, paidAt: e.target.value }))}
+                    onChange={(paidAt) => setPayForm((prev) => ({ ...prev, paidAt }))}
                   />
                 </FormField>
                 <FormField label={t('admin.walkInReady.paymentNote')} hint={t('admin.walkInReady.paymentNoteHint')} className="wir-pay-span">

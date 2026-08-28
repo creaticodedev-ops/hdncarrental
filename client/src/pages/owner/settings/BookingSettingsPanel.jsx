@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../../utils/apiError'
 import { Field, SettingsCard, StatusPill, settingsUi } from './settingsUi'
+import DateField from '../../../components/calendar/DateField'
 
 const DEFAULTS = {
   minRentalDays: 1,
@@ -266,20 +267,20 @@ const BookingSettingsPanel = ({ axios, initial, t, onSaved }) => {
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 min-w-0">
           <Field label={t('admin.settings.pickupHoursStart')}>
-            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.pickupHoursStart}
-              onChange={(e) => set('pickupHoursStart', e.target.value)} />
+            <DateField mode="time" className={settingsUi.input} value={form.pickupHoursStart}
+              onChange={(pickupHoursStart) => set('pickupHoursStart', pickupHoursStart)} />
           </Field>
           <Field label={t('admin.settings.pickupHoursEnd')}>
-            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.pickupHoursEnd}
-              onChange={(e) => set('pickupHoursEnd', e.target.value)} />
+            <DateField mode="time" className={settingsUi.input} value={form.pickupHoursEnd}
+              onChange={(pickupHoursEnd) => set('pickupHoursEnd', pickupHoursEnd)} />
           </Field>
           <Field label={t('admin.settings.returnHoursStart')}>
-            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.returnHoursStart}
-              onChange={(e) => set('returnHoursStart', e.target.value)} />
+            <DateField mode="time" className={settingsUi.input} value={form.returnHoursStart}
+              onChange={(returnHoursStart) => set('returnHoursStart', returnHoursStart)} />
           </Field>
           <Field label={t('admin.settings.returnHoursEnd')}>
-            <input type="time" className={`${settingsUi.input} [color-scheme:light]`} value={form.returnHoursEnd}
-              onChange={(e) => set('returnHoursEnd', e.target.value)} />
+            <DateField mode="time" className={settingsUi.input} value={form.returnHoursEnd}
+              onChange={(returnHoursEnd) => set('returnHoursEnd', returnHoursEnd)} />
           </Field>
         </div>
         <p className="mt-3 text-[12px] text-muted">{t('admin.settings.hoursTimezoneNote')}</p>

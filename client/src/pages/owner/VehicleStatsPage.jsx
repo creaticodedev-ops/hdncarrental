@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../utils/apiError'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import Title from '../../components/owner/Title'
 import { useI18n } from '../../i18n/I18nContext'
+import DateField from '../../components/calendar/DateField'
 
 const formatCurrency = (value, currency = '$') => `${currency}${Number(value || 0).toLocaleString()}`
 
@@ -422,11 +423,11 @@ const VehicleStatsPage = () => {
                   <div className='mt-3 grid gap-3 sm:grid-cols-2'>
                     <label className='text-sm text-gray-600'>
                       <span className='mb-1 block'>{t('admin.vehicleStats.from')}</span>
-                      <input type='date' value={customStart} onChange={(e) => setCustomStart(e.target.value)} className='w-full rounded-xl border border-borderColor px-3 py-2 text-sm' />
+                      <DateField value={customStart} onChange={setCustomStart} className='w-full rounded-xl border border-borderColor px-3 py-2 text-sm' />
                     </label>
                     <label className='text-sm text-gray-600'>
                       <span className='mb-1 block'>{t('admin.vehicleStats.to')}</span>
-                      <input type='date' value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className='w-full rounded-xl border border-borderColor px-3 py-2 text-sm' />
+                      <DateField value={customEnd} onChange={setCustomEnd} className='w-full rounded-xl border border-borderColor px-3 py-2 text-sm' />
                     </label>
                   </div>
                 </div>

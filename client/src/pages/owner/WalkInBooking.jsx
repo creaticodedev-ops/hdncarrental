@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../utils/apiError'
 import { getCarLocations } from '../../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../../utils/pricing'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
+import DateField from '../../components/calendar/DateField'
 
 const emptyForm = {
   car: '',
@@ -452,7 +453,7 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.dateOfBirth')}</label>
-              <input type="date" className={input} value={form.dateOfBirth} onChange={(e) => setField('dateOfBirth', e.target.value)} />
+              <DateField className={input} value={form.dateOfBirth} onChange={(dateOfBirth) => setField('dateOfBirth', dateOfBirth)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.placeOfBirth')}</label>
@@ -464,7 +465,7 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.identityIssued')}</label>
-              <input type="date" className={input} value={form.identityIssuedOn} onChange={(e) => setField('identityIssuedOn', e.target.value)} />
+              <DateField className={input} value={form.identityIssuedOn} onChange={(identityIssuedOn) => setField('identityIssuedOn', identityIssuedOn)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.license')}</label>
@@ -472,11 +473,11 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.licenseIssued')}</label>
-              <input type="date" className={input} value={form.driverLicenseIssuedOn} onChange={(e) => setField('driverLicenseIssuedOn', e.target.value)} />
+              <DateField className={input} value={form.driverLicenseIssuedOn} onChange={(driverLicenseIssuedOn) => setField('driverLicenseIssuedOn', driverLicenseIssuedOn)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.licenseExpiry')}</label>
-              <input type="date" className={input} value={form.driverLicenseExpiry} onChange={(e) => setField('driverLicenseExpiry', e.target.value)} />
+              <DateField className={input} value={form.driverLicenseExpiry} onChange={(driverLicenseExpiry) => setField('driverLicenseExpiry', driverLicenseExpiry)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.passport')}</label>
@@ -502,7 +503,7 @@ const WalkInBooking = () => {
                 </div>
                 <div>
                   <label className="admin-label">{t('admin.walkIn.secondDriverDob')}</label>
-                  <input type="date" className={input} value={form.secondDriverDob} onChange={(e) => setField('secondDriverDob', e.target.value)} />
+                  <DateField className={input} value={form.secondDriverDob} onChange={(secondDriverDob) => setField('secondDriverDob', secondDriverDob)} />
                 </div>
                 <div>
                   <label className="admin-label">{t('admin.walkIn.nationality')}</label>
@@ -518,7 +519,7 @@ const WalkInBooking = () => {
                 </div>
                 <div>
                   <label className="admin-label">{t('admin.walkIn.licenseExpiry')}</label>
-                  <input type="date" className={input} value={form.secondDriverLicenseExpiry} onChange={(e) => setField('secondDriverLicenseExpiry', e.target.value)} />
+                  <DateField className={input} value={form.secondDriverLicenseExpiry} onChange={(secondDriverLicenseExpiry) => setField('secondDriverLicenseExpiry', secondDriverLicenseExpiry)} />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="admin-label">{t('admin.walkIn.passport')}</label>
@@ -560,11 +561,11 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.pickup')} *</label>
-              <input type="datetime-local" className={input} required value={form.pickupDate} onChange={(e) => setField('pickupDate', e.target.value)} />
+              <DateField mode="datetime" className={input} required value={form.pickupDate} onChange={(pickupDate) => setField('pickupDate', pickupDate)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.return')} *</label>
-              <input type="datetime-local" className={input} required value={form.returnDate} onChange={(e) => setField('returnDate', e.target.value)} />
+              <DateField mode="datetime" className={input} required value={form.returnDate} onChange={(returnDate) => setField('returnDate', returnDate)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.pickupLoc')} *</label>

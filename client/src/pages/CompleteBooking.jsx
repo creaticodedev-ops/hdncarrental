@@ -17,6 +17,7 @@ import {
   formInputOnLightClass,
 } from '../components/forms/PremiumFormUI'
 import NoIndexHead from '../seo/NoIndexHead'
+import DateField from '../components/calendar/DateField'
 import SignatureOnlyCompletion from './completion/SignatureOnlyCompletion'
 
 const STEPS = ['documents', 'signature', 'done']
@@ -443,7 +444,7 @@ const CompleteBooking = () => {
                     <input value={details.customerAddress} onChange={(e) => updateDetail('customerAddress', e.target.value)} className={formInputOnLightClass} autoComplete="street-address" />
                   </Field>
                   <Field label={t('completion.fieldDob')}>
-                    <input type="date" value={details.dateOfBirth} onChange={(e) => updateDetail('dateOfBirth', e.target.value)} className={formInputOnLightClass} />
+                    <DateField value={details.dateOfBirth} onChange={(dateOfBirth) => updateDetail('dateOfBirth', dateOfBirth)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldNationality')}>
                     <input value={details.nationality} onChange={(e) => updateDetail('nationality', e.target.value)} className={formInputOnLightClass} />
@@ -455,16 +456,16 @@ const CompleteBooking = () => {
                     <input value={details.identityDocumentNumber} onChange={(e) => updateDetail('identityDocumentNumber', e.target.value)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldIdIssued')}>
-                    <input type="date" value={details.identityIssuedOn} onChange={(e) => updateDetail('identityIssuedOn', e.target.value)} className={formInputOnLightClass} />
+                    <DateField value={details.identityIssuedOn} onChange={(identityIssuedOn) => updateDetail('identityIssuedOn', identityIssuedOn)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldLicenseNumber')}>
                     <input value={details.driverLicenseNumber} onChange={(e) => updateDetail('driverLicenseNumber', e.target.value)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldLicenseExpiry')}>
-                    <input type="date" value={details.driverLicenseExpiry} onChange={(e) => updateDetail('driverLicenseExpiry', e.target.value)} className={formInputOnLightClass} />
+                    <DateField value={details.driverLicenseExpiry} onChange={(driverLicenseExpiry) => updateDetail('driverLicenseExpiry', driverLicenseExpiry)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldLicenseIssued')}>
-                    <input type="date" value={details.driverLicenseIssuedOn} onChange={(e) => updateDetail('driverLicenseIssuedOn', e.target.value)} className={formInputOnLightClass} />
+                    <DateField value={details.driverLicenseIssuedOn} onChange={(driverLicenseIssuedOn) => updateDetail('driverLicenseIssuedOn', driverLicenseIssuedOn)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldPassport')} className="md:col-span-2">
                     <input value={details.passportNumber} onChange={(e) => updateDetail('passportNumber', e.target.value)} className={formInputOnLightClass} />
@@ -488,7 +489,7 @@ const CompleteBooking = () => {
                         <input value={details.secondDriverFullName} onChange={(e) => updateDetail('secondDriverFullName', e.target.value)} className={formInputOnLightClass} />
                       </Field>
                       <Field label={t('completion.secondDriverDob')}>
-                        <input type="date" value={details.secondDriverDob} onChange={(e) => updateDetail('secondDriverDob', e.target.value)} className={formInputOnLightClass} />
+                        <DateField value={details.secondDriverDob} onChange={(secondDriverDob) => updateDetail('secondDriverDob', secondDriverDob)} className={formInputOnLightClass} />
                       </Field>
                       <Field label={t('completion.fieldNationality')}>
                         <input value={details.secondDriverNationality} onChange={(e) => updateDetail('secondDriverNationality', e.target.value)} className={formInputOnLightClass} />
@@ -500,7 +501,7 @@ const CompleteBooking = () => {
                         <input value={details.secondDriverLicenseNumber} onChange={(e) => updateDetail('secondDriverLicenseNumber', e.target.value)} className={formInputOnLightClass} />
                       </Field>
                       <Field label={t('completion.secondDriverLicenseExpiry')}>
-                        <input type="date" value={details.secondDriverLicenseExpiry} onChange={(e) => updateDetail('secondDriverLicenseExpiry', e.target.value)} className={formInputOnLightClass} />
+                        <DateField value={details.secondDriverLicenseExpiry} onChange={(secondDriverLicenseExpiry) => updateDetail('secondDriverLicenseExpiry', secondDriverLicenseExpiry)} className={formInputOnLightClass} />
                       </Field>
                       <Field label={t('completion.secondDriverPassport')} className="md:col-span-2">
                         <input value={details.secondDriverPassportNumber} onChange={(e) => updateDetail('secondDriverPassportNumber', e.target.value)} className={formInputOnLightClass} />

@@ -6,6 +6,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { downloadXlsx } from '../../utils/downloadXlsx'
+import DateField from '../../components/calendar/DateField'
 
 const formatMoney = (n, currency = 'MAD') =>
   `${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`
@@ -94,11 +95,11 @@ const AccountingOverview = () => {
       <div className="flex flex-wrap items-end gap-3 mb-6">
         <label className="text-sm">
           <span className="admin-label">{t('admin.accounting.from')}</span>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="admin-input" />
+          <DateField value={from} onChange={setFrom} className="admin-input" />
         </label>
         <label className="text-sm">
           <span className="admin-label">{t('admin.accounting.to')}</span>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="admin-input" />
+          <DateField value={to} onChange={setTo} className="admin-input" />
         </label>
         <button type="button" onClick={load} className="admin-btn admin-btn-primary">
           {t('admin.accounting.applyFilters')}

@@ -4,6 +4,7 @@ import AccountingLedgerPage, {
   carLabel,
 } from './AccountingLedgerPage'
 import { CurrencyInput, DrawerSection, FormField, SearchSelect, SegmentedControl } from '../../admin/ui'
+import DateField from '../../components/calendar/DateField'
 
 const VEHICLE_CATEGORIES = [
   'fuel',
@@ -120,7 +121,7 @@ const config = {
           <CurrencyInput currency={currency} value={form.amount} onChange={(v) => setField('amount', v)} required />
         </FormField>
         <FormField label={t('admin.accounting.date')} required>
-          <input type="date" required className="admin-input" value={form.expenseDate} onChange={(e) => setField('expenseDate', e.target.value)} />
+          <DateField required className="admin-input" value={form.expenseDate} onChange={(expenseDate) => setField('expenseDate', expenseDate)} />
         </FormField>
         <FormField label={t('admin.accounting.description')} className="sm:col-span-2">
           <input className="admin-input" value={form.description} onChange={(e) => setField('description', e.target.value)} />

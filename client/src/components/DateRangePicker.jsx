@@ -1,53 +1,24 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n/I18nContext'
+import CalendarGrid, { monthLabel } from './calendar/CalendarGrid'
+import {
+  addMonths,
+  isAfterDay,
+  isBeforeDay,
+  parseISODate,
+  startOfDay,
+  toISODate,
+} from './calendar/calendarUtils'
+import './calendar/calendar.css'
 
-const WEEKDAYS = {
-  en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
-  fr: ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'],
-  es: ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'],
-}
-
-const MONTHS = {
-  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-  fr: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
-  es: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
-}
-
-const pad = (n) => String(n).padStart(2, '0')
+export { toISODate, parseISODate } from './calendar/calendarUtils'
 
 const CalendarGlyph = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M4.5 5.25h15a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V6a.75.75 0 01.75-.75z" />
   </svg>
 )
-
-export const toISODate = (date) => {
-  if (!date) return ''
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-export const parseISODate = (value) => {
-  if (!value || !/^\d{4}-\d{2}-\d{2}/.test(String(value))) return null
-  const [y, m, d] = String(value).slice(0, 10).split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  date.setHours(0, 0, 0, 0)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-const startOfDay = (d) => {
-  const x = new Date(d)
-  x.setHours(0, 0, 0, 0)
-  return x
-}
-
-const addMonths = (date, count) => new Date(date.getFullYear(), date.getMonth() + count, 1)
-
-const sameDay = (a, b) =>
-  Boolean(a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate())
-
-const isBeforeDay = (a, b) => a.getTime() < b.getTime()
-const isAfterDay = (a, b) => a.getTime() > b.getTime()
 
 const formatShort = (iso, language) => {
   const d = parseISODate(iso)
@@ -63,111 +34,15 @@ const addDays = (date, count) => {
   return d
 }
 
-const MonthGrid = ({
-  monthDate,
-  minDate,
-  maxDate,
-  start,
-  end,
-  hover,
-  onSelect,
-  onHover,
-  weekdays,
-  monthNames,
-  isDateBlocked,
-}) => {
-  const year = monthDate.getFullYear()
-  const month = monthDate.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const startOffset = (firstDay.getDay() + 6) % 7
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const cells = []
-
-  for (let i = 0; i < startOffset; i++) cells.push(null)
-  for (let day = 1; day <= daysInMonth; day++) cells.push(new Date(year, month, day))
-
-  const rangeEnd = end || hover
-
-  return (
-    <div className="w-full">
-      <div className="mb-4 text-center">
-        <p className="font-display text-[1.35rem] text-ink leading-none">
-          {monthNames[month]}
-        </p>
-        <p className="mt-1 text-xs tracking-[0.12em] text-muted uppercase">{year}</p>
-      </div>
-
-      <div className="grid grid-cols-7 mb-2">
-        {weekdays.map((d) => (
-          <div key={d} className="h-8 text-[11px] font-medium tracking-wide text-muted flex items-center justify-center">
-            {d}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-y-1">
-        {cells.map((date, idx) => {
-          if (!date) return <div key={`empty-${idx}`} className="h-9 sm:h-10" />
-
-          const beforeMin = isBeforeDay(date, minDate)
-          const afterMax = maxDate ? isAfterDay(date, maxDate) : false
-          const blocked = Boolean(isDateBlocked?.(date))
-          const disabled = beforeMin || afterMax || blocked
-          const isStart = sameDay(date, start)
-          const isEnd = sameDay(date, end) || (!end && hover && sameDay(date, hover) && start && !sameDay(start, hover))
-          const inRange =
-            start &&
-            rangeEnd &&
-            !sameDay(start, rangeEnd) &&
-            isAfterDay(date, start) &&
-            isBeforeDay(date, rangeEnd)
-          const isToday = sameDay(date, startOfDay(new Date()))
-          const isSolo = isStart && (!rangeEnd || sameDay(start, rangeEnd))
-
-          let shape = 'rounded-full'
-          if (isStart && rangeEnd && !sameDay(start, rangeEnd)) shape = 'rounded-l-full rounded-r-none'
-          if (isEnd && start && !sameDay(start, rangeEnd)) shape = 'rounded-r-full rounded-l-none'
-          if (isSolo) shape = 'rounded-full'
-          if (inRange) shape = 'rounded-none'
-
-          return (
-            <div
-              key={toISODate(date)}
-              className={`relative h-9 sm:h-10 flex items-center justify-center ${inRange && !blocked ? 'bg-primary/10' : ''} ${
-                isStart && rangeEnd && !sameDay(start, rangeEnd) ? 'bg-primary/10 rounded-l-full' : ''
-              } ${isEnd && start && !sameDay(start, rangeEnd) ? 'bg-primary/10 rounded-r-full' : ''}`}
-            >
-              <button
-                type="button"
-                disabled={disabled}
-                title={blocked ? 'Unavailable' : undefined}
-                onClick={() => onSelect(date)}
-                onMouseEnter={() => !disabled && onHover(date)}
-                className={[
-                  'h-9 w-9 sm:h-10 sm:w-10 text-sm flex items-center justify-center transition-all duration-150 select-none',
-                  shape,
-                  disabled
-                    ? blocked
-                      ? 'text-[#C8C0BA] bg-[#F3EEE9]/70 line-through decoration-[#D5CDC8] cursor-not-allowed'
-                      : 'text-[#C8C0BA] line-through decoration-[#D5CDC8] cursor-not-allowed'
-                    : 'cursor-pointer hover:bg-sand text-ink',
-                  (isStart || (isEnd && end) || (isEnd && !end && hover))
-                    ? 'bg-primary text-white hover:bg-primary-dull font-semibold shadow-sm'
-                    : '',
-                  isToday && !isStart && !isEnd && !disabled
-                    ? 'ring-1 ring-inset ring-primary/50'
-                    : '',
-                ].join(' ')}
-              >
-                {date.getDate()}
-              </button>
-            </div>
-          )
-        })}
-      </div>
+const MonthBlock = ({ monthDate, language, ...gridProps }) => (
+  <div className="hdn-cal">
+    <div className="hdn-cal-kicker">
+      <span className="hdn-cal-month">{monthLabel(monthDate, language)}</span>
+      <span className="hdn-cal-year">{monthDate.getFullYear()}</span>
     </div>
-  )
-}
+    <CalendarGrid viewMonth={monthDate} language={language} {...gridProps} />
+  </div>
+)
 
 /**
  * Premium dual-field date range picker with portaled calendar (never clipped).
@@ -234,7 +109,6 @@ const DateRangePicker = ({
 
   const endMax = useMemo(() => {
     if (!start || maxSpan <= 0) return max
-    // Calendar span of N rental days with equal times ≈ N days ahead for ceil-day calc when times equal.
     const candidate = addDays(start, Math.max(0, maxSpan))
     if (!max) return candidate
     return candidate.getTime() < max.getTime() ? candidate : max
@@ -242,11 +116,8 @@ const DateRangePicker = ({
 
   const gridMin = activeField === 'end' && start ? endMin : min
   const gridMax = activeField === 'end' && start ? endMax : max
-  const weekdays = WEEKDAYS[language] || WEEKDAYS.en
-  const monthNames = MONTHS[language] || MONTHS.en
 
   useEffect(() => {
-    // Sheet on phones only; tablets/desktop use anchored dual-month popover
     const mq = window.matchMedia('(max-width: 767px)')
     const sync = () => setIsMobile(mq.matches)
     sync()
@@ -353,7 +224,6 @@ const DateRangePicker = ({
       return
     }
 
-    // Enforce minimum rental span when choosing the return date.
     if (isBeforeDay(date, endMin)) return
     if (endMax && isAfterDay(date, endMax)) return
     if (rangeCrossesUnavailable(start, date)) return
@@ -400,6 +270,17 @@ const DateRangePicker = ({
     </button>
   )
 
+  const monthProps = {
+    minDate: gridMin,
+    maxDate: gridMax,
+    rangeStart: start,
+    rangeEnd: end,
+    hover: activeField === 'end' ? hover : null,
+    onSelect: handleSelect,
+    onHover: setHover,
+    isDateBlocked,
+  }
+
   const calendarPanel = open && (
     <div
       ref={panelRef}
@@ -445,7 +326,7 @@ const DateRangePicker = ({
               type="button"
               onClick={() => setViewMonth((m) => addMonths(m, -1))}
               className="h-9 w-9 rounded-xl border border-borderColor hover:bg-sand flex items-center justify-center cursor-pointer"
-              aria-label="Previous month"
+              aria-label={t('calendar.prevMonth')}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M15 18l-6-6 6-6" />
@@ -455,7 +336,7 @@ const DateRangePicker = ({
               type="button"
               onClick={() => setViewMonth((m) => addMonths(m, 1))}
               className="h-9 w-9 rounded-xl border border-borderColor hover:bg-sand flex items-center justify-center cursor-pointer"
-              aria-label="Next month"
+              aria-label={t('calendar.nextMonth')}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 18l6-6-6-6" />
@@ -465,33 +346,9 @@ const DateRangePicker = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          <MonthGrid
-            monthDate={viewMonth}
-            minDate={gridMin}
-            maxDate={gridMax}
-            start={start}
-            end={end}
-            hover={activeField === 'end' ? hover : null}
-            onSelect={handleSelect}
-            onHover={setHover}
-            weekdays={weekdays}
-            monthNames={monthNames}
-            isDateBlocked={isDateBlocked}
-          />
+          <MonthBlock monthDate={viewMonth} language={language} {...monthProps} />
           <div className="hidden md:block">
-            <MonthGrid
-              monthDate={addMonths(viewMonth, 1)}
-              minDate={gridMin}
-              maxDate={gridMax}
-              start={start}
-              end={end}
-              hover={activeField === 'end' ? hover : null}
-              onSelect={handleSelect}
-              onHover={setHover}
-              weekdays={weekdays}
-              monthNames={monthNames}
-              isDateBlocked={isDateBlocked}
-            />
+            <MonthBlock monthDate={addMonths(viewMonth, 1)} language={language} {...monthProps} />
           </div>
         </div>
 

@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import { AdminDrawer } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
+import DateField from '../../components/calendar/DateField'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -716,11 +717,11 @@ const Invoices = () => {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.invoiceDate')}</label>
-                  <input type="date" className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.invoiceDate} onChange={(e) => updateForm({ invoiceDate: e.target.value })} />
+                  <DateField className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.invoiceDate} onChange={(invoiceDate) => updateForm({ invoiceDate })} />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.dueDate')}</label>
-                  <input type="date" className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.dueDate} onChange={(e) => updateForm({ dueDate: e.target.value })} />
+                  <DateField className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.dueDate} onChange={(dueDate) => updateForm({ dueDate })} />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.customerName')}</label>
@@ -872,11 +873,11 @@ const Invoices = () => {
               </div>
               <div>
                 <label className={labelClass}>{t('admin.invoices.invoiceDate')}</label>
-                <input type="date" className={inputClass} value={editForm.invoiceDate} onChange={(e) => updateEditForm({ invoiceDate: e.target.value })} />
+                <DateField className={inputClass} value={editForm.invoiceDate} onChange={(invoiceDate) => updateEditForm({ invoiceDate })} />
               </div>
               <div>
                 <label className={labelClass}>{t('admin.invoices.dueDate')}</label>
-                <input type="date" className={inputClass} value={editForm.dueDate} onChange={(e) => updateEditForm({ dueDate: e.target.value })} />
+                <DateField className={inputClass} value={editForm.dueDate} onChange={(dueDate) => updateEditForm({ dueDate })} />
               </div>
               <div>
                 <label className={labelClass}>{t('admin.invoices.customerName')}</label>

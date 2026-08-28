@@ -10,6 +10,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
+import DateField from '../../components/calendar/DateField'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 
 const formatDateTime = (value) => {
@@ -672,7 +673,7 @@ const Contracts = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.dateOfBirth')}</label>
-                <input type="date" className={inputClass} value={generateForm.dateOfBirth} onChange={(e) => setGenerateForm((f) => ({ ...f, dateOfBirth: e.target.value }))} />
+                <DateField className={inputClass} value={generateForm.dateOfBirth} onChange={(dateOfBirth) => setGenerateForm((f) => ({ ...f, dateOfBirth }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.nationality')}</label>
@@ -692,7 +693,7 @@ const Contracts = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.identityIssued')}</label>
-                <input type="date" className={inputClass} value={generateForm.identityIssuedOn} onChange={(e) => setGenerateForm((f) => ({ ...f, identityIssuedOn: e.target.value }))} />
+                <DateField className={inputClass} value={generateForm.identityIssuedOn} onChange={(identityIssuedOn) => setGenerateForm((f) => ({ ...f, identityIssuedOn }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.driverLicense')}</label>
@@ -700,11 +701,11 @@ const Contracts = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.licenseIssued')}</label>
-                <input type="date" className={inputClass} value={generateForm.driverLicenseIssuedOn} onChange={(e) => setGenerateForm((f) => ({ ...f, driverLicenseIssuedOn: e.target.value }))} />
+                <DateField className={inputClass} value={generateForm.driverLicenseIssuedOn} onChange={(driverLicenseIssuedOn) => setGenerateForm((f) => ({ ...f, driverLicenseIssuedOn }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.licenseExpiry')}</label>
-                <input type="date" className={inputClass} value={generateForm.driverLicenseExpiry} onChange={(e) => setGenerateForm((f) => ({ ...f, driverLicenseExpiry: e.target.value }))} />
+                <DateField className={inputClass} value={generateForm.driverLicenseExpiry} onChange={(driverLicenseExpiry) => setGenerateForm((f) => ({ ...f, driverLicenseExpiry }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.passport')}</label>
@@ -753,7 +754,7 @@ const Contracts = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600">{t('admin.contracts.secondDriverDob')}</label>
-                  <input type="date" className={inputClass} value={generateForm.secondDriverDob} onChange={(e) => setGenerateForm((f) => ({ ...f, secondDriverDob: e.target.value }))} />
+                  <DateField className={inputClass} value={generateForm.secondDriverDob} onChange={(secondDriverDob) => setGenerateForm((f) => ({ ...f, secondDriverDob }))} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600">{t('admin.contracts.secondDriverNationality')}</label>
@@ -769,7 +770,7 @@ const Contracts = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600">{t('admin.contracts.licenseExpiry')}</label>
-                  <input type="date" className={inputClass} value={generateForm.secondDriverLicenseExpiry} onChange={(e) => setGenerateForm((f) => ({ ...f, secondDriverLicenseExpiry: e.target.value }))} />
+                  <DateField className={inputClass} value={generateForm.secondDriverLicenseExpiry} onChange={(secondDriverLicenseExpiry) => setGenerateForm((f) => ({ ...f, secondDriverLicenseExpiry }))} />
                 </div>
                 <div className="space-y-1 md:col-span-2">
                   <label className="text-xs font-medium text-gray-600">{t('admin.contracts.passport')}</label>

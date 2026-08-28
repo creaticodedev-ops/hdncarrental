@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { carLabel, formatMoney, toInputDate, inputClass, labelClass } from './AccountingLedgerPage'
 import { downloadXlsx } from '../../utils/downloadXlsx'
+import DateField from '../../components/calendar/DateField'
 
 const AccountingRevenues = () => {
   const { axios, currency } = useAppContext()
@@ -70,11 +71,11 @@ const AccountingRevenues = () => {
       <div className="mt-6 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           <span className={labelClass}>{t('admin.accounting.from')}</span>
-          <input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value) }} className={inputClass} />
+          <DateField value={from} onChange={(value) => { setPage(1); setFrom(value) }} className={inputClass} />
         </label>
         <label className="text-sm">
           <span className={labelClass}>{t('admin.accounting.to')}</span>
-          <input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value) }} className={inputClass} />
+          <DateField value={to} onChange={(value) => { setPage(1); setTo(value) }} className={inputClass} />
         </label>
         <label className="min-w-[10rem] text-sm">
           <span className={labelClass}>{t('admin.accounting.paymentStatus')}</span>

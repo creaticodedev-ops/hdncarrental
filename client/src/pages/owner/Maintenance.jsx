@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
+import DateField from '../../components/calendar/DateField'
 
 const toInputDate = (v) => {
   if (!v) return ''
@@ -736,7 +737,7 @@ const Maintenance = () => {
               <input required className={inputClass} value={recordForm.title} onChange={(e) => setRecordForm({ ...recordForm, title: e.target.value })} />
             </FormField>
             <FormField label={t('admin.accounting.date')}>
-              <input type="date" className={inputClass} value={recordForm.scheduledDate} onChange={(e) => setRecordForm({ ...recordForm, scheduledDate: e.target.value })} />
+              <DateField className={inputClass} value={recordForm.scheduledDate} onChange={(scheduledDate) => setRecordForm({ ...recordForm, scheduledDate })} />
             </FormField>
             <FormField label={t('admin.accounting.amount')}>
               <CurrencyInput currency={currency} value={recordForm.cost} onChange={(cost) => setRecordForm({ ...recordForm, cost })} />
@@ -748,7 +749,7 @@ const Maintenance = () => {
               <input className={inputClass} value={recordForm.vendor} onChange={(e) => setRecordForm({ ...recordForm, vendor: e.target.value })} />
             </FormField>
             <FormField label={t('admin.maintenance.nextService')}>
-              <input type="date" className={inputClass} value={recordForm.nextDueDate} onChange={(e) => setRecordForm({ ...recordForm, nextDueDate: e.target.value })} />
+              <DateField className={inputClass} value={recordForm.nextDueDate} onChange={(nextDueDate) => setRecordForm({ ...recordForm, nextDueDate })} />
             </FormField>
             <FormField label={t('admin.maintenance.nextService')}>
               <input type="number" className={inputClass} value={recordForm.nextDueMileage} onChange={(e) => setRecordForm({ ...recordForm, nextDueMileage: e.target.value })} />

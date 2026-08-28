@@ -3,6 +3,7 @@ import AccountingLedgerPage, {
   toInputDate,
 } from './AccountingLedgerPage'
 import { CurrencyInput, DrawerSection, FormField, SegmentedControl } from '../../admin/ui'
+import DateField from '../../components/calendar/DateField'
 
 const AGENCY_CATEGORIES = [
   'rent',
@@ -94,7 +95,7 @@ const config = {
           <CurrencyInput currency={currency} value={form.amount} onChange={(v) => setField('amount', v)} required />
         </FormField>
         <FormField label={t('admin.accounting.date')} required>
-          <input type="date" required className="admin-input" value={form.expenseDate} onChange={(e) => setField('expenseDate', e.target.value)} />
+          <DateField required className="admin-input" value={form.expenseDate} onChange={(expenseDate) => setField('expenseDate', expenseDate)} />
         </FormField>
         <FormField label={t('admin.accounting.description')} className="sm:col-span-2">
           <input className="admin-input" value={form.description} onChange={(e) => setField('description', e.target.value)} />

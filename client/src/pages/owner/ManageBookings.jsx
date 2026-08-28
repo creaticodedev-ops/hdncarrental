@@ -27,6 +27,7 @@ import { downloadXlsx } from '../../utils/downloadXlsx'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import DocumentGenerationOverlay from '../../components/DocumentGenerationOverlay'
 import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
+import DateField from '../../components/calendar/DateField'
 
 const emptyFilters = {
   search: '',
@@ -1029,11 +1030,11 @@ const ManageBookings = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.bookings.pickupFrom')}</label>
-              <input type="date" className={inputClass} value={filters.pickupDateFrom} onChange={(e) => setFilters({ ...filters, pickupDateFrom: e.target.value })} />
+              <DateField className={inputClass} value={filters.pickupDateFrom} onChange={(pickupDateFrom) => setFilters({ ...filters, pickupDateFrom })} />
             </div>
             <div>
               <label className="admin-label">{t('admin.bookings.pickupTo')}</label>
-              <input type="date" className={inputClass} value={filters.pickupDateTo} onChange={(e) => setFilters({ ...filters, pickupDateTo: e.target.value })} />
+              <DateField className={inputClass} value={filters.pickupDateTo} onChange={(pickupDateTo) => setFilters({ ...filters, pickupDateTo })} />
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
               <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">{t('admin.bookings.applyFilters')}</button>
@@ -1211,15 +1212,15 @@ const ManageBookings = () => {
 
             <DrawerSection title={t('admin.bookings.extendNewReturn')} description={t('admin.bookings.extendPreviewHint')}>
               <FormField label={t('admin.bookings.extendNewReturn')} required className="sm:col-span-2">
-                <input
-                  type="datetime-local"
+                <DateField
+                  mode="datetime"
                   required
                   min={toAgencyDateTimeLocal(selectedBooking.returnDate)}
                   value={extensionForm.newReturnDate}
-                  onChange={(e) => {
+                  onChange={(newReturnDate) => {
                     setExtensionPreview(null)
                     setExtensionError('')
-                    setExtensionForm((f) => ({ ...f, newReturnDate: e.target.value }))
+                    setExtensionForm((f) => ({ ...f, newReturnDate }))
                   }}
                   className={inputClass}
                 />
@@ -1344,10 +1345,10 @@ const ManageBookings = () => {
                 </select>
               </FormField>
               <FormField label={t('admin.walkIn.pickup')} required>
-                <input type="datetime-local" className={inputClass} value={editForm.pickupDate} onChange={(e) => setEditForm({ ...editForm, pickupDate: e.target.value })} required />
+                <DateField mode="datetime" className={inputClass} value={editForm.pickupDate} onChange={(pickupDate) => setEditForm({ ...editForm, pickupDate })} required />
               </FormField>
               <FormField label={t('admin.walkIn.return')} required>
-                <input type="datetime-local" className={inputClass} value={editForm.returnDate} onChange={(e) => setEditForm({ ...editForm, returnDate: e.target.value })} required />
+                <DateField mode="datetime" className={inputClass} value={editForm.returnDate} onChange={(returnDate) => setEditForm({ ...editForm, returnDate })} required />
               </FormField>
               <FormField label={t('admin.bookings.pickupLocation')}>
                 <input className={inputClass} value={editForm.pickupLocation} onChange={(e) => setEditForm({ ...editForm, pickupLocation: e.target.value })} required />
