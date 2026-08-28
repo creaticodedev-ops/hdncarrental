@@ -4,9 +4,7 @@ import ActionMenu from './ActionMenu'
 import {
   BookingStatusBadge,
   ChannelChip,
-  ContractBadge,
   PaymentBadge,
-  SignatureBadge,
 } from './ReservationBadges'
 import {
   bookingPaymentFigures,
@@ -118,8 +116,6 @@ const ReservationList = ({
                 <th>{t('admin.bookings.dates')}</th>
                 <th>{t('admin.bookings.status')}</th>
                 <th>{t('admin.bookings.payment')}</th>
-                <th className="res-hide-lg">{t('admin.bookings.signature')}</th>
-                <th className="res-hide-lg">{t('admin.bookings.contract')}</th>
                 <th>{t('admin.bookings.total')}</th>
                 <th className="text-right">{t('admin.bookings.actions')}</th>
               </tr>
@@ -137,9 +133,7 @@ const ReservationList = ({
                   >
                     <td>
                       <p className="res-ref-cell">{reservationRef(booking)}</p>
-                      <div className="mt-1">
-                        <ChannelChip channel={booking.channel} />
-                      </div>
+                      <ChannelChip channel={booking.channel} />
                     </td>
                     <td>
                       <div className="res-identity">
@@ -186,19 +180,11 @@ const ReservationList = ({
                     <td>
                       <PaymentBadge booking={booking} t={t} />
                     </td>
-                    <td className="res-hide-lg">
-                      <SignatureBadge booking={booking} t={t} />
-                    </td>
-                    <td className="res-hide-lg">
-                      <ContractBadge booking={booking} t={t} />
-                    </td>
                     <td>
                       <p className="res-total">{money(currency, figures.total)}</p>
                       {figures.remaining > 0 ? (
                         <p className="res-due-line">{t('admin.bookings.remainingAmount', { amount: money(currency, figures.remaining) })}</p>
-                      ) : (
-                        <p className="res-id-secondary">{t('admin.bookings.paidInFullShort')}</p>
-                      )}
+                      ) : null}
                     </td>
                     <td className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="res-row-actions">
@@ -279,7 +265,7 @@ const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => {
     <div className="res-card-top">
       <div className="min-w-0">
         <p className="res-ref-cell">{reservationRef(booking)}</p>
-        <div className="mt-1 flex flex-wrap gap-1">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <ChannelChip channel={booking.channel} />
           <BookingStatusBadge status={booking.status} t={t} />
         </div>
@@ -298,11 +284,7 @@ const MobileCard = ({ booking, t, language, currency, selected, onSelect }) => {
         </p>
       ) : null}
     </div>
-    <div className="flex flex-wrap gap-1">
-      <PaymentBadge booking={booking} t={t} />
-      <SignatureBadge booking={booking} t={t} />
-      <ContractBadge booking={booking} t={t} />
-    </div>
+    <PaymentBadge booking={booking} t={t} />
   </button>
   )
 }

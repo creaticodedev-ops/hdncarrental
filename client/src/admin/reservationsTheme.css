@@ -137,8 +137,13 @@
   .res-module.has-selection .res-split {
     margin-top: 0;
   }
-  .res-module.has-selection .res-action-stack {
+  .res-module.has-selection .res-action-stack,
+  .res-module.has-selection .res-contract-plain {
     display: none;
+  }
+  .res-module.has-selection .res-tools {
+    border-top: 0;
+    padding-top: 0;
   }
   .res-module.has-selection .res-inspector-head {
     position: sticky;
@@ -499,6 +504,112 @@
   margin-top: 0.2rem;
   font-size: 0.6875rem;
   color: var(--admin-muted);
+}
+
+.res-who {
+  margin-top: 0.22rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--admin-ink);
+}
+
+.res-trip-line {
+  margin-top: 0.12rem;
+  font-size: 0.75rem;
+  color: var(--admin-muted);
+  line-height: 1.35;
+}
+
+.res-channel {
+  display: inline-block;
+  margin-top: 0.12rem;
+  font-size: 0.6875rem;
+  color: var(--admin-muted);
+  font-weight: 550;
+}
+
+.res-money {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.res-money-kicker {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.res-money-hero {
+  margin: 0.08rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--admin-ink);
+}
+
+.res-money.is-due .res-money-hero {
+  color: var(--admin-danger);
+}
+
+.res-money.is-ok .res-money-hero {
+  color: var(--admin-success);
+}
+
+.res-money-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+  margin-top: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--admin-muted);
+}
+
+.res-money-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--admin-ink-secondary);
+  cursor: text;
+}
+
+.res-money-paid span {
+  font-weight: 650;
+  color: var(--admin-success);
+}
+
+.res-money-paid input {
+  width: 4.6rem;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--admin-success) 50%, var(--admin-border));
+  background: transparent;
+  padding: 0.02rem 0.08rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-success);
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.res-money-paid input::-webkit-outer-spin-button,
+.res-money-paid input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.res-money-paid input:focus {
+  border-bottom-style: solid;
+  border-bottom-color: var(--admin-success);
 }
 
 .res-pair-cards {
@@ -875,12 +986,105 @@
 
 .res-inspector-actions {
   flex-shrink: 0;
-  padding: 0.65rem 0.85rem 0.8rem;
+  padding: 0.7rem 0.85rem 0.75rem;
   background: var(--admin-surface);
   border-bottom: 1px solid var(--admin-border);
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.7rem;
+}
+
+.res-contract-plain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.res-contract-caption {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--admin-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.res-cta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.res-cta-row.is-single {
+  grid-template-columns: 1fr;
+}
+
+.res-tools {
+  display: flex;
+  align-items: stretch;
+  gap: 0.1rem;
+  margin: 0 -0.2rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.res-tool {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  min-width: 0;
+  min-height: 2.7rem;
+  padding: 0.3rem 0.12rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--admin-muted);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.res-tool span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.res-tool:hover:not(:disabled) {
+  color: var(--admin-ink);
+  background: var(--admin-hover);
+}
+
+.res-tool:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 1px;
+}
+
+.res-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.res-tool.is-wa {
+  color: #0f8a72;
+}
+
+.res-tool-svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+.res-tool-more.res-menu-trigger {
+  flex: 0 0 auto;
+  width: 2.2rem;
+  height: auto;
+  min-height: 2.7rem;
+  align-self: stretch;
+  border-radius: 0.5rem;
 }
 
 .res-action-stack {
@@ -948,6 +1152,7 @@
 }
 
 .res-contract-card .res-contract-manage.res-menu-trigger-btn,
+.res-contract-plain .res-contract-manage.res-menu-trigger-btn,
 .res-contract-manage.res-menu-trigger-btn {
   width: 100%;
 }
@@ -968,7 +1173,8 @@
   .res-dock-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .res-contract-actions {
+  .res-contract-actions,
+  .res-cta-row {
     grid-template-columns: 1fr;
   }
 }

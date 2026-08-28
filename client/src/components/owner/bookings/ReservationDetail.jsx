@@ -2,21 +2,14 @@ import React, { useEffect, useRef, useState } from 'react'
 import ActionMenu from './ActionMenu'
 import ContractActions from './ContractActions'
 import InspectorDock from './InspectorDock'
-import {
-  BookingStatusBadge,
-  ContractBadge,
-  PaymentBadge,
-  SignatureBadge,
-} from './ReservationBadges'
+import { BookingStatusBadge } from './ReservationBadges'
 import {
   bookingPaymentFigures,
   canExtend,
   canRequestSignature,
   customerEmail,
-  customerInitials,
   entityName,
   formatCompactDate,
-  formatDateTime,
   getSignatureStatus,
   money,
   rentalDayCount,
@@ -141,7 +134,6 @@ const ReservationDetail = ({
   const livePaid = Number.isFinite(typedPaid) && typedPaid >= 0 ? typedPaid : pay.paid
   const liveRemaining = Math.max(0, pay.total - livePaid)
   const liveOver = Math.max(0, livePaid - pay.total)
-  const carImage = booking.car?.image || booking.car?.images?.[0] || ''
   const samsar = entityName(booking.samsar) || t('admin.bookings.notAssigned')
   const chauffeur = entityName(booking.chauffeur) || t('admin.bookings.notAssigned')
   const partner = entityName(booking.partnerCompany) || t('admin.bookings.notAssigned')
@@ -191,12 +183,6 @@ const ReservationDetail = ({
     await onSetAmountPaid?.(rounded)
   }
 
-  const focusPaid = () => {
-    paidFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    paidFieldRef.current?.focus()
-    paidFieldRef.current?.select?.()
-  }
-
   const mobileMore = [
     !showSignatureCta && extendable
       ? { key: 'extend', label: t('admin.bookings.extendRental'), icon: 'calendar', onClick: onExtend }
@@ -238,110 +224,61 @@ const ReservationDetail = ({
         <div className="res-summary-top">
           <div className="min-w-0">
             <p className="res-ref">{reservationRef(booking)}</p>
-            <p className="res-channel-meta">
-              {walkIn ? 'Walk-in' : 'Online'}
-              {booking.createdAt ? ` · ${formatDateTime(booking.createdAt, language)}` : ''}
+            <p className="res-who">{booking.customerName || t('admin.common.guest')}</p>
+            {booking.customerPhone ? (
+              <p className="res-trip-line">{booking.customerPhone}</p>
+            ) : null}
+            <p className="res-trip-line">
+              {vehicleLabel(booking.car)}
+              {booking.car?.licensePlate ? ` · ${booking.car.licensePlate}` : ''}
+            </p>
+            <p className="res-trip-line">
+              {formatCompactDate(booking.pickupDate, language)}
+              {' → '}
+              {formatCompactDate(booking.returnDate, language)}
+              {' · '}
+              {t('admin.bookings.daysCount', { count: days })}
             </p>
           </div>
           <BookingStatusBadge status={booking.status} t={t} />
         </div>
 
-        <div className="res-pair-cards">
-          <div className="res-mini-card">
-            <span className="res-avatar res-avatar-lg" aria-hidden>
-              {customerInitials(booking.customerName)}
-            </span>
-            <div className="min-w-0">
-              <p className="res-mini-label">{t('admin.bookings.customer')}</p>
-              <p className="res-mini-title truncate">{booking.customerName || t('admin.common.guest')}</p>
-              <p className="res-mini-sub truncate">{booking.customerPhone || '—'}</p>
-            </div>
-          </div>
-          <div className="res-mini-card">
-            {carImage ? (
-              <img src={carImage} alt="" className="res-car-thumb" />
-            ) : (
-              <span className="res-car-thumb res-car-thumb-fallback" aria-hidden />
-            )}
-            <div className="min-w-0">
-              <p className="res-mini-label">{t('admin.bookings.vehicle')}</p>
-              <p className="res-mini-title truncate">{vehicleLabel(booking.car)}</p>
-              <p className="res-mini-sub truncate">{booking.car?.licensePlate || carBits || '—'}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="res-stat-grid">
-          <div>
-            <p className="res-mini-label">{t('admin.bookings.pickup')}</p>
-            <p className="res-stat-value">{formatCompactDate(booking.pickupDate, language)}</p>
-          </div>
-          <div>
-            <p className="res-mini-label">{t('admin.bookings.dropoff')}</p>
-            <p className="res-stat-value">{formatCompactDate(booking.returnDate, language)}</p>
-          </div>
-          <div>
-            <p className="res-mini-label">{t('admin.bookings.duration')}</p>
-            <p className="res-stat-value">{t('admin.bookings.daysCount', { count: days })}</p>
-          </div>
-        </div>
-
-        <div className="res-pay-strip">
-          <div className="res-pay-figures">
-            <div className="res-pay-cell">
-              <span>{t('admin.bookings.total')}</span>
-              <strong>{money(currency, pay.total)}</strong>
-            </div>
-            <div
-              className="res-pay-cell is-paid is-edit"
-              onClick={() => paidFieldRef.current?.focus()}
-            >
-              <label htmlFor="res-amount-paid">{t('admin.walkInReady.paymentAmount')}</label>
-              <div className="res-pay-input">
-                <span>{currency}</span>
-                <input
-                  id="res-amount-paid"
-                  ref={paidFieldRef}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={paidInput}
-                  onChange={(e) => setPaidInput(e.target.value)}
-                  onBlur={savePaidAmount}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur()
-                  }}
-                />
-              </div>
-            </div>
-            <div className={`res-pay-cell${liveRemaining > 0 ? ' is-due' : ' is-ok'}`}>
-              <span>{t('admin.bookings.remaining')}</span>
-              <strong>{money(currency, liveRemaining)}</strong>
-            </div>
-          </div>
-          <p className={`res-pay-banner${liveRemaining > 0 ? ' is-due' : ' is-ok'}`}>
+        <div className={`res-money${liveRemaining > 0 ? ' is-due' : ' is-ok'}`}>
+          <p className="res-money-kicker">
             {liveOver > 0
-              ? t('admin.walkInReady.overpaidHint', { amount: money(currency, liveOver) })
+              ? t('admin.bookings.paymentLabels.overpaid')
               : liveRemaining > 0
-                ? t('admin.bookings.remainingAmount', { amount: money(currency, liveRemaining) })
-                : t('admin.bookings.paidInFull')}
+                ? t('admin.bookings.remaining')
+                : t('admin.bookings.payment')}
           </p>
-        </div>
-
-        <div className="res-status-grid">
-          <div className="res-status-cell">
-            <span className="res-status-label">{t('admin.bookings.payment')}</span>
-            <PaymentBadge booking={booking} t={t} />
-          </div>
-          <div className="res-status-cell">
-            <span className="res-status-label">{t('admin.bookings.contract')}</span>
-            <ContractBadge booking={booking} contract={contract} t={t} />
-          </div>
-          <div className="res-status-cell">
-            <span className="res-status-label">{t('admin.bookings.signature')}</span>
-            <SignatureBadge booking={booking} t={t} />
+          <p className="res-money-hero">
+            {liveOver > 0
+              ? money(currency, liveOver)
+              : liveRemaining > 0
+                ? money(currency, liveRemaining)
+                : t('admin.bookings.paidInFullShort')}
+          </p>
+          <div className="res-money-meta">
+            <span>{t('admin.bookings.total')} {money(currency, pay.total)}</span>
+            <label className="res-money-paid" htmlFor="res-amount-paid">
+              {t('admin.walkInReady.paid')}
+              <span>{currency}</span>
+              <input
+                id="res-amount-paid"
+                ref={paidFieldRef}
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="0"
+                value={paidInput}
+                onChange={(e) => setPaidInput(e.target.value)}
+                onBlur={savePaidAmount}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                }}
+              />
+            </label>
           </div>
         </div>
       </header>
@@ -362,32 +299,22 @@ const ReservationDetail = ({
           onRequestSignature={onRequestSignature}
           onViewSigned={onViewSignedContract}
         />
-        {showSignatureCta ? (
-          <button type="button" className="admin-btn admin-btn-primary res-btn-block" onClick={onRequestSignature}>
-            <PenIcon />
-            {t('admin.bookings.requestSignature')}
-          </button>
-        ) : null}
         <InspectorDock
           t={t}
-          remaining={liveRemaining}
           hasEmail={Boolean(email)}
-          hasContract={Boolean(contract?._id || booking?.completion?.contractPdfUrl)}
           extendable={extendable}
           onWhatsApp={onWhatsApp}
           onEmail={onEmail}
           onCopyLink={onCopyLink}
-          onAddPayment={focusPaid}
           onEdit={onEdit}
           onExtend={onExtend}
-          onDownloadContract={onDownloadContract}
           moreItems={moreItems}
         />
       </div>
 
       <div className="res-inspector-body">
-        <Fold title={t('admin.bookings.customerDetails')} defaultOpen>
-          <Line label={t('admin.bookings.email')}>{customerEmail(booking) || '—'}</Line>
+        <Fold title={t('admin.bookings.customerDetails')}>
+          <Line label={t('admin.bookings.email')}>{email || '—'}</Line>
           <Line label={t('admin.bookings.phone')}>{booking.customerPhone || '—'}</Line>
           <Line label={t('admin.bookings.updateStatus')}>
             <select
@@ -417,7 +344,7 @@ const ReservationDetail = ({
           </Line>
         </Fold>
 
-        <Fold title={t('admin.bookings.pickupLocation')} defaultOpen>
+        <Fold title={t('admin.bookings.pickupLocation')}>
           <Line label={t('admin.bookings.pickup')}>{booking.pickupLocation || '—'}</Line>
           <Line label={t('admin.bookings.dropoffLocation')}>{booking.returnLocation || '—'}</Line>
         </Fold>

@@ -48,9 +48,5 @@ export const ContractBadge = ({ booking, contract, t }) => {
 
 export const ChannelChip = ({ channel }) => {
   const walkIn = String(channel || '').toLowerCase().includes('walk')
-  return (
-    <StatusBadge tone={walkIn ? 'success' : 'info'}>
-      {walkIn ? 'Walk-in' : 'Online'}
-    </StatusBadge>
-  )
+  return <span className="res-channel">{walkIn ? 'Walk-in' : 'Online'}</span>
 }

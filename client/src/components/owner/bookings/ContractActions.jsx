@@ -1,9 +1,7 @@
 import React from 'react'
-import { StatusBadge } from '../../../admin/ui'
 import ActionMenu from './ActionMenu'
 import {
   canRequestSignature,
-  contractTone,
   getContractLifecycle,
   getSignatureStatus,
   hasSignedContractArchive,
@@ -47,8 +45,6 @@ const ContractActions = ({
 
   const lifecycle = getContractLifecycle(booking, contract)
   const number = contract?.contractNumber || ''
-  const version = Number(contract?.version) || 1
-  const signedVersion = Number(contract?.signedVersion) || 0
   const archivedSigned = hasSignedContractArchive(contract)
   const currentIsSigned = getSignatureStatus(booking) === 'signed' && !archivedSigned
   const hasRecord = Boolean(contract?._id)
@@ -57,16 +53,11 @@ const ContractActions = ({
   const cancelled = booking.status === 'cancelled'
   const showGenerate = canManage && !hasRecord && !cancelled && lifecycle !== 'cancelled'
   const showManage = canManage && hasRecord && !cancelled
-  const requestSig = canRequestSignature(booking) && Boolean(onRequestSignature)
+  const leadSignature = canRequestSignature(booking) && Boolean(onRequestSignature)
 
   const items = showManage
     ? [
-        {
-          key: 'edit',
-          label: t('admin.bookings.editContract'),
-          icon: 'edit',
-          onClick: onEdit,
-        },
+        { key: 'edit', label: t('admin.bookings.editContract'), icon: 'edit', onClick: onEdit },
         {
           key: 'regen',
           label: currentIsSigned
@@ -75,84 +66,72 @@ const ContractActions = ({
           icon: 'refresh',
           onClick: onRegenerate,
         },
-        requestSig
-          ? {
-              key: 'sign',
-              label: t('admin.bookings.requestSignature'),
-              icon: 'signature',
-              onClick: onRequestSignature,
-            }
-          : null,
-        {
-          key: 'download',
-          label: t('admin.bookings.downloadContract'),
-          icon: 'download',
-          onClick: onDownload,
-        },
+        { key: 'download', label: t('admin.bookings.downloadContract'), icon: 'download', onClick: onDownload },
         archivedSigned
-          ? {
-              key: 'signed',
-              label: t('admin.bookings.viewSignedContract'),
-              icon: 'eye',
-              onClick: onViewSigned,
-            }
+          ? { key: 'signed', label: t('admin.bookings.viewSignedContract'), icon: 'eye', onClick: onViewSigned }
           : null,
       ].filter(Boolean)
     : []
 
-  return (
-    <section className="res-contract-card" aria-label={t('admin.bookings.contract')}>
-      <div className="res-contract-meta">
-        <p className="res-contract-kicker">{t('admin.bookings.contract')}</p>
-        <div className="res-contract-id-row">
-          {loading ? (
-            <span className="res-contract-number is-muted">—</span>
-          ) : number ? (
-            <span className="res-contract-number">{number}</span>
-          ) : (
-            <span className="res-contract-number is-muted">{t('admin.bookings.contractLabels.none')}</span>
-          )}
-          <StatusBadge tone={contractTone(lifecycle)}>
-            {t(`admin.bookings.contractLabels.${lifecycle}`)}
-          </StatusBadge>
-        </div>
-        {number && version > 1 ? (
-          <p className="res-contract-hint">
-            {t('admin.bookings.contractActiveVersion', { version })}
-            {archivedSigned
-              ? ` · ${t('admin.bookings.contractSignedKept', { version: signedVersion })}`
-              : ''}
-          </p>
-        ) : currentIsSigned ? (
-          <p className="res-contract-hint">{t('admin.bookings.contractSignedHint')}</p>
-        ) : null}
-      </div>
+  const manage = items.length ? (
+    <ActionMenu
+      label={t('admin.bookings.manageContract')}
+      trigger="button"
+      caret
+      align="right"
+      className="res-contract-manage"
+      items={items}
+    />
+  ) : null
 
-      {showGenerate ? (
-        <div className="res-contract-generate">
+  return (
+    <section className="res-contract-plain" aria-label={t('admin.bookings.contract')}>
+      {number ? (
+        <p className="res-contract-caption">
+          {number}
+          {lifecycle === 'signed' ? ` · ${t('admin.bookings.contractLabels.signed')}` : ''}
+        </p>
+      ) : null}
+
+      {leadSignature ? (
+        <>
           <button
             type="button"
             className="admin-btn admin-btn-primary res-btn-block"
-            onClick={onGenerate}
+            onClick={onRequestSignature}
             disabled={busy}
           >
-            <PlusIcon />
-            {busy ? t('admin.bookings.contractGenerating') : t('admin.bookings.generateContract')}
+            {t('admin.bookings.requestSignature')}
           </button>
-          {canView ? (
-            <button
-              type="button"
-              className="admin-btn admin-btn-secondary res-btn-block"
-              onClick={onView}
-              disabled={busy}
-            >
-              <EyeIcon />
-              {t('admin.bookings.viewContract')}
-            </button>
+          {canView || manage ? (
+            <div className={`res-cta-row${canView && manage ? '' : ' is-single'}`}>
+              {canView ? (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary res-btn-block"
+                  onClick={onView}
+                  disabled={busy}
+                >
+                  <EyeIcon />
+                  {t('admin.bookings.viewContract')}
+                </button>
+              ) : null}
+              {manage}
+            </div>
           ) : null}
-        </div>
-      ) : canView || items.length ? (
-        <div className={`res-contract-actions${items.length || (!canManage && canView) ? '' : ' is-single'}`}>
+        </>
+      ) : showGenerate ? (
+        <button
+          type="button"
+          className="admin-btn admin-btn-primary res-btn-block"
+          onClick={onGenerate}
+          disabled={busy}
+        >
+          <PlusIcon />
+          {busy ? t('admin.bookings.contractGenerating') : t('admin.bookings.generateContract')}
+        </button>
+      ) : canView || manage ? (
+        <div className={`res-cta-row${manage || (!canManage && canView) ? '' : ' is-single'}`}>
           <button
             type="button"
             className="admin-btn admin-btn-primary res-btn-block"
@@ -162,16 +141,8 @@ const ContractActions = ({
             <EyeIcon />
             {t('admin.bookings.viewContract')}
           </button>
-          {items.length ? (
-            <ActionMenu
-              label={t('admin.bookings.manageContract')}
-              trigger="button"
-              caret
-              align="right"
-              className="res-contract-manage"
-              items={items}
-            />
-          ) : !canManage && canView ? (
+          {manage}
+          {!canManage && canView && !manage ? (
             <button
               type="button"
               className="admin-btn admin-btn-secondary res-btn-block"

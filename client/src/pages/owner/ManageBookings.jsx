@@ -942,30 +942,6 @@ const ManageBookings = () => {
             <option value="failed">{t('admin.bookings.paymentLabels.failed')}</option>
             <option value="refunded">{t('admin.bookings.paymentLabels.refunded')}</option>
           </select>
-          <select
-            className="res-filter-chip"
-            value={sigFilter}
-            onChange={(e) => setSigFilter(e.target.value)}
-            aria-label={t('admin.bookings.signature')}
-          >
-            <option value="">{t('admin.bookings.signature')}: {t('admin.bookings.filterAll')}</option>
-            <option value="none">{t('admin.bookings.requestStatuses.none')}</option>
-            <option value="pending">{t('admin.bookings.requestStatuses.pending')}</option>
-            <option value="signed">{t('admin.bookings.requestStatuses.signed')}</option>
-            <option value="expired">{t('admin.bookings.requestStatuses.expired')}</option>
-            <option value="cancelled">{t('admin.bookings.requestStatuses.cancelled')}</option>
-          </select>
-          <select
-            className="res-filter-chip"
-            value={contractFilter}
-            onChange={(e) => setContractFilter(e.target.value)}
-            aria-label={t('admin.bookings.contract')}
-          >
-            <option value="">{t('admin.bookings.contract')}: {t('admin.bookings.filterAll')}</option>
-            <option value="none">{t('admin.bookings.contractLabels.none')}</option>
-            <option value="in_progress">{t('admin.bookings.contractLabels.in_progress')}</option>
-            <option value="ready">{t('admin.bookings.contractLabels.ready')}</option>
-          </select>
           <button type="button" className="admin-btn admin-btn-secondary res-btn shrink-0" onClick={applySearch}>
             {t('admin.bookings.applyFilters')}
           </button>
@@ -1025,6 +1001,26 @@ const ManageBookings = () => {
                 <option value="">{t('admin.bookings.allChannels')}</option>
                 <option value="online">Online</option>
                 <option value="walk_in">Walk-in</option>
+              </select>
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.signature')}</label>
+              <select className={inputClass} value={sigFilter} onChange={(e) => setSigFilter(e.target.value)}>
+                <option value="">{t('admin.bookings.filterAll')}</option>
+                <option value="none">{t('admin.bookings.requestStatuses.none')}</option>
+                <option value="pending">{t('admin.bookings.requestStatuses.pending')}</option>
+                <option value="signed">{t('admin.bookings.requestStatuses.signed')}</option>
+                <option value="expired">{t('admin.bookings.requestStatuses.expired')}</option>
+                <option value="cancelled">{t('admin.bookings.requestStatuses.cancelled')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.bookings.contract')}</label>
+              <select className={inputClass} value={contractFilter} onChange={(e) => setContractFilter(e.target.value)}>
+                <option value="">{t('admin.bookings.filterAll')}</option>
+                <option value="none">{t('admin.bookings.contractLabels.none')}</option>
+                <option value="in_progress">{t('admin.bookings.contractLabels.in_progress')}</option>
+                <option value="ready">{t('admin.bookings.contractLabels.ready')}</option>
               </select>
             </div>
             <div>
