@@ -16,6 +16,8 @@ export const defaultFilters = () => ({
   maintenance: '',
   attention: false,
   period: 'all',
+  from: '',
+  to: '',
   sort: 'revenueDesc',
 })
 
@@ -47,7 +49,45 @@ export const parseDays = (value) => {
   return Number.isFinite(n) ? n : 0
 }
 
-export const last = (list) => (Array.isArray(list) && list.length ? list[list.length - 1] : null)
+export const isoToDisplay = (iso) => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+export const presetRange = (period) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const iso = (date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  if (period === 'month') {
+    return { from: iso(new Date(today.getFullYear(), today.getMonth(), 1)), to: iso(new Date(today.getFullYear(), today.getMonth() + 1, 0)) }
+  }
+  if (period === 'year') {
+    return { from: iso(new Date(today.getFullYear(), 0, 1)), to: iso(new Date(today.getFullYear(), 11, 31)) }
+  }
+  if (period === 'last7') {
+    const from = new Date(today)
+    from.setDate(today.getDate() - 6)
+    return { from: iso(from), to: iso(today) }
+  }
+  if (period === 'last30') {
+    const from = new Date(today)
+    from.setDate(today.getDate() - 29)
+    return { from: iso(from), to: iso(today) }
+  }
+  return { from: '', to: '' }
+}
+
+export const applyPeriod = (filters, period) => {
+  if (period === 'custom') return { ...filters, period: 'custom' }
+  const { from, to } = presetRange(period)
+  return { ...filters, period, from, to }
+}
 
 export const opsStatus = (car, stats) => {
   if (car?.status === 'maintenance') return 'maintenance'
@@ -62,40 +102,15 @@ export const hasOpenMaintenance = (stats) =>
     return status === 'scheduled' || status === 'in_progress'
   })
 
-export const periodMetrics = (stats, period) => {
-  const overview = stats?.overview || {}
-  const analytics = stats?.analytics || {}
-  if (period === 'month') {
-    return {
-      revenue: Number(overview.monthlyRevenue || 0),
-      bookings: Number(last(analytics.bookingsByMonth)?.bookings || 0),
-      utilization: parsePct(last(analytics.occupancyByMonth)?.occupancyRate),
-    }
-  }
-  if (period === 'year') {
-    return {
-      revenue: Number(overview.yearlyRevenue || 0),
-      bookings: Number(last(analytics.bookingsByYear)?.bookings || 0),
-      utilization: parsePct(last(analytics.occupancyByYear)?.occupancyRate),
-    }
-  }
-  return {
-    revenue: Number(overview.totalRevenue || 0),
-    bookings: Number(overview.totalBookings || 0),
-    utilization: parsePct(overview.utilizationRate),
-  }
-}
-
-export const buildRow = (car, stats, period) => {
-  const metrics = periodMetrics(stats, period)
+export const buildRow = (car, stats) => {
   const overview = stats?.overview || {}
   return {
     car,
     stats,
     status: opsStatus(car, stats),
-    utilization: metrics.utilization,
-    bookings: metrics.bookings,
-    revenue: metrics.revenue,
+    utilization: parsePct(overview.utilizationRate),
+    bookings: Number(overview.totalBookings || 0),
+    revenue: Number(overview.totalRevenue || 0),
     avgDays: parseDays(overview.averageRentalDuration),
     upcoming: (stats?.upcomingReservations || []).length,
     maintenanceOpen: hasOpenMaintenance(stats),
@@ -201,6 +216,7 @@ export const activeFilterChips = (filters, t, vehicles) => {
   if (filters.rentalsMin !== '') add('rentalsMin', `≥ ${filters.rentalsMin}`)
   if (filters.maintenance) add('maintenance', t(`admin.vehicleStats.maint${filters.maintenance === 'open' ? 'Open' : 'Clear'}`))
   if (filters.attention) add('attention', t('admin.vehicleStats.kpiAttention'))
+  if (filters.from && filters.to) add('range', `${isoToDisplay(filters.from)} → ${isoToDisplay(filters.to)}`)
   return chips
 }
 
@@ -212,8 +228,10 @@ export const clearChip = (filters, key) => {
   } else if (key === 'revenue') {
     next.revenueMin = ''
     next.revenueMax = ''
-  } else if (key === 'attention') {
-    next.attention = false
+  } else if (key === 'range') {
+    next.from = ''
+    next.to = ''
+    next.period = 'all'
   } else {
     next[key] = key === 'search' || key === 'vehicleId' || key === 'brand' || key === 'model' || key === 'category' || key === 'status' || key === 'availability' || key === 'maintenance' ? '' : defaultFilters()[key]
   }

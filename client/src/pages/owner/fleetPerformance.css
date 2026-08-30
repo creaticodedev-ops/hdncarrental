@@ -134,6 +134,9 @@
 }
 
 .fp-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   height: 2.4rem;
   border: 1px solid var(--fp-border);
   border-radius: 0.7rem;
@@ -148,6 +151,48 @@
 .fp-ghost.is-on,
 .fp-ghost:hover {
   border-color: color-mix(in srgb, var(--fp-accent) 40%, var(--fp-border));
+  color: var(--fp-accent);
+}
+
+.fp-filter-count {
+  display: inline-flex;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--fp-accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-style: normal;
+  font-weight: 750;
+  padding: 0 0.3rem;
+}
+
+.fp-rangebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--fp-border);
+  background: color-mix(in srgb, var(--fp-hover) 40%, var(--fp-surface));
+}
+
+.fp-range-picker {
+  flex: 1 1 20rem;
+  min-width: 18rem;
+  max-width: 34rem;
+}
+
+.fp-range-picker.is-custom {
+  border-radius: 1rem;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-accent) 12%, transparent);
+}
+
+.fp-range-live {
+  font-size: 0.72rem;
+  font-weight: 650;
   color: var(--fp-accent);
 }
 

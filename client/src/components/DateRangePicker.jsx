@@ -183,7 +183,10 @@ const DateRangePicker = ({
   const openRef = useRef(false)
   const ignoreBlurRef = useRef(false)
 
-  const min = useMemo(() => startOfDay(minDate || new Date()), [minDate])
+  const min = useMemo(() => {
+    if (minDate === null) return null
+    return startOfDay(minDate || new Date())
+  }, [minDate])
   const max = useMemo(() => (maxDate ? startOfDay(maxDate) : null), [maxDate])
   const start = useMemo(() => parseISODate(startDate), [startDate])
   const end = useMemo(() => parseISODate(endDate), [endDate])
@@ -223,6 +226,7 @@ const DateRangePicker = ({
     if (!start) return min
     const offset = span > 1 ? span : 0
     const candidate = addDays(start, offset)
+    if (!min) return candidate
     return candidate.getTime() > min.getTime() ? candidate : min
   }, [start, span, min])
 
@@ -275,7 +279,7 @@ const DateRangePicker = ({
       maxWidth: `calc(100vw - ${gutter * 2}px)`,
       top: openUp ? undefined : rect.bottom + 10,
       bottom: openUp ? window.innerHeight - rect.top + 10 : undefined,
-      zIndex: 80,
+      zIndex: 520,
     })
   }
 
@@ -330,7 +334,7 @@ const DateRangePicker = ({
   }
 
   const handleSelect = (date) => {
-    if (isBeforeDay(date, min)) return
+    if (min && isBeforeDay(date, min)) return
     if (max && isAfterDay(date, max)) return
     if (isDateBlocked(date)) return
 
@@ -353,7 +357,7 @@ const DateRangePicker = ({
       return
     }
 
-    if (isBeforeDay(date, endMin)) return
+    if (endMin && isBeforeDay(date, endMin)) return
     if (endMax && isAfterDay(date, endMax)) return
     if (rangeCrossesUnavailable(start, date)) return
 
@@ -548,7 +552,7 @@ const DateRangePicker = ({
       style={isMobile ? undefined : panelStyle}
       className={
         isMobile
-          ? 'fixed inset-0 z-[80] flex flex-col justify-end bg-ink/40 backdrop-blur-[2px]'
+          ? 'fixed inset-0 z-[520] flex flex-col justify-end bg-ink/40 backdrop-blur-[2px]'
           : 'date-range-popover'
       }
       onClick={isMobile ? () => setOpen(false) : undefined}

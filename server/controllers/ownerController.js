@@ -258,8 +258,36 @@ export const getVehicleStats = async (req, res) => {
     const twelveMonthsAgo = new Date(now);
     twelveMonthsAgo.setFullYear(now.getFullYear() - 1);
 
+    const parseIsoDay = (value, asEnd = false) => {
+      const raw = String(value || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+      const [year, month, day] = raw.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      if (Number.isNaN(date.getTime())) return null;
+      if (asEnd) date.setHours(23, 59, 59, 999);
+      else date.setHours(0, 0, 0, 0);
+      return date;
+    };
+    let rangeFrom = parseIsoDay(req.query.from, false);
+    let rangeTo = parseIsoDay(req.query.to, true);
+    if (rangeFrom && rangeTo && rangeFrom.getTime() > rangeTo.getTime()) {
+      const swappedFrom = parseIsoDay(req.query.to, false);
+      const swappedTo = parseIsoDay(req.query.from, true);
+      rangeFrom = swappedFrom;
+      rangeTo = swappedTo;
+    }
+    const pickupInRange = (pickup) => {
+      if (!rangeFrom && !rangeTo) return true;
+      if (!pickup) return false;
+      const date = new Date(pickup);
+      if (rangeFrom && date < rangeFrom) return false;
+      if (rangeTo && date > rangeTo) return false;
+      return true;
+    };
+    const periodBookings = bookings.filter((booking) => pickupInRange(booking.pickupDate));
+
     const activeStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'active'];
-    const nonCancelledBookings = bookings.filter((booking) => booking.status !== 'cancelled');
+    const nonCancelledBookings = periodBookings.filter((booking) => booking.status !== 'cancelled');
     const rentalDays = nonCancelledBookings.reduce((sum, booking) => {
       if (booking.priceBreakdown?.days > 0) return sum + Number(booking.priceBreakdown.days);
       if (!booking.pickupDate || !booking.returnDate) return sum;
@@ -269,11 +297,11 @@ export const getVehicleStats = async (req, res) => {
       return sum + diffDays;
     }, 0);
 
-    const consideredBookings = bookings.filter((booking) => booking.status !== 'cancelled');
+    const consideredBookings = periodBookings.filter((booking) => booking.status !== 'cancelled');
     const revenue = consideredBookings.reduce((sum, booking) => sum + Number(booking.price || 0), 0);
-    const totalBookings = bookings.length;
-    const completedBookings = bookings.filter((booking) => booking.status === 'completed').length;
-    const cancelledBookings = bookings.filter((booking) => booking.status === 'cancelled').length;
+    const totalBookings = periodBookings.length;
+    const completedBookings = periodBookings.filter((booking) => booking.status === 'completed').length;
+    const cancelledBookings = periodBookings.filter((booking) => booking.status === 'cancelled').length;
     const revenueToday = consideredBookings.reduce((sum, booking) => {
       if (!booking.pickupDate) return sum;
       const pickup = new Date(booking.pickupDate);
@@ -388,16 +416,21 @@ export const getVehicleStats = async (req, res) => {
       .sort((a, b) => new Date(a.pickupDate) - new Date(b.pickupDate))
       .slice(0, 6);
 
-    const recentPeriodBookings = bookings.filter((booking) => {
+    const utilStart = rangeFrom || twelveMonthsAgo;
+    const utilEnd = rangeTo || now;
+    const recentPeriodBookings = periodBookings.filter((booking) => {
       if (!booking.pickupDate) return false;
       const pickup = new Date(booking.pickupDate);
-      return pickup >= twelveMonthsAgo && pickup <= now;
+      return pickup >= utilStart && pickup <= utilEnd;
     });
-    const periodDays = Math.max(1, Math.round((now - twelveMonthsAgo) / 86400000));
+    const periodDays = rangeFrom && rangeTo
+      ? Math.max(1, Math.round((utilEnd - utilStart) / 86400000) + 1)
+      : Math.max(1, Math.round((now - twelveMonthsAgo) / 86400000));
     const bookedDays = recentPeriodBookings.reduce((sum, booking) => {
       if (!booking.pickupDate || !booking.returnDate) return sum;
       const start = new Date(booking.pickupDate);
       const end = new Date(booking.returnDate);
+      if (rangeFrom && rangeTo) return sum + overlapDays(start, end, utilStart, utilEnd);
       const diffDays = Math.max(0, Math.round((end - start) / 86400000));
       return sum + diffDays;
     }, 0);
@@ -409,7 +442,7 @@ export const getVehicleStats = async (req, res) => {
     const monthlyPerformance = Array.from({ length: 12 }, (_, index) => {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - index, 1);
       const label = monthDate.toLocaleString('en', { month: 'short' });
-      const monthBookings = bookings.filter((booking) => {
+      const monthBookings = periodBookings.filter((booking) => {
         if (!booking.pickupDate) return false;
         const pickup = new Date(booking.pickupDate);
         return pickup.getFullYear() === monthDate.getFullYear() && pickup.getMonth() === monthDate.getMonth();
@@ -424,7 +457,7 @@ export const getVehicleStats = async (req, res) => {
 
     const yearlyPerformance = Array.from({ length: 3 }, (_, index) => {
       const year = now.getFullYear() - index;
-      const yearBookings = bookings.filter((booking) => {
+      const yearBookings = periodBookings.filter((booking) => {
         if (!booking.pickupDate) return false;
         const pickup = new Date(booking.pickupDate);
         return pickup.getFullYear() === year;

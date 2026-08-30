@@ -11,9 +11,11 @@ import { VEHICLE_CATEGORIES } from '../../utils/vehicleCategories'
 import VehiclePerformanceDrawer from '../../components/owner/VehiclePerformanceDrawer'
 import {
   activeFilterChips,
+  applyPeriod,
   buildRow,
   clearChip,
   defaultFilters,
+  isoToDisplay,
   loadSavedFilters,
   matchesFilters,
   needsAttention,
@@ -21,6 +23,7 @@ import {
   scoreRows,
   sortRows,
 } from './fleetPerformanceUtils'
+import DateRangePicker from '../../components/DateRangePicker'
 import './fleetPerformance.css'
 
 const BATCH = 5
@@ -78,11 +81,13 @@ const VehicleStatsListPage = () => {
     saveFilters(filters)
   }, [filters])
 
+  const rangeReady = (!filters.from && !filters.to) || (Boolean(filters.from) && Boolean(filters.to) && filters.from <= filters.to)
+
   useEffect(() => {
     if (!isOwner) return undefined
     let cancelled = false
 
-    const load = async () => {
+    const loadCars = async () => {
       setLoading(true)
       try {
         const { data } = await axios.get('/api/owner/cars')
@@ -90,27 +95,7 @@ const VehicleStatsListPage = () => {
           toast.error(data.message || t('admin.vehicleStats.loadError'))
           return
         }
-        const cars = data.cars || []
-        if (cancelled) return
-        setVehicles(cars)
-        setLoading(false)
-        setMetricsPending(cars.length > 0)
-        const next = {}
-        for (let i = 0; i < cars.length; i += BATCH) {
-          if (cancelled) return
-          const slice = cars.slice(i, i + BATCH)
-          const results = await Promise.all(slice.map(async (car) => {
-            try {
-              const res = await axios.get(`/api/owner/vehicles/${car._id}/stats`)
-              return [car._id, res.data?.success ? res.data.stats : null]
-            } catch {
-              return [car._id, null]
-            }
-          }))
-          results.forEach(([id, stats]) => { next[id] = stats })
-          if (!cancelled) setStatsMap({ ...next })
-        }
-        if (!cancelled) setMetricsPending(false)
+        if (!cancelled) setVehicles(data.cars || [])
       } catch (error) {
         if (!cancelled) toast.error(getErrorMessage(error))
       } finally {
@@ -118,24 +103,57 @@ const VehicleStatsListPage = () => {
       }
     }
 
-    load()
+    loadCars()
     return () => { cancelled = true }
   }, [axios, isOwner, t])
 
+  useEffect(() => {
+    if (!isOwner || !vehicles.length || !rangeReady) return undefined
+    let cancelled = false
+
+    const loadStats = async () => {
+      setMetricsPending(true)
+      const next = {}
+      const params = {}
+      if (filters.from && filters.to) {
+        params.from = filters.from
+        params.to = filters.to
+      }
+      for (let i = 0; i < vehicles.length; i += BATCH) {
+        if (cancelled) return
+        const slice = vehicles.slice(i, i + BATCH)
+        const results = await Promise.all(slice.map(async (car) => {
+          try {
+            const res = await axios.get(`/api/owner/vehicles/${car._id}/stats`, { params })
+            return [car._id, res.data?.success ? res.data.stats : null]
+          } catch {
+            return [car._id, null]
+          }
+        }))
+        results.forEach(([id, stats]) => { next[id] = stats })
+        if (!cancelled) setStatsMap({ ...next })
+      }
+      if (!cancelled) setMetricsPending(false)
+    }
+
+    loadStats()
+    return () => { cancelled = true }
+  }, [axios, isOwner, vehicles, filters.from, filters.to, rangeReady])
+
   const rows = useMemo(() => {
-    const built = vehicles.map((car) => buildRow(car, statsMap[car._id], filters.period))
+    const built = vehicles.map((car) => buildRow(car, statsMap[car._id]))
     return sortRows(scoreRows(built).filter((row) => matchesFilters(row, filters)), filters.sort)
   }, [vehicles, statsMap, filters])
 
   const kpis = useMemo(() => {
-    const all = scoreRows(vehicles.map((car) => buildRow(car, statsMap[car._id], filters.period)))
+    const all = scoreRows(vehicles.map((car) => buildRow(car, statsMap[car._id])))
     const revenue = all.reduce((sum, row) => sum + row.revenue, 0)
     const util = all.length ? all.reduce((sum, row) => sum + row.utilization, 0) / all.length : 0
     const rented = all.filter((row) => row.status === 'rented').length
     const available = all.filter((row) => row.status === 'available').length
     const attention = all.filter(needsAttention).length
     return { revenue, util, rented, available, attention, total: all.length }
-  }, [vehicles, statsMap, filters.period])
+  }, [vehicles, statsMap])
 
   const brands = useMemo(() => [...new Set(vehicles.map((car) => car.brand).filter(Boolean))].sort(), [vehicles])
   const models = useMemo(() => {
@@ -145,6 +163,25 @@ const VehicleStatsListPage = () => {
 
   const chips = useMemo(() => activeFilterChips(filters, t, vehicles), [filters, t, vehicles])
   const selectedCar = vehicles.find((car) => String(car._id) === String(selectedId)) || null
+  const periodHint = filters.from && filters.to
+    ? `${isoToDisplay(filters.from)} → ${isoToDisplay(filters.to)}`
+    : t('admin.vehicleStats.kpiRevenueHint')
+  const PERIODS = [
+    { key: 'all', label: t('admin.vehicleStats.periodAll') },
+    { key: 'last7', label: t('admin.vehicleStats.periodLast7') },
+    { key: 'last30', label: t('admin.vehicleStats.periodLast30') },
+    { key: 'month', label: t('admin.vehicleStats.periodMonth') },
+    { key: 'year', label: t('admin.vehicleStats.periodYear') },
+  ]
+
+  const setRange = ({ startDate, endDate }) => {
+    setFilters((prev) => ({
+      ...prev,
+      period: startDate || endDate ? 'custom' : 'all',
+      from: startDate || '',
+      to: endDate || '',
+    }))
+  }
 
   const openVehicle = (id) => {
     const next = new URLSearchParams(params)
@@ -185,12 +222,12 @@ const VehicleStatsListPage = () => {
         <button type="button" className="fp-kpi" onClick={() => applyKpi('revenue')}>
           <span className="fp-kpi-label">{t('admin.vehicleStats.kpiRevenue')}</span>
           <span className="fp-kpi-value">{money(kpis.revenue, currency, language)}</span>
-          <span className="fp-kpi-hint">{t('admin.vehicleStats.kpiRevenueHint')}</span>
+          <span className="fp-kpi-hint">{periodHint}</span>
         </button>
         <button type="button" className="fp-kpi" onClick={() => applyKpi('util')}>
           <span className="fp-kpi-label">{t('admin.vehicleStats.kpiUtilization')}</span>
           <span className="fp-kpi-value">{kpis.util.toFixed(1)}%</span>
-          <span className="fp-kpi-hint">{t('admin.vehicleStats.kpiUtilizationHint')}</span>
+          <span className="fp-kpi-hint">{periodHint}</span>
         </button>
         <button type="button" className={`fp-kpi ${filters.status === 'rented' ? 'is-on' : ''}`} onClick={() => applyKpi('rented')}>
           <span className="fp-kpi-label">{t('admin.vehicleStats.kpiActiveRentals')}</span>
@@ -218,18 +255,6 @@ const VehicleStatsListPage = () => {
             placeholder={t('admin.vehicleStats.searchPlaceholder')}
             aria-label={t('admin.vehicleStats.searchPlaceholder')}
           />
-          <div className="fp-periods" role="tablist">
-            {['all', 'year', 'month'].map((period) => (
-              <button
-                key={period}
-                type="button"
-                className={`fp-period ${filters.period === period ? 'is-on' : ''}`}
-                onClick={() => setFilter('period', period)}
-              >
-                {t(`admin.vehicleStats.period${period[0].toUpperCase()}${period.slice(1)}`)}
-              </button>
-            ))}
-          </div>
           <select className="fp-select" value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)} aria-label={t('admin.vehicleStats.sortBy')}>
             <option value="revenueDesc">{t('admin.vehicleStats.sortRevenueDesc')}</option>
             <option value="revenueAsc">{t('admin.vehicleStats.sortRevenueAsc')}</option>
@@ -244,10 +269,49 @@ const VehicleStatsListPage = () => {
           </select>
           <button type="button" className={`fp-ghost ${filtersOpen ? 'is-on' : ''}`} onClick={() => setFiltersOpen((open) => !open)}>
             {t('admin.vehicleStats.filters')}
+            {chips.length ? <em className="fp-filter-count">{chips.length}</em> : null}
           </button>
           <button type="button" className="fp-ghost" onClick={() => setFilters(defaultFilters())}>
             {t('admin.vehicleStats.clearFilters')}
           </button>
+        </div>
+
+        <div className="fp-rangebar">
+          <div className={`fp-range-picker${filters.period === 'custom' ? ' is-custom' : ''}`}>
+            <DateRangePicker
+              variant="split"
+              startDate={filters.from}
+              endDate={filters.to}
+              onChange={setRange}
+              minDate={null}
+              pickupLabel={t('admin.vehicleStats.rangeFrom')}
+              returnLabel={t('admin.vehicleStats.rangeTo')}
+              className="fp-range-fields"
+            />
+          </div>
+          <div className="fp-periods" role="tablist" aria-label={t('admin.vehicleStats.periodAll')}>
+            {PERIODS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`fp-period ${filters.period === item.key ? 'is-on' : ''}`}
+                onClick={() => setFilters((prev) => applyPeriod(prev, item.key))}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          {filters.from || filters.to ? (
+            <button
+              type="button"
+              className="fp-ghost"
+              onClick={() => setFilters((prev) => applyPeriod(prev, 'all'))}
+            >
+              {t('admin.vehicleStats.clearRange')}
+            </button>
+          ) : null}
+          {metricsPending ? <span className="fp-range-live">{t('admin.vehicleStats.loadingMetrics')}</span> : null}
+          {filters.from && !filters.to ? <span className="fp-range-live">{t('admin.vehicleStats.rangePickEnd')}</span> : null}
         </div>
 
         {filtersOpen ? (
