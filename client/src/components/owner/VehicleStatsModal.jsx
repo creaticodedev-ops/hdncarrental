@@ -3,6 +3,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import toast from 'react-hot-toast'
+import '../../components/calendar/opsCalendar.css'
 
 const VehicleStatsModal = ({ car, isOpen, onClose }) => {
   const { axios, currency } = useAppContext()
@@ -144,11 +145,11 @@ const VehicleStatsModal = ({ car, isOpen, onClose }) => {
 
             <div className='rounded-xl border border-borderColor p-4'>
               <h4 className='font-semibold text-gray-800'>{t('admin.vehicleStats.availabilityTimeline')}</h4>
-              <div className='mt-3 grid grid-cols-7 gap-2'>
+              <div className='hdn-ops mt-3 grid grid-cols-7 gap-2'>
                 {stats.availabilityCalendar?.slice(0, 7).map((day) => (
-                  <div key={day.date} className='rounded-lg border border-borderColor bg-gray-50 p-2 text-center text-xs'>
-                    <p className='font-medium text-gray-700'>{day.label}</p>
-                    <p className={`mt-2 rounded-full px-2 py-1 text-[10px] ${day.isBooked ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  <div key={day.date} className='hdn-ops-week-col text-center !min-h-0 !p-2'>
+                    <p className='hdn-ops-week-kicker'>{day.label}</p>
+                    <p className={`hdn-ops-chip mt-2 ${day.isBooked ? 'is-pending' : 'is-active'}`} style={{ justifyContent: 'center' }}>
                       {day.isBooked ? t('admin.vehicleStats.booked') : t('admin.vehicleStats.free')}
                     </p>
                   </div>

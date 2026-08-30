@@ -23,6 +23,20 @@ export const startOfDay = (d) => {
 
 export const addMonths = (date, count) => new Date(date.getFullYear(), date.getMonth() + count, 1)
 
+export const addDays = (date, count) => {
+  const d = new Date(date)
+  d.setDate(d.getDate() + Number(count || 0))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+/** Monday-first week containing `date`. */
+export const startOfWeek = (date) => {
+  const d = startOfDay(date)
+  const offset = (d.getDay() + 6) % 7
+  return addDays(d, -offset)
+}
+
 export const sameDay = (a, b) =>
   Boolean(a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate())
 

@@ -7,6 +7,16 @@ import { getErrorMessage } from '../../utils/apiError'
 import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import DateField from '../../components/calendar/DateField'
+import {
+  MONTHS,
+  WEEKDAYS,
+  addMonths,
+  buildMonthCells,
+  sameDay,
+  startOfDay,
+} from '../../components/calendar/calendarUtils'
+import '../../components/calendar/calendar.css'
+import '../../components/calendar/opsCalendar.css'
 
 const toInputDate = (v) => {
   if (!v) return ''
@@ -235,7 +245,10 @@ const Maintenance = () => {
     }
   }
 
-  const daysInMonth = useMemo(() => new Date(calYear, calMonth, 0).getDate(), [calYear, calMonth])
+  const monthCells = useMemo(
+    () => buildMonthCells(calYear, calMonth - 1),
+    [calYear, calMonth],
+  )
   const eventsByDay = useMemo(() => {
     const map = {}
     for (const ev of events) {
@@ -543,42 +556,86 @@ const Maintenance = () => {
       )}
 
       {tab === 'calendar' && (
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <button type="button" className="px-3 py-1.5 border rounded-lg text-sm" onClick={() => {
-              if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1) }
-              else setCalMonth((m) => m - 1)
-            }}>Prev</button>
-            <p className="text-sm font-medium text-gray-800 min-w-[8rem] text-center">
-              {new Date(calYear, calMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </p>
-            <button type="button" className="px-3 py-1.5 border rounded-lg text-sm" onClick={() => {
-              if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1) }
-              else setCalMonth((m) => m + 1)
-            }}>Next</button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-xs">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d} className="text-center text-gray-400 py-1 font-medium">{d}</div>
-            ))}
-            {Array.from({ length: new Date(calYear, calMonth - 1, 1).getDay() }).map((_, i) => (
-              <div key={`pad-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1
-              const dayEvents = eventsByDay[day] || []
-              return (
-                <div key={day} className="min-h-[4.5rem] border border-borderColor rounded-md p-1 bg-white">
-                  <p className="text-[10px] text-gray-400">{day}</p>
-                  {dayEvents.slice(0, 3).map((ev) => (
-                    <p key={ev._id} className="text-[9px] leading-tight truncate text-amber-800 bg-amber-50 rounded px-0.5 mt-0.5">
-                      {ev.title}
-                    </p>
+        <div className="mt-6 hdn-ops">
+          <div className="hdn-ops-shell">
+            <div className="hdn-ops-toolbar">
+              <div className="hdn-ops-nav" style={{ justifyContent: 'flex-start' }}>
+                <button
+                  type="button"
+                  className="hdn-cal-icon-btn"
+                  onClick={() => {
+                    const next = addMonths(new Date(calYear, calMonth - 1, 1), -1)
+                    setCalMonth(next.getMonth() + 1)
+                    setCalYear(next.getFullYear())
+                  }}
+                  aria-label={t('admin.calendar.prev')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+                </button>
+                <h2 className="hdn-ops-title">
+                  {(MONTHS[language] || MONTHS.en)[calMonth - 1]} {calYear}
+                </h2>
+                <button
+                  type="button"
+                  className="hdn-cal-icon-btn"
+                  onClick={() => {
+                    const next = addMonths(new Date(calYear, calMonth - 1, 1), 1)
+                    setCalMonth(next.getMonth() + 1)
+                    setCalYear(next.getFullYear())
+                  }}
+                  aria-label={t('admin.calendar.next')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="hdn-ops-ghost"
+                onClick={() => {
+                  const n = new Date()
+                  setCalMonth(n.getMonth() + 1)
+                  setCalYear(n.getFullYear())
+                }}
+              >
+                {t('admin.calendar.today')}
+              </button>
+            </div>
+            <div className="hdn-ops-body">
+              <div className="hdn-ops-scroll">
+                <div className="hdn-ops-weekdays">
+                  {(WEEKDAYS[language] || WEEKDAYS.en).map((d) => (
+                    <div key={d} className="hdn-ops-weekday">{d}</div>
                   ))}
-                  {dayEvents.length > 3 && <p className="text-[9px] text-gray-400">+{dayEvents.length - 3}</p>}
                 </div>
-              )
-            })}
+                <div className="hdn-ops-month">
+                  {monthCells.map(({ date, inMonth }) => {
+                    const dayEvents = inMonth ? (eventsByDay[date.getDate()] || []) : []
+                    const isToday = sameDay(date, startOfDay(new Date()))
+                    return (
+                      <div
+                        key={date.toISOString()}
+                        className={`hdn-ops-cell${inMonth ? '' : ' is-out'}${isToday ? ' is-today' : ''}`}
+                        style={{ cursor: 'default' }}
+                      >
+                        <div className="hdn-ops-cell-top">
+                          <span className="hdn-ops-num">{date.getDate()}</span>
+                          {dayEvents.length ? <span className="hdn-ops-count">{dayEvents.length}</span> : null}
+                        </div>
+                        {dayEvents.slice(0, 2).map((ev) => (
+                          <span key={ev._id} className="hdn-ops-chip is-pending">
+                            <span className="hdn-ops-chip-dot" />
+                            <span className="hdn-ops-chip-txt">{ev.title}</span>
+                          </span>
+                        ))}
+                        {dayEvents.length > 2 ? (
+                          <span className="hdn-ops-more">{t('admin.calendar.more', { count: dayEvents.length - 2 })}</span>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

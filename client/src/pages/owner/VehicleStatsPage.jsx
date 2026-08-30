@@ -7,6 +7,7 @@ import { downloadXlsx } from '../../utils/downloadXlsx'
 import Title from '../../components/owner/Title'
 import { useI18n } from '../../i18n/I18nContext'
 import DateField from '../../components/calendar/DateField'
+import '../../components/calendar/opsCalendar.css'
 
 const formatCurrency = (value, currency = '$') => `${currency}${Number(value || 0).toLocaleString()}`
 
@@ -384,12 +385,14 @@ const VehicleStatsPage = () => {
                 <p className='text-sm text-gray-500'>{t('admin.vehicleStats.availabilityHint')}</p>
               </div>
             </div>
-            <div className='mt-5 grid gap-2 md:grid-cols-7'>
+            <div className='hdn-ops mt-5 grid gap-2 md:grid-cols-7'>
               {availability.slice(0, 7).map((day) => (
-                <div key={day.date} className='rounded-2xl border border-borderColor bg-gray-50 p-3 text-center text-sm'>
-                  <p className='font-medium text-gray-700'>{day.label}</p>
-                  <p className='mt-2 text-xs text-gray-500'>{day.date}</p>
-                  <p className={`mt-2 rounded-full px-2 py-1 text-[11px] font-semibold ${day.isBooked ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{day.isBooked ? t('admin.vehicleStats.booked') : t('admin.vehicleStats.free')}</p>
+                <div key={day.date} className={`hdn-ops-week-col text-center !min-h-0 ${day.isBooked ? '' : ''}`}>
+                  <p className='hdn-ops-week-kicker'>{day.label}</p>
+                  <p className='hdn-ops-week-num !text-xl !mb-2'>{String(day.date).slice(-2)}</p>
+                  <p className={`hdn-ops-chip ${day.isBooked ? 'is-pending' : 'is-active'}`} style={{ justifyContent: 'center' }}>
+                    {day.isBooked ? t('admin.vehicleStats.booked') : t('admin.vehicleStats.free')}
+                  </p>
                 </div>
               ))}
             </div>
