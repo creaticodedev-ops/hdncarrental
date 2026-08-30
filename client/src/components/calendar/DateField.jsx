@@ -6,7 +6,6 @@ import {
   MONTHS,
   TIME_PRESETS,
   addMonths,
-  formatDisplay,
   formatTicketParts,
   minuteOptions,
   pad,
@@ -17,6 +16,19 @@ import {
   toDateValue,
   toTimeValue,
 } from './calendarUtils'
+import {
+  applyMaskInput,
+  backspaceThroughSeparator,
+  caretFromDigitIndex,
+  commitMaskValue,
+  digitIndexFromCaret,
+  digitsOnly,
+  formatDate,
+  formatFromDigits,
+  formatMaskFromValue,
+  formatTimeFromDigits,
+  isDateInBounds,
+} from './dateMask'
 import './calendar.css'
 
 const MOBILE_MQ = '(max-width: 639px)'
@@ -84,6 +96,10 @@ const DateField = ({
   const triggerId = id || uid
   const wrapRef = useRef(null)
   const panelRef = useRef(null)
+  const inputRef = useRef(null)
+  const openRef = useRef(false)
+  const ignoreBlurRef = useRef(false)
+  const caretRef = useRef(null)
   const hourListRef = useRef(null)
   const minuteListRef = useRef(null)
   const [open, setOpen] = useState(false)
@@ -94,6 +110,9 @@ const DateField = ({
   const [viewMonth, setViewMonth] = useState(() => parsed.date || startOfDay(new Date()))
   const [hours, setHours] = useState(parsed.hours)
   const [minutes, setMinutes] = useState(parsed.minutes)
+  const [draft, setDraft] = useState(() => formatMaskFromValue(value, mode))
+  const [invalid, setInvalid] = useState(false)
+  const [focused, setFocused] = useState(false)
 
   const minBound = useMemo(() => parseBound(min, false), [min])
   const maxBound = useMemo(() => parseBound(max, true), [max])
@@ -102,13 +121,26 @@ const DateField = ({
   const months = MONTHS[language] || MONTHS.en
   const hasTime = mode === 'datetime' || mode === 'time'
   const ticket = formatTicketParts(parsed.date, language)
+  const formatHint = placeholder || (
+    mode === 'datetime' ? t('calendar.placeholderDateTime')
+      : mode === 'time' ? t('calendar.placeholderTime')
+        : t('calendar.placeholderDate')
+  )
+
+  useEffect(() => {
+    openRef.current = open
+  }, [open])
 
   useEffect(() => {
     const next = parseFieldValue(value)
     if (next.date) setViewMonth(next.date)
     setHours(next.hours)
     setMinutes(next.minutes)
-  }, [value])
+    if (!focused) {
+      setDraft(formatMaskFromValue(value, mode))
+      setInvalid(false)
+    }
+  }, [value, mode, focused])
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MQ)
@@ -153,6 +185,142 @@ const DateField = ({
     if (maxBound && stamp.getTime() > maxBound.getTime()) return true
     return false
   }
+
+  const syncDraftFromParts = (date, h, m) => {
+    if (mode === 'time') {
+      setDraft(formatTimeFromDigits(`${pad(h)}${pad(m)}`))
+      return
+    }
+    if (!date) {
+      setDraft('')
+      return
+    }
+    const datePart = formatDate(date)
+    setDraft(mode === 'datetime' ? `${datePart} ${formatTimeFromDigits(`${pad(h)}${pad(m)}`)}` : datePart)
+  }
+
+  const tryEmitDigits = (nextDigits) => {
+    if (!nextDigits) {
+      setInvalid(false)
+      onChange?.('')
+      return
+    }
+    const committed = commitMaskValue(nextDigits, mode, hours, minutes)
+    if (!committed.ready) {
+      setInvalid(false)
+      return
+    }
+    if (!committed.valid) {
+      setInvalid(true)
+      return
+    }
+    if (mode === 'time') {
+      if (timeDisabled(committed.hours, committed.minutes)) {
+        setInvalid(true)
+        return
+      }
+      setInvalid(false)
+      setHours(committed.hours)
+      setMinutes(committed.minutes)
+      emit(null, committed.hours, committed.minutes)
+      return
+    }
+    if (!isDateInBounds(committed.date, minDay, maxDay)) {
+      setInvalid(true)
+      return
+    }
+    if (mode === 'datetime') {
+      const stamp = new Date(committed.date)
+      stamp.setHours(committed.hours, committed.minutes, 0, 0)
+      if (minBound && stamp.getTime() < minBound.getTime()) {
+        setInvalid(true)
+        return
+      }
+      if (maxBound && stamp.getTime() > maxBound.getTime()) {
+        setInvalid(true)
+        return
+      }
+      setHours(committed.hours)
+      setMinutes(committed.minutes)
+    }
+    setInvalid(false)
+    setViewMonth(committed.date)
+    emit(committed.date, committed.hours ?? hours, committed.minutes ?? minutes)
+  }
+
+  const applyDigits = (nextDigits, caretDigits) => {
+    const formatted = formatFromDigits(nextDigits, mode)
+    caretRef.current = caretFromDigitIndex(formatted, caretDigits ?? nextDigits.length)
+    setDraft(formatted)
+    tryEmitDigits(nextDigits)
+  }
+
+  const onTyped = (e) => {
+    const nextRaw = e.target.value
+    const prevDigits = digitsOnly(draft)
+    let nextDigits = applyMaskInput(prevDigits, nextRaw, mode)
+    if (nextRaw.length < draft.length && digitsOnly(nextRaw) === prevDigits && /[/: ]$/.test(draft)) {
+      nextDigits = prevDigits.slice(0, -1)
+    }
+    const extra = Math.max(0, nextDigits.length - digitsOnly(nextRaw).length)
+    applyDigits(nextDigits, digitIndexFromCaret(nextRaw, e.target.selectionStart) + extra)
+  }
+
+  const revertDraft = () => {
+    setDraft(formatMaskFromValue(value, mode))
+    setInvalid(false)
+  }
+
+  const onBlurInput = () => {
+    setFocused(false)
+    window.setTimeout(() => {
+      if (ignoreBlurRef.current) {
+        ignoreBlurRef.current = false
+        inputRef.current?.focus()
+        return
+      }
+      if (openRef.current) return
+      if (wrapRef.current?.contains(document.activeElement)) return
+      if (panelRef.current?.contains(document.activeElement)) return
+      const nextDigits = digitsOnly(draft)
+      if (!nextDigits) {
+        setInvalid(false)
+        setDraft('')
+        if (value) onChange?.('')
+        return
+      }
+      const committed = commitMaskValue(nextDigits, mode, hours, minutes)
+      if (!committed.ready || !committed.valid) revertDraft()
+    }, 0)
+  }
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Tab') return
+    if (e.key === 'Backspace' && e.target.selectionStart === e.target.selectionEnd) {
+      const next = backspaceThroughSeparator(draft, e.target.selectionStart)
+      if (next !== null) {
+        e.preventDefault()
+        applyDigits(next, next.length)
+      }
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const committed = commitMaskValue(digitsOnly(draft), mode, hours, minutes)
+      if (!committed.ready || !committed.valid) revertDraft()
+      if (mode === 'date') closePanel()
+    }
+    if (e.key === 'ArrowDown' && !open) {
+      e.preventDefault()
+      openPanel()
+    }
+  }
+
+  useLayoutEffect(() => {
+    if (caretRef.current == null || !inputRef.current) return
+    const pos = Math.min(caretRef.current, inputRef.current.value.length)
+    inputRef.current.setSelectionRange(pos, pos)
+    caretRef.current = null
+  }, [draft])
 
   const panelWidth = mode === 'datetime' ? 428 : mode === 'time' ? 220 : 308
 
@@ -200,6 +368,7 @@ const DateField = ({
       if (e.key === 'Escape') {
         setOpen(false)
         setView('days')
+        inputRef.current?.focus()
       }
     }
     document.addEventListener('mousedown', onDoc)
@@ -236,6 +405,8 @@ const DateField = ({
   }
 
   const pickDay = (date) => {
+    setInvalid(false)
+    syncDraftFromParts(date, hours, minutes)
     emit(date, hours, minutes)
     if (mode === 'date') closePanel()
   }
@@ -243,7 +414,11 @@ const DateField = ({
   const pickTime = (h, m) => {
     setHours(h)
     setMinutes(m)
-    if (mode === 'time' || selected) emit(selected, h, m)
+    setInvalid(false)
+    if (mode === 'time' || selected) {
+      syncDraftFromParts(selected, h, m)
+      emit(selected, h, m)
+    }
   }
 
   const pickToday = () => {
@@ -260,6 +435,8 @@ const DateField = ({
     setHours(h)
     setMinutes(m)
     setViewMonth(today)
+    setInvalid(false)
+    syncDraftFromParts(today, h, m)
     emit(today, h, m)
     if (mode === 'date') closePanel()
   }
@@ -271,13 +448,10 @@ const DateField = ({
   }
 
   const yearStart = Math.floor(viewMonth.getFullYear() / 12) * 12
-  const display = formatDisplay(value, language, mode)
-  const emptyLabel = placeholder || (
-    mode === 'datetime' ? t('calendar.pickDateTime') : mode === 'time' ? t('calendar.pickTime') : t('calendar.pickDate')
-  )
   const todayDisabled = mode !== 'time' && Boolean(
     (minDay && startOfDay(new Date()) < minDay) || (maxDay && startOfDay(new Date()) > maxDay),
   )
+  const filled = Boolean(mode === 'time' ? String(value || '').trim() : selected)
 
   const panel = open ? (
     <div
@@ -290,7 +464,8 @@ const DateField = ({
         className={`hdn-cal hdn-cal-panel is-${mode}`}
         style={isMobile ? undefined : panelStyle}
         role="dialog"
-        aria-label={emptyLabel}
+        aria-label={t(mode === 'datetime' ? 'calendar.pickDateTime' : mode === 'time' ? 'calendar.pickTime' : 'calendar.pickDate')}
+        onMouseDown={() => { ignoreBlurRef.current = true }}
         onClick={isMobile ? (e) => e.stopPropagation() : undefined}
       >
         {isMobile ? <div className="hdn-cal-sheet-handle" /> : null}
@@ -418,15 +593,15 @@ const DateField = ({
             <p className="hdn-cal-presets-label">{t('calendar.suggested')}</p>
             <div className="hdn-cal-presets-row">
               {TIME_PRESETS.map((h) => {
-                const disabled = timeDisabled(h, 0)
+                const disabledTime = timeDisabled(h, 0)
                 const active = hours === h && minutes === 0
                 return (
                   <button
                     key={h}
                     type="button"
-                    disabled={disabled}
+                    disabled={disabledTime}
                     className={`hdn-cal-preset${active ? ' is-selected' : ''}`}
-                    onClick={() => !disabled && pickTime(h, 0)}
+                    onClick={() => !disabledTime && pickTime(h, 0)}
                   >
                     {pad(h)}:00
                   </button>
@@ -439,7 +614,7 @@ const DateField = ({
         <div className="hdn-cal-foot">
           <div className="hdn-cal-foot-links">
             {!required ? (
-              <button type="button" className="hdn-cal-link" onClick={() => { onChange?.(''); closePanel() }}>
+              <button type="button" className="hdn-cal-link" onClick={() => { onChange?.(''); setDraft(''); setInvalid(false); closePanel() }}>
                 {t('calendar.clear')}
               </button>
             ) : null}
@@ -457,29 +632,53 @@ const DateField = ({
 
   return (
     <div className="hdn-cal-field" ref={wrapRef}>
-      <button
-        type="button"
-        id={triggerId}
-        className={`hdn-cal-trigger ${className}${open ? ' is-open' : ''}`}
-        disabled={disabled}
-        onClick={openPanel}
-        aria-haspopup="dialog"
-        aria-expanded={open}
+      <div
+        className={`hdn-cal-trigger ${className}${open ? ' is-open' : ''}${focused ? ' is-focused' : ''}${invalid ? ' is-invalid' : ''}`}
+        onClick={() => { if (!disabled) inputRef.current?.focus() }}
       >
-        {mode === 'time' ? (
-          <ClockIcon />
-        ) : selected ? (
-          <span className="hdn-cal-trigger-badge" aria-hidden>
-            <span className="hdn-cal-trigger-badge-mo">{ticket.monthShort}</span>
-            <span className="hdn-cal-trigger-badge-dy">{ticket.day}</span>
-          </span>
-        ) : (
-          <CalIcon />
-        )}
-        <span className={`hdn-cal-trigger-value${display ? '' : ' is-empty'}`}>
-          {display || emptyLabel}
-        </span>
-      </button>
+        <button
+          type="button"
+          className={`hdn-cal-trigger-open${filled ? ' is-filled' : ''}`}
+          tabIndex={-1}
+          disabled={disabled}
+          aria-label={t('calendar.open')}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            if (disabled) return
+            if (open) closePanel()
+            else openPanel()
+            inputRef.current?.focus()
+          }}
+        >
+          {mode === 'time' ? <ClockIcon /> : <CalIcon />}
+        </button>
+        <div className="hdn-cal-type-wrap">
+          <input
+            ref={inputRef}
+            id={triggerId}
+            className="hdn-cal-type"
+            value={draft}
+            disabled={disabled}
+            inputMode="numeric"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            aria-invalid={invalid}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={formatHint}
+            placeholder={formatHint}
+            onChange={onTyped}
+            onFocus={() => {
+              setFocused(true)
+              if (!isMobile) openPanel()
+            }}
+            onBlur={onBlurInput}
+            onKeyDown={onKeyDown}
+          />
+        </div>
+      </div>
       <input
         className="hdn-cal-sr"
         tabIndex={-1}
@@ -487,7 +686,7 @@ const DateField = ({
         value={value || ''}
         required={required}
         onChange={() => {}}
-        onFocus={openPanel}
+        onFocus={() => inputRef.current?.focus()}
       />
       {open && typeof document !== 'undefined' ? createPortal(panel, document.body) : null}
     </div>

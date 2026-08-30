@@ -10,6 +10,17 @@ import {
   startOfDay,
   toISODate,
 } from './calendar/calendarUtils'
+import {
+  applyDateInput,
+  backspaceThroughSeparator,
+  caretFromDigitIndex,
+  digitIndexFromCaret,
+  digitsOnly,
+  formatDate,
+  formatDateFromDigits,
+  isDateInBounds,
+  parseDateDigits,
+} from './calendar/dateMask'
 import './calendar/calendar.css'
 
 export { toISODate, parseISODate } from './calendar/calendarUtils'
@@ -25,6 +36,92 @@ const formatShort = (iso, language) => {
   if (!d) return ''
   const locale = language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB'
   return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const isoToDraft = (iso) => {
+  const date = parseISODate(iso)
+  return date ? formatDate(date) : ''
+}
+
+const TypedRangeInput = ({
+  id,
+  label,
+  draft,
+  active,
+  placeholder,
+  invalid,
+  onDraft,
+  onFocusField,
+  onBlurField,
+  onOpen,
+}) => {
+  const inputRef = useRef(null)
+  const caretRef = useRef(null)
+
+  useLayoutEffect(() => {
+    if (caretRef.current == null || !inputRef.current) return
+    const pos = Math.min(caretRef.current, inputRef.current.value.length)
+    inputRef.current.setSelectionRange(pos, pos)
+    caretRef.current = null
+  }, [draft])
+
+  const applyDigits = (nextDigits, caretDigits) => {
+    const formatted = formatDateFromDigits(nextDigits)
+    caretRef.current = caretFromDigitIndex(formatted, caretDigits ?? nextDigits.length)
+    onDraft(formatted, nextDigits)
+  }
+
+  const onChange = (e) => {
+    const nextRaw = e.target.value
+    const prevDigits = digitsOnly(draft)
+    let nextDigits = applyDateInput(prevDigits, nextRaw)
+    if (nextRaw.length < draft.length && digitsOnly(nextRaw) === prevDigits && /[/: ]$/.test(draft)) {
+      nextDigits = prevDigits.slice(0, -1)
+    }
+    const extra = Math.max(0, nextDigits.length - digitsOnly(nextRaw).length)
+    applyDigits(nextDigits, digitIndexFromCaret(nextRaw, e.target.selectionStart) + extra)
+  }
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Tab') return
+    if (e.key === 'Backspace' && e.target.selectionStart === e.target.selectionEnd) {
+      const next = backspaceThroughSeparator(draft, e.target.selectionStart)
+      if (next !== null) {
+        e.preventDefault()
+        applyDigits(next, next.length)
+      }
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      onOpen()
+    }
+  }
+
+  return (
+    <div className={`hdn-cal-range-field${active ? ' is-active' : ''}${invalid ? ' is-invalid' : ''}`}>
+      {label ? <label htmlFor={id} className="hdn-cal-range-label">{label}</label> : null}
+      <div className="hdn-cal-type-wrap">
+        <input
+          ref={inputRef}
+          id={id}
+          className="hdn-cal-type"
+          value={draft}
+          inputMode="numeric"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          aria-invalid={invalid}
+          aria-label={label || placeholder}
+          placeholder={placeholder}
+          onChange={onChange}
+          onFocus={onFocusField}
+          onBlur={onBlurField}
+          onKeyDown={onKeyDown}
+        />
+      </div>
+    </div>
+  )
 }
 
 const addDays = (date, count) => {
@@ -74,14 +171,36 @@ const DateRangePicker = ({
   const [hover, setHover] = useState(null)
   const [panelStyle, setPanelStyle] = useState({})
   const [isMobile, setIsMobile] = useState(false)
+  const [startDraft, setStartDraft] = useState(() => isoToDraft(startDate))
+  const [endDraft, setEndDraft] = useState(() => isoToDraft(endDate))
+  const [startInvalid, setStartInvalid] = useState(false)
+  const [endInvalid, setEndInvalid] = useState(false)
+  const [focusedField, setFocusedField] = useState(null)
+  const dateHint = t('calendar.placeholderDate')
 
   const wrapRef = useRef(null)
   const panelRef = useRef(null)
+  const openRef = useRef(false)
+  const ignoreBlurRef = useRef(false)
 
   const min = useMemo(() => startOfDay(minDate || new Date()), [minDate])
   const max = useMemo(() => (maxDate ? startOfDay(maxDate) : null), [maxDate])
   const start = useMemo(() => parseISODate(startDate), [startDate])
   const end = useMemo(() => parseISODate(endDate), [endDate])
+
+  useEffect(() => {
+    if (focusedField !== 'start') {
+      setStartDraft(isoToDraft(startDate))
+      setStartInvalid(false)
+    }
+  }, [startDate, focusedField])
+
+  useEffect(() => {
+    if (focusedField !== 'end') {
+      setEndDraft(isoToDraft(endDate))
+      setEndInvalid(false)
+    }
+  }, [endDate, focusedField])
   const span = Math.max(1, Math.round(Number(minSpanDays) || 1))
   const maxSpan = Math.max(0, Math.round(Number(maxSpanDays) || 0))
   const periods = useMemo(
@@ -116,6 +235,10 @@ const DateRangePicker = ({
 
   const gridMin = activeField === 'end' && start ? endMin : min
   const gridMax = activeField === 'end' && start ? endMax : max
+
+  useEffect(() => {
+    openRef.current = open
+  }, [open])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)')
@@ -213,6 +336,10 @@ const DateRangePicker = ({
 
     if (activeField === 'start' || !start || (start && end)) {
       onChange({ startDate: toISODate(date), endDate: '' })
+      setStartDraft(formatDate(date))
+      setEndDraft('')
+      setStartInvalid(false)
+      setEndInvalid(false)
       setActiveField('end')
       setHover(null)
       return
@@ -220,6 +347,8 @@ const DateRangePicker = ({
 
     if (isBeforeDay(date, start)) {
       onChange({ startDate: toISODate(date), endDate: '' })
+      setStartDraft(formatDate(date))
+      setEndDraft('')
       setActiveField('end')
       return
     }
@@ -229,13 +358,126 @@ const DateRangePicker = ({
     if (rangeCrossesUnavailable(start, date)) return
 
     onChange({ startDate: toISODate(start), endDate: toISODate(date) })
+    setEndDraft(formatDate(date))
+    setEndInvalid(false)
     setHover(null)
     setTimeout(() => setOpen(false), 160)
+  }
+
+  const commitTypedDate = (field, date) => {
+    if (!isDateInBounds(date, min, max) || isDateBlocked(date)) {
+      if (field === 'start') setStartInvalid(true)
+      else setEndInvalid(true)
+      return
+    }
+
+    if (field === 'start') {
+      onChange({ startDate: toISODate(date), endDate: '' })
+      setStartDraft(formatDate(date))
+      setEndDraft('')
+      setStartInvalid(false)
+      setEndInvalid(false)
+      setActiveField('end')
+      setHover(null)
+      setViewMonth(date)
+      return
+    }
+
+    if (!start) {
+      commitTypedDate('start', date)
+      return
+    }
+
+    if (isBeforeDay(date, start)) {
+      onChange({ startDate: toISODate(date), endDate: '' })
+      setStartDraft(formatDate(date))
+      setEndDraft('')
+      setEndInvalid(false)
+      setActiveField('end')
+      return
+    }
+
+    if (isBeforeDay(date, endMin) || (endMax && isAfterDay(date, endMax)) || rangeCrossesUnavailable(start, date)) {
+      setEndInvalid(true)
+      return
+    }
+
+    onChange({ startDate: toISODate(start), endDate: toISODate(date) })
+    setEndDraft(formatDate(date))
+    setEndInvalid(false)
+    setHover(null)
+    setViewMonth(date)
+  }
+
+  const onTypedDraft = (field, formatted, digits) => {
+    if (field === 'start') setStartDraft(formatted)
+    else setEndDraft(formatted)
+    if (!digits) {
+      if (field === 'start') {
+        setStartInvalid(false)
+        onChange({ startDate: '', endDate: '' })
+        setEndDraft('')
+      } else {
+        setEndInvalid(false)
+        onChange({ startDate: startDate || '', endDate: '' })
+      }
+      return
+    }
+    const parsed = parseDateDigits(digits)
+    if (!parsed.complete) {
+      if (field === 'start') setStartInvalid(false)
+      else setEndInvalid(false)
+      return
+    }
+    if (!parsed.valid) {
+      if (field === 'start') setStartInvalid(true)
+      else setEndInvalid(true)
+      return
+    }
+    commitTypedDate(field, parsed.date)
+  }
+
+  const onBlurTyped = (field) => {
+    setFocusedField((current) => (current === field ? null : current))
+    window.requestAnimationFrame(() => {
+      if (ignoreBlurRef.current) {
+        ignoreBlurRef.current = false
+        return
+      }
+      if (openRef.current) return
+      if (wrapRef.current?.contains(document.activeElement)) return
+      if (panelRef.current?.contains(document.activeElement)) return
+      if (field === 'start') {
+        const parsed = parseDateDigits(digitsOnly(startDraft))
+        if (!startDraft) {
+          setStartInvalid(false)
+          return
+        }
+        if (!parsed.complete || !parsed.valid) {
+          setStartDraft(isoToDraft(startDate))
+          setStartInvalid(false)
+        }
+      } else {
+        const parsed = parseDateDigits(digitsOnly(endDraft))
+        if (!endDraft) {
+          setEndInvalid(false)
+          return
+        }
+        if (!parsed.complete || !parsed.valid) {
+          setEndDraft(isoToDraft(endDate))
+          setEndInvalid(false)
+        }
+      }
+    })
   }
 
   const clearDates = (e) => {
     e.stopPropagation()
     onChange({ startDate: '', endDate: '' })
+    setStartDraft('')
+    setEndDraft('')
+    setStartInvalid(false)
+    setEndInvalid(false)
     setActiveField('start')
     setHover(null)
   }
@@ -244,31 +486,50 @@ const DateRangePicker = ({
     start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000)) : 0
 
   const fieldBase =
-    'booking-tap flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 cursor-pointer rounded-2xl md:rounded-none flex flex-col justify-center'
+    'booking-tap flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 rounded-2xl md:rounded-none flex items-center gap-3'
 
-  const splitField = (active, onClick, label, value, empty) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`booking-tap flex min-h-12 w-full items-center gap-3 rounded-[0.9rem] border bg-white px-3.5 text-left transition duration-200 cursor-pointer ${
-        open && active
-          ? 'border-primary/40 shadow-[0_0_0_4px_rgba(143,31,31,0.08)]'
-          : 'border-borderColor/80 hover:border-ink/15'
-      }`}
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60">
-        <CalendarGlyph />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-          {label}
-        </span>
-        <span className={`block truncate text-[15px] leading-none ${value ? 'font-medium text-ink' : 'text-muted/55'}`}>
-          {value || empty}
-        </span>
-      </span>
-    </button>
-  )
+  const renderRangeField = (field, label, joined) => {
+    const active = open && activeField === field
+    const invalid = field === 'start' ? startInvalid : endInvalid
+    const draft = field === 'start' ? startDraft : endDraft
+    const shell = joined
+      ? `${fieldBase} ${active ? 'bg-sand/50' : 'hover:bg-sand/30'} ${invalid ? 'hdn-cal-trigger is-invalid' : ''}`
+      : `booking-tap flex min-h-12 w-full items-center gap-3 rounded-[0.9rem] border bg-white px-3.5 text-left transition duration-200 ${
+          invalid
+            ? 'border-red-400 shadow-[0_0_0_4px_rgba(180,35,24,0.08)]'
+            : active
+              ? 'border-primary/40 shadow-[0_0_0_4px_rgba(143,31,31,0.08)]'
+              : 'border-borderColor/80 hover:border-ink/15'
+        }`
+
+    return (
+      <div className={shell}>
+        <button
+          type="button"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light text-muted ring-1 ring-borderColor/60 cursor-pointer"
+          aria-label={t('calendar.open')}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => openCalendar(field === 'end' && !start ? 'start' : field)}
+        >
+          <CalendarGlyph />
+        </button>
+        <TypedRangeInput
+          label={label}
+          draft={draft}
+          active={active}
+          placeholder={dateHint}
+          invalid={invalid}
+          onDraft={(formatted, digits) => onTypedDraft(field, formatted, digits)}
+          onFocusField={() => {
+            setFocusedField(field)
+            if (!isMobile) openCalendar(field === 'end' && !start ? 'start' : field)
+          }}
+          onBlurField={() => onBlurTyped(field)}
+          onOpen={() => openCalendar(field === 'end' && !start ? 'start' : field)}
+        />
+      </div>
+    )
+  }
 
   const monthProps = {
     minDate: gridMin,
@@ -298,6 +559,7 @@ const DateRangePicker = ({
             ? 'hdn-cal bg-white rounded-t-3xl p-4 sm:p-5 pb-[max(2rem,env(safe-area-inset-bottom))] max-h-[88svh] overflow-y-auto shadow-2xl'
             : 'hdn-cal rounded-2xl border border-borderColor bg-white p-4 sm:p-5 shadow-[0_24px_60px_-20px_rgba(22,18,16,0.35)] max-h-[min(560px,calc(100vh-24px))] overflow-y-auto'
         }
+        onMouseDown={() => { ignoreBlurRef.current = true }}
         onClick={(e) => e.stopPropagation()}
       >
         {isMobile && (
@@ -381,49 +643,14 @@ const DateRangePicker = ({
   return (
     <div className={`relative ${className}`} ref={wrapRef}>
       {variant === 'split' ? (
-        <div className="grid grid-cols-2 gap-3 [&>button]:min-w-0">
-          {splitField(
-            activeField === 'start',
-            () => openCalendar('start'),
-            pickupLabel || t('hero.pickupDate'),
-            startDate ? formatShort(startDate, language) : '',
-            t('hero.selectPickup'),
-          )}
-          {splitField(
-            activeField === 'end',
-            () => openCalendar(start ? 'end' : 'start'),
-            returnLabel || t('hero.returnDate'),
-            endDate ? formatShort(endDate, language) : '',
-            t('hero.selectReturn'),
-          )}
+        <div className="grid grid-cols-2 gap-3 min-w-0">
+          {renderRangeField('start', pickupLabel || t('hero.pickupDate'), false)}
+          {renderRangeField('end', returnLabel || t('hero.returnDate'), false)}
         </div>
       ) : (
         <div className="flex flex-col divide-y divide-borderColor/80 md:flex-row md:items-stretch md:divide-x md:divide-y-0">
-          <button
-            type="button"
-            onClick={() => openCalendar('start')}
-            className={`${fieldBase} ${open && activeField === 'start' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
-          >
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-              {pickupLabel || t('hero.pickupDate')}
-            </p>
-            <p className={`truncate text-[15px] leading-none ${startDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
-              {startDate ? formatShort(startDate, language) : t('hero.selectPickup')}
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => openCalendar(start ? 'end' : 'start')}
-            className={`${fieldBase} ${open && activeField === 'end' ? 'bg-sand/50' : 'hover:bg-sand/30 active:bg-sand/40'}`}
-          >
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-              {returnLabel || t('hero.returnDate')}
-            </p>
-            <p className={`truncate text-[15px] leading-none ${endDate ? 'font-medium text-ink' : 'text-muted/55'}`}>
-              {endDate ? formatShort(endDate, language) : t('hero.selectReturn')}
-            </p>
-          </button>
+          {renderRangeField('start', pickupLabel || t('hero.pickupDate'), true)}
+          {renderRangeField('end', returnLabel || t('hero.returnDate'), true)}
         </div>
       )}
 

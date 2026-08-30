@@ -21,25 +21,113 @@
 .hdn-cal-trigger {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.55rem;
   width: 100%;
   text-align: left;
-  cursor: pointer;
   appearance: none;
   font: inherit;
   color: inherit;
+  cursor: text;
 }
 
-.hdn-cal-trigger:disabled {
+.hdn-cal-trigger:disabled,
+.hdn-cal-trigger:has(.hdn-cal-type:disabled) {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.hdn-cal-trigger-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--hdn-cal-muted);
+  cursor: pointer;
+}
+
+.hdn-cal-trigger-open:hover,
+.hdn-cal-trigger-open.is-filled {
+  color: var(--hdn-cal-accent);
+}
+
+.hdn-cal-trigger-open:disabled {
+  cursor: not-allowed;
+}
+
+.hdn-cal-type-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 1.25em;
+}
+
+.hdn-cal-type {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: inherit;
+  caret-color: var(--hdn-cal-accent);
+  outline: none;
+  box-shadow: none;
+}
+
+.hdn-cal-type::placeholder {
+  color: var(--hdn-cal-muted);
+  letter-spacing: 0.12em;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.hdn-cal-range-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.12rem;
+}
+
+.hdn-cal-range-label {
+  font-size: 0.625rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hdn-cal-muted);
+}
+
+.hdn-cal-range-field.is-invalid .hdn-cal-type {
+  color: #b42318;
+}
+
+.hdn-cal-trigger.is-invalid {
+  border-color: color-mix(in srgb, #b42318 55%, var(--hdn-cal-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, #b42318 12%, transparent);
+}
+
+.hdn-cal-trigger.is-invalid .hdn-cal-type {
+  color: #b42318;
 }
 
 .hdn-cal-trigger-icon {
   flex-shrink: 0;
   width: 1.05rem;
   height: 1.05rem;
-  color: var(--hdn-cal-muted);
+  color: inherit;
 }
 
 .hdn-cal-trigger-badge {
