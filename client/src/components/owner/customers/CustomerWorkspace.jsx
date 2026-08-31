@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { FormField } from '../../../admin/ui'
+import { FormField, StatusBadge } from '../../../admin/ui'
 import WhatsAppGlyph from '../../WhatsAppGlyph'
 import { customerEmail } from '../../../utils/customerEmail'
 import { getErrorMessage } from '../../../utils/apiError'
@@ -10,6 +10,7 @@ import { buildAgentInsight } from './crmInsights'
 import {
   CRM_TABS,
   SMART_TONES,
+  LOYALTY_TONES,
   WA_TEMPLATES,
   FOLLOW_UP_TO_TEMPLATE,
   JOURNEY_VISIBLE,
@@ -26,7 +27,7 @@ const Stars = ({ value = 0, onChange, size = 'text-lg' }) => (
         key={n}
         type="button"
         onClick={() => onChange?.(n)}
-        className={`${onChange ? 'cursor-pointer' : 'cursor-default'} ${n <= Math.round(value) ? 'text-amber-400' : 'text-gray-300'}`}
+        className={`${onChange ? 'cursor-pointer' : 'cursor-default'} ${n <= Math.round(value) ? 'text-[var(--admin-warn)]' : 'text-[var(--admin-border-strong)]'}`}
       >
         ★
       </button>
@@ -170,16 +171,38 @@ const CustomerWorkspace = ({
   }
 
   const vehicleName = (car) => (car ? `${car.brand || ''} ${car.model || ''}`.trim() : '—')
+  const phoneTel = customer.phone ? `tel:${String(customer.phone).replace(/[^\d+]/g, '')}` : ''
+
+  const ActionRow = ({ className }) => (
+    <div className={className}>
+      <button
+        type="button"
+        className="admin-btn admin-btn-whatsapp"
+        disabled={busy || !customer.phone}
+        onClick={() => sendWhatsApp(insight.action?.templateId || 'during_rental', insight.action?.bookingId)}
+      >
+        <WhatsAppGlyph className="h-3.5 w-3.5" />
+        {t('admin.customers.whatsapp')}
+      </button>
+      {phoneTel ? (
+        <a className="admin-btn admin-btn-secondary" href={phoneTel}>
+          {t('admin.customers.call')}
+        </a>
+      ) : null}
+      {active ? (
+        <Link className="admin-btn admin-btn-secondary" to={bookingHref(active._id)}>
+          {t('admin.customers.openRental')}
+        </Link>
+      ) : null}
+    </div>
+  )
 
   return (
-    <div className="min-w-0">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <button type="button" className="crm-back" onClick={onClose}>
-          {t('admin.customers.backToList')}
+    <div className="crm-workspace min-w-0">
+      <div className="mb-3">
+        <button type="button" className="admin-btn admin-btn-ghost admin-btn-sm px-2" onClick={onClose}>
+          ← {t('admin.customers.backToList')}
         </button>
-        <Pulse tone={customer.smartStatus === 'vip' ? 'vip' : (SMART_TONES[customer.smartStatus] || 'neutral')} live={live}>
-          {t(`admin.customers.smart.${customer.smartStatus || 'inactive'}`)}
-        </Pulse>
       </div>
 
       <header className="crm-hero">
@@ -189,17 +212,22 @@ const CustomerWorkspace = ({
             <div className="min-w-0">
               <h2 className="crm-hero-name">{customer.name}</h2>
               <p className="crm-hero-contact">
-                {customer.phone || '—'}
-                {displayEmail ? `  ·  ${displayEmail}` : ''}
-                {customer.city ? `  ·  ${customer.city}` : ''}
+                {customer.phone ? <span>{customer.phone}</span> : null}
+                {displayEmail ? <span>{displayEmail}</span> : null}
+                {customer.city ? <span>{customer.city}</span> : null}
               </p>
             </div>
           </div>
           <div className="crm-hero-seals">
-            <span className={`crm-seal ${customer.loyaltyLevel === 'gold' || customer.loyaltyLevel === 'vip' ? 'is-gold' : ''}`}>
+            <Pulse tone={customer.smartStatus === 'vip' ? 'vip' : (SMART_TONES[customer.smartStatus] || 'neutral')} live={live}>
+              {t(`admin.customers.smart.${customer.smartStatus || 'inactive'}`)}
+            </Pulse>
+            <StatusBadge tone={LOYALTY_TONES[customer.loyaltyLevel] || 'info'}>
               {t(`admin.customers.loyalty.${customer.loyaltyLevel || 'new'}`)}
-            </span>
-            {customer.status === 'blacklisted' ? <span className="crm-seal">{t('admin.customers.blacklist')}</span> : null}
+            </StatusBadge>
+            {customer.status === 'blacklisted' ? (
+              <StatusBadge tone="danger">{t('admin.customers.blacklist')}</StatusBadge>
+            ) : null}
           </div>
         </div>
 
@@ -238,29 +266,16 @@ const CustomerWorkspace = ({
           </div>
           <div className="crm-insight" data-tone={insight.tone}>
             <div>
-              <p className="crm-insight-kicker">{insight.eyebrow}</p>
+              <p className="crm-insight-kicker">{t('admin.customers.insight.recommend')}</p>
               <p className="crm-insight-title">{insight.headline}</p>
             </div>
-            <button type="button" className="crm-insight-action" disabled={busy} onClick={runInsight}>
-              {t('admin.customers.insight.recommend')} {insight.actionLabel}
+            <button type="button" className="admin-btn admin-btn-primary admin-btn-sm crm-insight-action" disabled={busy} onClick={runInsight}>
+              {insight.actionLabel}
             </button>
           </div>
         </div>
 
-        <div className="crm-hero-actions">
-          <button
-            type="button"
-            className="crm-wa"
-            disabled={busy || !customer.phone}
-            onClick={() => sendWhatsApp(insight.action?.templateId || 'during_rental', insight.action?.bookingId)}
-          >
-            <WhatsAppGlyph className="h-3.5 w-3.5" />
-            {t('admin.customers.whatsapp')}
-          </button>
-          {active ? (
-            <Link className="crm-ghost" to={bookingHref(active._id)}>{t('admin.customers.openRental')}</Link>
-          ) : null}
-        </div>
+        <ActionRow className="crm-hero-actions" />
       </header>
 
       <nav className="crm-tabs" role="tablist" aria-label={t('admin.customers.workspace')}>
@@ -275,7 +290,7 @@ const CustomerWorkspace = ({
         {tab === 'overview' && (
           <>
             <div className="crm-surface">
-              <p className="crm-path-label mb-3 tracking-[0.14em] uppercase text-[var(--admin-muted)]">{t('admin.customers.journeyTitle')}</p>
+              <p className="admin-label mb-3">{t('admin.customers.journeyTitle')}</p>
               <ol className="crm-path">
                 {journeyStages.map((stage) => (
                   <li
@@ -290,7 +305,7 @@ const CustomerWorkspace = ({
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               <div className="crm-surface text-sm">
-                <p className="crm-path-label uppercase tracking-[0.14em] mb-3">{t('admin.customers.favorite')}</p>
+                <p className="admin-label mb-3">{t('admin.customers.favorite')}</p>
                 {(kpis.favoriteVehicles || []).length ? (
                   <ul className="space-y-2">
                     {kpis.favoriteVehicles.map((v) => (
@@ -305,7 +320,7 @@ const CustomerWorkspace = ({
                 )}
               </div>
               <div className="crm-surface">
-                <p className="crm-path-label uppercase tracking-[0.14em] mb-3">{t('admin.customers.internalNotes')}</p>
+                <p className="admin-label mb-3">{t('admin.customers.internalNotes')}</p>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {(customer.internalNotes || []).slice().reverse().slice(0, 5).map((n) => (
                     <div key={n._id || n.createdAt}>
@@ -337,9 +352,9 @@ const CustomerWorkspace = ({
                   <p className="crm-rental-car">{vehicleName(b.car)}</p>
                   <p className="crm-rental-dates">{formatDay(b.pickupDate, language)} → {formatDay(b.returnDate, language)}</p>
                 </div>
-                <div className="text-right">
+                <div className="crm-rental-side">
                   <p className="font-semibold">{currency}{b.price}</p>
-                  <Link to={bookingHref(b._id)} className="text-xs text-primary hover:underline">{t('admin.customers.openRental')}</Link>
+                  <Link to={bookingHref(b._id)} className="text-xs text-[var(--admin-primary)] hover:underline">{t('admin.customers.openRental')}</Link>
                 </div>
               </article>
             ))}
@@ -351,12 +366,12 @@ const CustomerWorkspace = ({
             <div className="crm-surface space-y-4">
               {active ? (
                 <div>
-                  <p className="crm-now-kicker !text-[var(--admin-primary)]">{t('admin.customers.insight.onRent')}</p>
+                  <p className="crm-now-kicker">{t('admin.customers.insight.onRent')}</p>
                   <p className="font-display text-2xl text-[var(--admin-ink)] mt-1">{vehicleName(active.car)}</p>
                   <p className="text-sm text-[var(--admin-muted)] mt-1">
                     {formatShortDate(active.pickupDate, language)} → {formatShortDate(active.returnDate, language)} · {t(`admin.customers.return.${detail.care.returnStatus || 'on_rent'}`)}
                   </p>
-                  <button type="button" disabled={busy} onClick={() => sendWhatsApp('during_rental', active._id)} className="crm-wa mt-3">
+                  <button type="button" disabled={busy} onClick={() => sendWhatsApp('during_rental', active._id)} className="admin-btn admin-btn-whatsapp mt-3">
                     <WhatsAppGlyph className="h-3.5 w-3.5" />
                     {t('admin.customers.contactWhatsApp')}
                   </button>
@@ -365,13 +380,13 @@ const CustomerWorkspace = ({
                 <p className="text-[var(--admin-muted)]">{t('admin.customers.noActiveRental')}</p>
               )}
               {(detail.followUps || []).map((f) => (
-                <div key={f._id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--admin-surface-2)] px-3 py-2.5">
+                <div key={f._id} className="crm-follow">
                   <span className="text-sm font-medium">{t(`admin.customers.followUp.${f.kind}`)}</span>
-                  <div className="flex gap-2">
-                    <button type="button" className="admin-btn admin-btn-primary !min-h-9 text-xs" disabled={busy} onClick={() => sendWhatsApp(FOLLOW_UP_TO_TEMPLATE[f.kind], f.booking)}>
+                  <div className="crm-follow-actions flex gap-2">
+                    <button type="button" className="admin-btn admin-btn-primary admin-btn-sm" disabled={busy} onClick={() => sendWhatsApp(FOLLOW_UP_TO_TEMPLATE[f.kind], f.booking)}>
                       {t('admin.customers.send')}
                     </button>
-                    <button type="button" className="admin-btn admin-btn-ghost !min-h-9 text-xs" disabled={busy} onClick={() => post(`/api/owner/crm/follow-ups/${f._id}/complete`, { status: 'skipped' })}>
+                    <button type="button" className="admin-btn admin-btn-ghost admin-btn-sm" disabled={busy} onClick={() => post(`/api/owner/crm/follow-ups/${f._id}/complete`, { status: 'skipped' })}>
                       {t('admin.customers.skip')}
                     </button>
                   </div>
@@ -404,17 +419,17 @@ const CustomerWorkspace = ({
               </div>
             </div>
             <div className="crm-surface space-y-3">
-              <p className="crm-path-label uppercase tracking-[0.14em]">{t('admin.customers.issues')}</p>
+              <p className="admin-label">{t('admin.customers.issues')}</p>
               {(detail.issues || []).map((issue) => (
-                <div key={issue._id} className="rounded-xl border border-[var(--admin-border)] p-3">
+                <div key={issue._id} className="admin-card p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium">{issue.reportedIssue}</p>
                     <Pulse tone={issue.status === 'resolved' ? 'success' : 'danger'}>{t(`admin.customers.issueStatus.${issue.status}`)}</Pulse>
                   </div>
                   {issue.status !== 'resolved' ? (
-                    <div className="mt-2 flex gap-2">
-                      <button type="button" className="admin-btn admin-btn-secondary !min-h-9 text-xs" disabled={busy} onClick={() => post(`/api/owner/crm/issues/${issue._id}`, { status: 'in_progress' })}>{t('admin.customers.markInProgress')}</button>
-                      <button type="button" className="admin-btn admin-btn-primary !min-h-9 text-xs" disabled={busy} onClick={() => post(`/api/owner/crm/issues/${issue._id}`, { status: 'resolved' }, 'admin.customers.issueResolved')}>{t('admin.customers.resolve')}</button>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm" disabled={busy} onClick={() => post(`/api/owner/crm/issues/${issue._id}`, { status: 'in_progress' })}>{t('admin.customers.markInProgress')}</button>
+                      <button type="button" className="admin-btn admin-btn-primary admin-btn-sm" disabled={busy} onClick={() => post(`/api/owner/crm/issues/${issue._id}`, { status: 'resolved' }, 'admin.customers.issueResolved')}>{t('admin.customers.resolve')}</button>
                     </div>
                   ) : null}
                 </div>
@@ -451,8 +466,8 @@ const CustomerWorkspace = ({
                 </button>
               ))}
             </div>
-            <div className="crm-surface flex flex-wrap items-end gap-3">
-              <FormField label={t('admin.customers.linkedReservation')} className="flex-1 min-w-[12rem]">
+            <div className="crm-surface flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
+              <FormField label={t('admin.customers.linkedReservation')} className="flex-1 min-w-0 sm:min-w-[12rem]">
                 <select className="admin-input" value={waBooking} onChange={(e) => setWaBooking(e.target.value)}>
                   <option value="">{t('admin.customers.latestReservation')}</option>
                   {bookings.map((b) => (
@@ -460,14 +475,14 @@ const CustomerWorkspace = ({
                   ))}
                 </select>
               </FormField>
-              <button type="button" className="crm-wa mb-0.5" disabled={busy || !customer.phone} onClick={() => sendWhatsApp(waTemplate, waBooking)}>
+              <button type="button" className="admin-btn admin-btn-whatsapp w-full sm:w-auto" disabled={busy || !customer.phone} onClick={() => sendWhatsApp(waTemplate, waBooking)}>
                 <WhatsAppGlyph className="h-3.5 w-3.5" />
                 {t('admin.customers.openWhatsApp')}
               </button>
             </div>
             {messages.length ? (
               <div className="crm-surface">
-                <p className="crm-path-label uppercase tracking-[0.14em] mb-3">{t('admin.customers.recentContact')}</p>
+                <p className="admin-label mb-3">{t('admin.customers.recentContact')}</p>
                 {messages.slice(0, 8).map((ev, i) => (
                   <p key={`${ev.at}-${i}`} className="crm-doc">
                     <span>{t(`admin.customers.event.${ev.type}`)}</span>
@@ -482,7 +497,7 @@ const CustomerWorkspace = ({
         {tab === 'documents' && (
           <div className="grid md:grid-cols-2 gap-3">
             <div className="crm-surface">
-              <p className="crm-path-label uppercase tracking-[0.14em] mb-1">{t('admin.menu.contracts')}</p>
+              <p className="admin-label mb-1">{t('admin.menu.contracts')}</p>
               {(detail.contracts || []).length === 0 ? <p className="text-sm text-[var(--admin-muted)] mt-3">{t('admin.customers.noneYet')}</p> : detail.contracts.map((c) => (
                 <div key={c._id} className="crm-doc">
                   <span className="font-medium">{c.contractNumber}</span>
@@ -491,7 +506,7 @@ const CustomerWorkspace = ({
               ))}
             </div>
             <div className="crm-surface">
-              <p className="crm-path-label uppercase tracking-[0.14em] mb-1">{t('admin.menu.invoices')}</p>
+              <p className="admin-label mb-1">{t('admin.menu.invoices')}</p>
               {(detail.invoices || []).length === 0 ? <p className="text-sm text-[var(--admin-muted)] mt-3">{t('admin.customers.noneYet')}</p> : detail.invoices.map((inv) => (
                 <div key={inv._id} className="crm-doc">
                   <span className="font-medium">{inv.invoiceNumber}</span>
@@ -500,7 +515,7 @@ const CustomerWorkspace = ({
               ))}
             </div>
             <div className="crm-surface md:col-span-2">
-              <p className="crm-path-label uppercase tracking-[0.14em] mb-1">{t('admin.customers.payments')}</p>
+              <p className="admin-label mb-1">{t('admin.customers.payments')}</p>
               {(detail.payments || []).length === 0 ? <p className="text-sm text-[var(--admin-muted)] mt-3">{t('admin.customers.noneYet')}</p> : detail.payments.slice(0, 10).map((p, i) => (
                 <div key={`${p.reservationId}-${i}`} className="crm-doc">
                   <span>{p.reservationId} · {p.method}</span>
@@ -515,7 +530,7 @@ const CustomerWorkspace = ({
           <div className="crm-surface space-y-4">
             <div className="flex flex-wrap items-end gap-6">
               <div>
-                <p className="crm-path-label uppercase tracking-[0.14em]">{t('admin.customers.rating')}</p>
+                <p className="admin-label">{t('admin.customers.rating')}</p>
                 <p className="crm-score">{avgReview || '—'}</p>
               </div>
               <p className="text-sm text-[var(--admin-muted)] pb-2">{t('admin.customers.reviewCount', { count: (detail.reviews || []).length })}</p>
@@ -572,13 +587,13 @@ const CustomerWorkspace = ({
                 </p>
               ))}
               <div className="flex flex-wrap gap-2 pt-3">
-                <button type="button" onClick={() => onSetStatus('vip')} className="admin-btn admin-btn-secondary !min-h-9 text-xs">{t('admin.customers.vip')}</button>
-                <button type="button" onClick={() => onSetStatus('regular')} className="admin-btn admin-btn-secondary !min-h-9 text-xs">{t('admin.customers.regular')}</button>
-                <button type="button" onClick={() => onSetStatus('blacklisted')} className="admin-btn admin-btn-ghost !min-h-9 text-xs">{t('admin.customers.blacklist')}</button>
+                <button type="button" onClick={() => onSetStatus('vip')} className="admin-btn admin-btn-secondary admin-btn-sm">{t('admin.customers.vip')}</button>
+                <button type="button" onClick={() => onSetStatus('regular')} className="admin-btn admin-btn-secondary admin-btn-sm">{t('admin.customers.regular')}</button>
+                <button type="button" onClick={() => onSetStatus('blacklisted')} className="admin-btn admin-btn-ghost admin-btn-sm">{t('admin.customers.blacklist')}</button>
               </div>
             </div>
             <div className="crm-surface md:col-span-2 space-y-3">
-              <p className="crm-path-label uppercase tracking-[0.14em]">{t('admin.customers.referrals')}</p>
+              <p className="admin-label">{t('admin.customers.referrals')}</p>
               <p className="text-sm">{t('admin.customers.successfulReferrals')}: {detail.referrals?.successfulReferrals ?? 0}</p>
               <p className="text-sm">{t('admin.customers.referredBy')}: {detail.referrals?.referredBy?.name || detail.referrals?.referredByCode || '—'}</p>
               {(detail.referrals?.referred || []).map((r) => (
@@ -591,7 +606,7 @@ const CustomerWorkspace = ({
                 <button type="button" className="admin-btn admin-btn-secondary" disabled={busy || !referralCodeIn.trim()} onClick={() => post(`/api/owner/crm/customers/${encodeURIComponent(emailKey)}/referral`, { referredByCode: referralCodeIn })}>
                   {t('admin.customers.saveReferral')}
                 </button>
-                <button type="button" className="crm-wa" disabled={busy || !customer.phone} onClick={() => sendWhatsApp('referral')}>
+                <button type="button" className="admin-btn admin-btn-whatsapp" disabled={busy || !customer.phone} onClick={() => sendWhatsApp('referral')}>
                   <WhatsAppGlyph className="h-3.5 w-3.5" />
                   {t('admin.customers.wa.referral')}
                 </button>
@@ -628,10 +643,10 @@ const CustomerWorkspace = ({
       </div>
 
       <div className="crm-surface mt-3">
-        <p className="crm-path-label uppercase tracking-[0.14em] mb-2">{t('admin.customers.rateCustomer')}</p>
+        <p className="admin-label mb-2">{t('admin.customers.rateCustomer')}</p>
         <Stars value={adminRating} onChange={setAdminRating} size="text-2xl" />
         <textarea className="admin-input mt-2" rows={2} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} placeholder={t('admin.customers.notePlaceholder')} />
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-wrap gap-2 mt-2">
           <button
             type="button"
             disabled={saving || busy}
@@ -666,6 +681,8 @@ const CustomerWorkspace = ({
           </button>
         </div>
       </div>
+
+      <ActionRow className="crm-dock" />
     </div>
   )
 }

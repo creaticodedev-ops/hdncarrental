@@ -114,10 +114,8 @@ const Customers = () => {
   const closeWorkspace = () => { setSelected(null); setDetail(null); };
 
   const directory = (
-    <div className={`crm-directory ${selected ? 'max-[1099px]:hidden' : ''}`}>
-      {!selected ? (
-        <>
-          <div className="crm-toolbar mb-4">
+    <div className={`crm-directory ${selected ? 'max-xl:hidden' : ''}`}>
+      <div className={`crm-toolbar mb-4 ${selected ? 'hidden xl:flex' : ''}`}>
             <input
               className="admin-input crm-search"
               placeholder={t('admin.customers.search')}
@@ -125,14 +123,16 @@ const Customers = () => {
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setApplied({ ...filters }); } }}
             />
-            <button type="button" className="admin-btn admin-btn-primary !min-h-10" onClick={() => setApplied({ ...filters })}>
+            <button type="button" className="admin-btn admin-btn-primary admin-btn-sm" onClick={() => setApplied({ ...filters })}>
               {t('admin.customers.apply')}
             </button>
-            <button type="button" disabled={exporting} onClick={exportExcel} className="admin-btn admin-btn-secondary !min-h-10">
+            {selected ? null : (
+            <button type="button" disabled={exporting} onClick={exportExcel} className="admin-btn admin-btn-secondary admin-btn-sm">
               {exporting ? t('admin.common.exporting') : t('admin.common.exportExcel')}
             </button>
+            )}
           </div>
-          <div className="crm-chip-row mb-4">
+          <div className={`crm-chip-row mb-4 ${selected ? 'hidden xl:flex' : ''}`}>
             {LIST_FILTERS.map((id) => (
               <button
                 key={id || 'all'}
@@ -155,7 +155,7 @@ const Customers = () => {
           {moreFilters ? (
             <form
               onSubmit={(e) => { e.preventDefault(); setApplied({ ...filters }); }}
-              className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 crm-surface"
+              className={`mb-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3 crm-surface ${selected ? 'hidden xl:grid' : ''}`}
             >
               <select className="admin-input" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
                 <option value="">{t('admin.customers.allStatuses')}</option>
@@ -179,17 +179,13 @@ const Customers = () => {
               </button>
             </form>
           ) : null}
-        </>
-      ) : (
-        <p className="hidden min-[1100px]:block crm-path-label uppercase tracking-[0.14em] mb-3 px-1">{t('admin.customers.title')}</p>
-      )}
 
       <div className="crm-person-list">
         {loading ? (
           <>
-            <div className="crm-skel is-row" />
-            <div className="crm-skel is-row" />
-            <div className="crm-skel is-row" />
+            <div className="admin-skeleton crm-skel is-row" />
+            <div className="admin-skeleton crm-skel is-row" />
+            <div className="admin-skeleton crm-skel is-row" />
           </>
         ) : customers.length === 0 ? (
           <div className="crm-empty crm-surface">
@@ -211,9 +207,9 @@ const Customers = () => {
             <span className="crm-person-side">
               <span className="crm-pulse" data-tone={c.smartStatus === 'vip' ? 'vip' : (SMART_TONES[c.smartStatus] || 'neutral')} data-live={c.flags?.hasActiveRental ? 'true' : 'false'}>
                 <i />
-                {t(`admin.customers.smart.${c.smartStatus || 'inactive'}`)}
+                <span>{t(`admin.customers.smart.${c.smartStatus || 'inactive'}`)}</span>
               </span>
-              <span className="text-xs text-[var(--admin-muted)]">{currency}{c.totalSpent || 0}</span>
+              <span className="crm-person-rev text-xs text-[var(--admin-muted)]">{currency}{c.totalSpent || 0}</span>
             </span>
           </button>
         ))}
@@ -222,7 +218,7 @@ const Customers = () => {
   );
 
   return (
-    <div className="admin-page-pad flex-1 pb-12 min-w-0">
+    <div className="admin-page-pad flex-1 pb-12 min-w-0 overflow-x-clip">
       {!selected ? (
         <Title
           title={t('admin.customers.title')}
@@ -235,7 +231,7 @@ const Customers = () => {
         {selected ? (
           <div className="crm-canvas">
             {!detail ? (
-              <div className="crm-skel" />
+            <div className="admin-skeleton crm-skel" />
             ) : (
               <CustomerWorkspace
                 axios={axios}
