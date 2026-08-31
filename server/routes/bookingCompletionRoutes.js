@@ -8,6 +8,7 @@ import {
   resendCompletionLink,
   ensureCompletionLink,
   shareSignedContract,
+  streamSignedContractPdf,
   cancelCompletionLink,
   listOwnerSignatureRequests,
   saveCompletionDetails,
@@ -31,6 +32,7 @@ const ownerGate = [protect, requireOwner, requirePermission("bookings")];
 // Owner routes first so they are not captured by :token
 completionRouter.post("/owner/ensure-link", ...ownerGate, ensureCompletionLink);
 completionRouter.post("/owner/share-signed-contract", ...ownerGate, shareSignedContract);
+completionRouter.get("/signed-contract/:bookingId", tokenLimit, streamSignedContractPdf);
 completionRouter.post("/owner/resend-link", ...ownerGate, resendCompletionLink);
 completionRouter.post("/owner/cancel-link", ...ownerGate, cancelCompletionLink);
 completionRouter.get("/owner/signature-requests", ...ownerGate, listOwnerSignatureRequests);

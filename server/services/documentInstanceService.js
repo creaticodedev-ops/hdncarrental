@@ -395,7 +395,7 @@ export const listRevisions = async ({ owner, documentType, documentId, limit = 5
   })
     .sort({ version: -1 })
     .limit(Math.min(100, Math.max(1, limit)))
-    .select('version note createdAt createdBy snapshot.pdfUrl snapshot.meta')
+    .select('version note createdAt createdBy snapshot.pdfUrl snapshot.pdfPath snapshot.meta')
     .populate('createdBy', 'name email')
     .lean();
 };

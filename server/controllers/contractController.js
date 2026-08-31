@@ -830,26 +830,16 @@ export const downloadContractPdf = async (req, res) => {
     const disposition = asDownload ? 'attachment' : 'inline';
 
     if (variant === 'signed') {
-      const { resolveExistingPdfPath } = await import('../utils/ensureDocumentPdf.js');
-      let signedPath = resolveExistingPdfPath(contract.signedPdfPath, contract.signedPdfUrl);
-      if (!signedPath && contract.signedVersion) {
-        const versions = await listRevisions({
-          owner: req.user._id,
-          documentType: 'contract',
-          documentId: contract._id,
-          limit: 50,
-        });
-        const signedRev = (versions || []).find(
-          (item) => Number(item.version) === Number(contract.signedVersion),
-        );
-        signedPath = resolveExistingPdfPath(
-          signedRev?.snapshot?.pdfPath,
-          signedRev?.snapshot?.pdfUrl,
-        );
-      }
-      if (!signedPath) {
+      if (!contract.signedPdfUrl && !contract.signedPdfPath && !contract.signedVersion) {
         return res.status(404).json({ success: false, message: 'Signed contract PDF not found' });
       }
+      const { ensureSignedContractPdfFile } = await import('../utils/ensureDocumentPdf.js');
+      const { filePath: signedPath } = await ensureSignedContractPdfFile({
+        document: contract,
+        owner: req.user,
+        Model: Contract,
+        hydrate: hydrateContractIfNeeded,
+      });
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}-signed.pdf"`);
       res.setHeader('Cache-Control', 'private, no-store');

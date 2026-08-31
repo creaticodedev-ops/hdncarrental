@@ -1,6 +1,6 @@
 import fs from 'fs';
 import ExportTemplate from '../models/ExportTemplate.js';
-import { persistPdfFromInstance } from '../services/documentInstanceService.js';
+import { persistPdfFromInstance, listRevisions } from '../services/documentInstanceService.js';
 import { logoToDataUri, resolveLocalUploadPath } from './uploadPaths.js';
 
 /** Resolve an existing PDF on disk from absolute path and/or public URL. */
@@ -108,4 +108,62 @@ export const ensureInstancePdfFile = async ({
   };
 };
 
-export default { resolveExistingPdfPath, ensureInstancePdfFile, healSectionAssetsFromTemplate };
+/**
+ * Resolve the frozen signed PDF, then the current working PDF, then regenerate
+ * from instance sections (ephemeral disk / missing snapshot).
+ */
+export const ensureSignedContractPdfFile = async ({
+  document,
+  owner,
+  Model,
+  hydrate,
+}) => {
+  let signedPath = resolveExistingPdfPath(document.signedPdfPath, document.signedPdfUrl);
+  if (signedPath) {
+    return { filePath: signedPath, regenerated: false, document };
+  }
+
+  if (document.signedVersion) {
+    const versions = await listRevisions({
+      owner: owner?._id || owner || document.owner,
+      documentType: 'contract',
+      documentId: document._id,
+      limit: 50,
+    });
+    const signedRev = (versions || []).find(
+      (item) => Number(item.version) === Number(document.signedVersion),
+    );
+    signedPath = resolveExistingPdfPath(
+      signedRev?.snapshot?.pdfPath,
+      signedRev?.snapshot?.pdfUrl,
+    );
+    if (signedPath) {
+      return { filePath: signedPath, regenerated: false, document };
+    }
+  }
+
+  const current = resolveExistingPdfPath(document.pdfPath, document.pdfUrl);
+  if (current) {
+    return { filePath: current, regenerated: false, document };
+  }
+
+  let hydrated = document;
+  if (typeof hydrate === 'function') {
+    hydrated = await hydrate(document, owner);
+  }
+
+  return ensureInstancePdfFile({
+    document: hydrated,
+    owner,
+    documentTitle: `Contract ${document.contractNumber}`,
+    filePrefix: `contract-${document.contractNumber}`,
+    Model,
+  });
+};
+
+export default {
+  resolveExistingPdfPath,
+  ensureInstancePdfFile,
+  ensureSignedContractPdfFile,
+  healSectionAssetsFromTemplate,
+};

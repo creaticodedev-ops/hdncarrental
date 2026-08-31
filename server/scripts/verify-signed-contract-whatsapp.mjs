@@ -8,6 +8,10 @@ import {
   normalizeShareLanguage,
 } from '../../shared/signedContractWhatsApp.js';
 import { normalizeWhatsAppDial, buildWaMeUrl } from '../services/whatsappNotify.js';
+import {
+  buildSignedContractShareUrl,
+  verifySignedContractShare,
+} from '../middleware/uploadAccess.js';
 
 let passed = 0;
 const check = (name, fn) => {
@@ -64,6 +68,24 @@ check('wa.me targets the customer, not the agency fallback', () => {
 check('Moroccan 0-prefix phones normalize to 212', () => {
   assert.equal(normalizeWhatsAppDial('06 61 23 45 67'), '212661234567');
   assert.equal(normalizeWhatsAppDial('+212661234567'), '212661234567');
+});
+
+check('share URL is an API stream, not a raw upload path', () => {
+  const bookingId = '6a612c7f097a8181154e1c4c';
+  const url = buildSignedContractShareUrl(bookingId);
+  assert.match(url, /\/api\/booking-completion\/signed-contract\/6a612c7f097a8181154e1c4c\.pdf\?/);
+  assert.match(url, /[?&]exp=/);
+  assert.match(url, /[?&]sig=/);
+  assert.doesNotMatch(url, /\/uploads\//);
+  const parsed = new URL(url);
+  assert.equal(
+    verifySignedContractShare(bookingId, parsed.searchParams.get('exp'), parsed.searchParams.get('sig')),
+    true,
+  );
+  assert.equal(
+    verifySignedContractShare(bookingId, parsed.searchParams.get('exp'), 'deadbeef'),
+    false,
+  );
 });
 
 console.log(`\n${passed} checks passed`);

@@ -1,5 +1,6 @@
 import Booking from "../models/Booking.js";
 import Contract from "../models/Contract.js";
+import User from "../models/User.js";
 import {
   findBookingByCompletionToken,
   initiateBookingCompletion,
@@ -23,7 +24,12 @@ import {
   retrieveStripeSession,
 } from "../services/paymentService.js";
 import { cleanupUploadedFile } from "../middleware/multer.js";
-import { appendSignedQuery } from "../middleware/uploadAccess.js";
+import {
+  appendSignedQuery,
+  buildSignedContractShareUrl,
+  verifySignedContractShare,
+} from "../middleware/uploadAccess.js";
+import { hydrateContractIfNeeded } from "./contractController.js";
 import { BRAND_NAME } from "../utils/brand.js";
 import { buildSignedContractToCustomerWhatsAppUrl } from "../services/whatsappNotify.js";
 import {
@@ -41,6 +47,33 @@ const signIfLocalUpload = (url) => {
     return appendSignedQuery(url);
   }
   return url;
+};
+
+const MONGO_ID_RE = /^[a-fA-F0-9]{24}$/;
+
+const escapeHtml = (value) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const sendShareHtml = (res, status, message) => {
+  res.status(status);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "private, no-store");
+  res.send(
+    `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HDN Car</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:36rem;line-height:1.5;color:#1a1a1a"><p>${escapeHtml(message)}</p></body></html>`,
+  );
+};
+
+const allowPdfFraming = (res) => {
+  const origins = (process.env.CLIENT_URL || "https://hdncar.com,https://www.hdncar.com,http://localhost:5173")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  res.removeHeader("X-Frame-Options");
+  res.setHeader("Content-Security-Policy", `frame-ancestors 'self' ${origins.join(" ")}`);
 };
 
 const safePublicError = (error, fallback) => {
@@ -129,7 +162,9 @@ const publicBookingView = (booking) => {
       paymentType: c.paymentType || "",
       amountPaid: c.amountPaid || 0,
       amountDue: c.amountDue || 0,
-      contractPdfUrl: signIfLocalUpload(c.contractPdfUrl || ""),
+      contractPdfUrl: flags.signatureComplete && booking._id
+        ? buildSignedContractShareUrl(booking._id)
+        : signIfLocalUpload(c.contractPdfUrl || ""),
       invoicePdfUrl: signIfLocalUpload(c.invoicePdfUrl || ""),
       completedAt: c.completedAt || null,
       documentsComplete: flags.documentsComplete,
@@ -612,13 +647,9 @@ export const shareSignedContract = async (req, res) => {
 
     const contract = await Contract.findOne({ owner: req.user._id, booking: booking._id })
       .sort({ updatedAt: -1 })
-      .select("signedPdfUrl pdfUrl")
+      .select("_id")
       .lean();
-    const rawUrl = contract?.signedPdfUrl
-      || booking.completion?.contractPdfUrl
-      || contract?.pdfUrl
-      || "";
-    if (!rawUrl) {
+    if (!contract) {
       return res.status(409).json({
         success: false,
         code: "NO_PDF",
@@ -626,7 +657,7 @@ export const shareSignedContract = async (req, res) => {
       });
     }
 
-    const signedContractUrl = signIfLocalUpload(rawUrl);
+    const signedContractUrl = buildSignedContractShareUrl(booking._id);
     const share = buildSignedContractToCustomerWhatsAppUrl({
       language: lang,
       brand: BRAND_NAME,
@@ -658,6 +689,81 @@ export const shareSignedContract = async (req, res) => {
   } catch (error) {
     console.error("[shareSignedContract]", error.message);
     res.status(500).json({ success: false, message: "Could not prepare the signed contract for WhatsApp." });
+  }
+};
+
+/** Public: stream (and regenerate if needed) a signed contract PDF. */
+export const streamSignedContractPdf = async (req, res) => {
+  try {
+    const bookingId = String(req.params.bookingId || "").replace(/\.pdf$/i, "");
+    if (!MONGO_ID_RE.test(bookingId) || !verifySignedContractShare(bookingId, req.query.exp, req.query.sig)) {
+      return sendShareHtml(
+        res,
+        403,
+        "This signed contract link is invalid or has expired. Please contact HDN Car.",
+      );
+    }
+
+    const booking = await Booking.findById(bookingId).select("owner completion").lean();
+    if (!booking) {
+      return sendShareHtml(
+        res,
+        404,
+        "This signed contract link is no longer available. Please contact HDN Car.",
+      );
+    }
+
+    const signed = Boolean(booking.completion?.signatureComplete)
+      || booking.completion?.requestStatus === "signed";
+    if (!signed) {
+      return sendShareHtml(
+        res,
+        404,
+        "The signed contract is not available yet. Please contact HDN Car.",
+      );
+    }
+
+    const contract = await Contract.findOne({ owner: booking.owner, booking: booking._id })
+      .sort({ updatedAt: -1 })
+      .lean();
+    if (!contract) {
+      return sendShareHtml(
+        res,
+        404,
+        "The signed contract is not available yet. Please contact HDN Car.",
+      );
+    }
+
+    const owner = await User.findById(booking.owner);
+    if (!owner) {
+      return sendShareHtml(
+        res,
+        404,
+        "The signed contract is not available yet. Please contact HDN Car.",
+      );
+    }
+
+    const { ensureSignedContractPdfFile } = await import("../utils/ensureDocumentPdf.js");
+    const { filePath } = await ensureSignedContractPdfFile({
+      document: contract,
+      owner,
+      Model: Contract,
+      hydrate: hydrateContractIfNeeded,
+    });
+
+    const safeName = String(contract.contractNumber || "contract").replace(/[^\w.-]+/g, "_");
+    allowPdfFraming(res);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${safeName}-signed.pdf"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error("[streamSignedContractPdf]", error.message);
+    return sendShareHtml(
+      res,
+      500,
+      "The signed contract is temporarily unavailable. Please contact HDN Car.",
+    );
   }
 };
 
@@ -790,6 +896,7 @@ export default {
   resendCompletionLink,
   ensureCompletionLink,
   shareSignedContract,
+  streamSignedContractPdf,
   cancelCompletionLink,
   listOwnerSignatureRequests,
   emailDiagnostics,

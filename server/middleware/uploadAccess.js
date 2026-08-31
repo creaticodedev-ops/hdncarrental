@@ -43,6 +43,29 @@ export const verifyUploadAccess = (relPath, exp, sig) => {
   }
 };
 
+const SIGNED_CONTRACT_SHARE_TTL_SEC = 60 * 60 * 24 * 30;
+
+const signedContractShareRel = (bookingId) => `signed-contract/${String(bookingId || '')}`;
+
+export const signSignedContractShare = (
+  bookingId,
+  expiresInSec = SIGNED_CONTRACT_SHARE_TTL_SEC,
+) => {
+  const { exp, sig } = signUploadAccess(signedContractShareRel(bookingId), expiresInSec);
+  return { exp, sig };
+};
+
+export const verifySignedContractShare = (bookingId, exp, sig) =>
+  verifyUploadAccess(signedContractShareRel(bookingId), exp, sig);
+
+/** Public API URL that streams (and regenerates) the signed contract PDF. */
+export const buildSignedContractShareUrl = (bookingId, expiresInSec = SIGNED_CONTRACT_SHARE_TTL_SEC) => {
+  const base = (process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+  const { exp, sig } = signSignedContractShare(bookingId, expiresInSec);
+  const id = encodeURIComponent(String(bookingId));
+  return `${base}/api/booking-completion/signed-contract/${id}.pdf?exp=${exp}&sig=${sig}`;
+};
+
 export const appendSignedQuery = (absoluteOrPublicUrl) => {
   if (!absoluteOrPublicUrl) return absoluteOrPublicUrl;
   try {
@@ -144,6 +167,9 @@ export const resolveUploadFile = (relPath) => {
 export default {
   signUploadAccess,
   verifyUploadAccess,
+  signSignedContractShare,
+  verifySignedContractShare,
+  buildSignedContractShareUrl,
   appendSignedQuery,
   protectDocumentUploads,
 };
