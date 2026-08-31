@@ -3,7 +3,7 @@ import Car from '../models/Car.js';
 import GuestCustomer from '../models/GuestCustomer.js';
 import AuditLog from '../models/AuditLog.js';
 import AdminNotification from '../models/AdminNotification.js';
-import { escapeRegex } from '../utils/helpers.js';
+import { escapeRegex, calcRentalDays, presentBooking } from '../utils/helpers.js';
 import { logAudit } from '../utils/adminOps.js';
 import { refreshGuestStats, upsertGuestFromBooking } from '../services/guestCrm.js';
 import mongoose from 'mongoose';
@@ -62,9 +62,10 @@ export const getOpsDashboard = async (req, res) => {
 
     const cars = await Car.find({ owner: ownerId });
     const bookings = await Booking.find({ owner: ownerId }).populate('car', 'brand model').sort({ createdAt: -1 });
+    const presented = bookings.map((b) => presentBooking(b.toObject ? b.toObject() : b));
 
     const revenueStatuses = ['confirmed', 'ready_for_pickup', 'active', 'completed'];
-    const monthlyRevenue = bookings
+    const monthlyRevenue = presented
       .filter((b) => revenueStatuses.includes(b.status) && new Date(b.createdAt) >= monthStart)
       .reduce((s, b) => s + (b.price || 0), 0);
 
@@ -78,10 +79,10 @@ export const getOpsDashboard = async (req, res) => {
     const activeRentals = bookings.filter((b) => b.status === 'active').length;
     const pendingBookings = bookings.filter((b) => b.status === 'pending').length;
 
-    const onlineRevenueMonth = bookings
+    const onlineRevenueMonth = presented
       .filter((b) => revenueStatuses.includes(b.status) && new Date(b.createdAt) >= monthStart && isOnlineChannel(b.channel))
       .reduce((s, b) => s + (b.price || 0), 0);
-    const walkInRevenueMonth = bookings
+    const walkInRevenueMonth = presented
       .filter((b) => revenueStatuses.includes(b.status) && new Date(b.createdAt) >= monthStart && !isOnlineChannel(b.channel))
       .reduce((s, b) => s + (b.price || 0), 0);
 
@@ -119,7 +120,7 @@ export const getOpsDashboard = async (req, res) => {
         const start = new Date(Math.max(new Date(b.pickupDate), monthStart));
         const end = new Date(Math.min(new Date(b.returnDate), endOfDay()));
         if (end < start) return sum;
-        return sum + Math.max(1, Math.ceil((end - start) / 86400000));
+        return sum + calcRentalDays(start, end);
       }, 0);
     const onlineBookedDays = bookings
       .filter((b) => revenueStatuses.includes(b.status) && new Date(b.returnDate) >= monthStart && isOnlineChannel(b.channel))
@@ -127,7 +128,7 @@ export const getOpsDashboard = async (req, res) => {
         const start = new Date(Math.max(new Date(b.pickupDate), monthStart));
         const end = new Date(Math.min(new Date(b.returnDate), endOfDay()));
         if (end < start) return sum;
-        return sum + Math.max(1, Math.ceil((end - start) / 86400000));
+        return sum + calcRentalDays(start, end);
       }, 0);
     const fleetUtilization = cars.length > 0
       ? Math.min(100, Math.round((bookedDays / (cars.length * daysElapsed)) * 100))

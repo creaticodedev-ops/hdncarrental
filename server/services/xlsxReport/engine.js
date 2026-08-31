@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { defaultAgencyName } from '../../utils/brand.js';
+import { calcRentalDays } from '../../utils/helpers.js';
 import { labelStatus, monthName, normalizeLang, t } from './i18n.js';
 
 export const EXPORT_ROW_CAP = 25000;
@@ -73,13 +74,10 @@ export const toExcelDate = (value, { time = false } = {}) => {
 export const money = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 export const rentalDays = (booking) => {
+  const days = calcRentalDays(booking?.pickupDate, booking?.returnDate);
+  if (days > 0) return days;
   const fromBreakdown = Number(booking?.priceBreakdown?.days);
-  if (fromBreakdown > 0) return fromBreakdown;
-  if (!booking?.pickupDate || !booking?.returnDate) return 0;
-  const start = new Date(booking.pickupDate);
-  const end = new Date(booking.returnDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-  return Math.max(1, Math.ceil((end - start) / 86400000));
+  return fromBreakdown > 0 ? fromBreakdown : 0;
 };
 
 export const vehicleLabel = (car) => {

@@ -6,7 +6,7 @@ import Car from "../models/Car.js";
 import MaintenanceRecord from "../models/MaintenanceRecord.js";
 import User from "../models/User.js";
 import { cleanupUploadedFile } from "../middleware/multer.js";
-import { escapeRegex } from "../utils/helpers.js";
+import { escapeRegex, calcRentalDays, presentBooking } from "../utils/helpers.js";
 import {
   generateFleetId,
   normalizeCategory,
@@ -285,19 +285,15 @@ export const getVehicleStats = async (req, res) => {
       return true;
     };
     const periodBookings = bookings.filter((booking) => pickupInRange(booking.pickupDate));
+    const presentedPeriod = periodBookings.map((booking) => presentBooking(booking));
 
     const activeStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'active'];
-    const nonCancelledBookings = periodBookings.filter((booking) => booking.status !== 'cancelled');
+    const nonCancelledBookings = presentedPeriod.filter((booking) => booking.status !== 'cancelled');
     const rentalDays = nonCancelledBookings.reduce((sum, booking) => {
-      if (booking.priceBreakdown?.days > 0) return sum + Number(booking.priceBreakdown.days);
-      if (!booking.pickupDate || !booking.returnDate) return sum;
-      const start = new Date(booking.pickupDate);
-      const end = new Date(booking.returnDate);
-      const diffDays = Math.max(1, Math.ceil((end - start) / 86400000));
-      return sum + diffDays;
+      return sum + calcRentalDays(booking.pickupDate, booking.returnDate);
     }, 0);
 
-    const consideredBookings = periodBookings.filter((booking) => booking.status !== 'cancelled');
+    const consideredBookings = presentedPeriod.filter((booking) => booking.status !== 'cancelled');
     const revenue = consideredBookings.reduce((sum, booking) => sum + Number(booking.price || 0), 0);
     const totalBookings = periodBookings.length;
     const completedBookings = periodBookings.filter((booking) => booking.status === 'completed').length;
@@ -334,7 +330,8 @@ export const getVehicleStats = async (req, res) => {
     }, 0);
     const averageRevenuePerBooking = consideredBookings.length ? Number(revenue / consideredBookings.length).toFixed(2) : '0.00';
     const outstandingBalance = bookings.reduce((sum, booking) => {
-      const amountDue = Number(booking.completion?.amountDue || booking.price || 0);
+      const aligned = presentBooking(booking);
+      const amountDue = Number(aligned.completion?.amountDue || aligned.price || 0);
       const amountPaid = Number(booking.completion?.amountPaid || 0);
       const due = Math.max(0, amountDue - amountPaid);
       if (booking.paymentStatus === 'paid' || due <= 0) return sum;
@@ -431,8 +428,7 @@ export const getVehicleStats = async (req, res) => {
       const start = new Date(booking.pickupDate);
       const end = new Date(booking.returnDate);
       if (rangeFrom && rangeTo) return sum + overlapDays(start, end, utilStart, utilEnd);
-      const diffDays = Math.max(0, Math.round((end - start) / 86400000));
-      return sum + diffDays;
+      return sum + calcRentalDays(start, end);
     }, 0);
     const utilizationRate = Number((bookedDays / periodDays) * 100).toFixed(1);
     const averageRentalDuration = nonCancelledBookings.length
@@ -442,7 +438,7 @@ export const getVehicleStats = async (req, res) => {
     const monthlyPerformance = Array.from({ length: 12 }, (_, index) => {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - index, 1);
       const label = monthDate.toLocaleString('en', { month: 'short' });
-      const monthBookings = periodBookings.filter((booking) => {
+      const monthBookings = presentedPeriod.filter((booking) => {
         if (!booking.pickupDate) return false;
         const pickup = new Date(booking.pickupDate);
         return pickup.getFullYear() === monthDate.getFullYear() && pickup.getMonth() === monthDate.getMonth();
@@ -457,7 +453,7 @@ export const getVehicleStats = async (req, res) => {
 
     const yearlyPerformance = Array.from({ length: 3 }, (_, index) => {
       const year = now.getFullYear() - index;
-      const yearBookings = periodBookings.filter((booking) => {
+      const yearBookings = presentedPeriod.filter((booking) => {
         if (!booking.pickupDate) return false;
         const pickup = new Date(booking.pickupDate);
         return pickup.getFullYear() === year;
@@ -690,6 +686,7 @@ export const getDashboardData = async (req, res) => {
 
     const cars = await Car.find({ owner: _id });
     const bookings = await Booking.find({ owner: _id }).populate('car').sort({ createdAt: -1 });
+    const presentedBookings = bookings.map((booking) => presentBooking(booking.toObject ? booking.toObject() : booking));
 
     const pendingBookings = await Booking.countDocuments({ owner: _id, status: 'pending' });
     const confirmedBookings = await Booking.countDocuments({ owner: _id, status: 'confirmed' });
@@ -716,11 +713,11 @@ export const getDashboardData = async (req, res) => {
     }).populate('car').sort({ returnDate: 1 }).limit(5);
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthlyBookings = bookings.filter((b) =>
+    const monthlyBookings = presentedBookings.filter((b) =>
       ['confirmed', 'active', 'completed'].includes(b.status) &&
       new Date(b.createdAt) >= startOfMonth,
     );
-    const monthlyRevenue = monthlyBookings.reduce((acc, booking) => acc + booking.price, 0);
+    const monthlyRevenue = monthlyBookings.reduce((acc, booking) => acc + Number(booking.price || 0), 0);
 
     const totalCars = cars.length;
     const availableVehicles = cars.filter((car) => car.isAvaliable).length;
@@ -742,7 +739,7 @@ export const getDashboardData = async (req, res) => {
         occupancyRate,
         upcomingPickups,
         upcomingReturns,
-        recentBookings: bookings.slice(0, 5),
+        recentBookings: presentedBookings.slice(0, 5),
         monthlyRevenue,
       },
     });
@@ -798,6 +795,7 @@ export const getCustomers = async (req, res) => {
     for (const booking of bookings) {
       const email = bookingCrmKey(booking);
       if (!email) continue;
+      const aligned = presentBooking(booking);
       const existing = byEmail.get(email);
       if (!existing) {
         byEmail.set(email, {
@@ -807,12 +805,12 @@ export const getCustomers = async (req, res) => {
           phone: booking.customerPhone || '',
           bookingsCount: 1,
           lastBookingAt: booking.createdAt,
-          totalSpent: ['confirmed', 'active', 'completed'].includes(booking.status) ? booking.price : 0,
+          totalSpent: ['confirmed', 'active', 'completed'].includes(booking.status) ? Number(aligned.price || 0) : 0,
         });
       } else {
         existing.bookingsCount += 1;
         if (['confirmed', 'active', 'completed'].includes(booking.status)) {
-          existing.totalSpent += booking.price || 0;
+          existing.totalSpent += Number(aligned.price || 0);
         }
         if (new Date(booking.createdAt) > new Date(existing.lastBookingAt)) {
           existing.lastBookingAt = booking.createdAt;

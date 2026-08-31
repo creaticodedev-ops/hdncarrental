@@ -7,6 +7,7 @@ import { generateDocumentFromTemplate } from '../services/templatePdfExport.js';
 import { ensureDefaultTemplates } from './exportTemplateController.js';
 import { getDefaultInvoiceTemplate } from '../utils/resolveExportTemplate.js';
 import { logAudit } from '../utils/adminOps.js';
+import { presentAndPersistBookings } from '../services/bookingRentalPresenter.js';
 import {
   cloneSectionsFromTemplate,
   buildTemplateSnapshot,
@@ -310,10 +311,13 @@ export const generateInvoice = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid booking ID' });
     }
 
-    const booking = await Booking.findOne({ _id: bookingId, owner: req.user._id }).populate('car');
-    if (!booking) {
+    const bookingDoc = await Booking.findOne({ _id: bookingId, owner: req.user._id }).populate('car');
+    if (!bookingDoc) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
+    const booking = (await presentAndPersistBookings([
+      bookingDoc.toObject ? bookingDoc.toObject() : bookingDoc,
+    ]))[0];
 
     const invoiceNumber = buildInvoiceNumber(booking);
     const invoiceData = {

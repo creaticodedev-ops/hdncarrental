@@ -6,6 +6,7 @@ import ExportTemplate from '../models/ExportTemplate.js';
 import { publicUploadUrl } from '../services/pdfDocuments.js';
 import { generateContractPdf, generateDocumentFromTemplate } from '../services/templatePdfExport.js';
 import { buildDocumentHtml, buildTemplateVariables } from '../services/templateEngine.js';
+import { presentBookings } from '../utils/helpers.js';
 import { logAudit } from '../utils/adminOps.js';
 import { ensureDefaultTemplates } from './exportTemplateController.js';
 import {
@@ -906,6 +907,8 @@ export const listBookingsForContracts = async (req, res) => {
         'pickupDate',
         'returnDate',
         'price',
+        'priceBreakdown',
+        'pricingSnapshot',
         'status',
         'channel',
         'dateOfBirth',
@@ -930,7 +933,7 @@ export const listBookingsForContracts = async (req, res) => {
       .limit(200)
       .lean();
 
-    res.json({ success: true, bookings });
+    res.json({ success: true, bookings: presentBookings(bookings) });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to load bookings' });

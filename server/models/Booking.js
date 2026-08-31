@@ -60,7 +60,8 @@ const bookingSchema = new mongoose.Schema({
   },
   /**
    * Frozen commercial snapshot at booking time.
-   * Survives later promo disable/expiry — do not recalculate for historical bookings.
+   * Survives later promo disable/expiry — do not recalculate promotions for historical bookings.
+   * Rental days / totals follow the shared 24-hour + 4-hour-grace rule from pickup/return.
    */
   pricingSnapshot: {
     originalPrice: { type: Number, default: 0 },

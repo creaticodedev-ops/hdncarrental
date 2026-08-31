@@ -36,6 +36,7 @@ import {
 } from "../services/bookingSettingsService.js";
 import { initiateBookingCompletion, generateCompletionLink } from "../services/bookingCompletionService.js";
 import { addBookingPayment, setCollectedAmount } from "../services/bookingPaymentLedger.js";
+import { presentAndPersistBookings, presentBookings } from "../services/bookingRentalPresenter.js";
 import {
   carServesCity,
   locationAvailabilityFilter,
@@ -1048,7 +1049,7 @@ export const getOwnerBookings = async (req, res) => {
 
     bookings = filterByVehicleAndCategory(bookings, filters);
     const total = bookings.length;
-    const paginatedBookings = bookings.slice(skip, skip + limit);
+    const paginatedBookings = await presentAndPersistBookings(bookings.slice(skip, skip + limit));
 
     res.json({
       success: true,
@@ -1078,7 +1079,8 @@ export const getOwnerBookingById = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Reservation not found' });
     }
-    res.json({ success: true, booking });
+    const presented = (await presentAndPersistBookings([booking]))[0];
+    res.json({ success: true, booking: presented });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to load reservation' });
@@ -1745,7 +1747,8 @@ export const exportOwnerBookings = async (req, res) => {
       .lean();
 
     bookings = filterByVehicleAndCategory(bookings, filters);
-    await sendReservationsExport(req, res, bookings, filters);
+    const presented = await presentAndPersistBookings(bookings);
+    await sendReservationsExport(req, res, presented, filters);
   } catch (error) {
     console.error(error.message);
     if (!res.headersSent) {
@@ -1770,11 +1773,11 @@ export const getCalendarBookings = async (req, res) => {
       returnDate: { $gte: start },
     })
       .populate('car', 'brand model')
-      .select('reservationId customerName pickupDate returnDate status channel car paymentStatus price')
+      .select('reservationId customerName pickupDate returnDate status channel car paymentStatus price priceBreakdown pricingSnapshot')
       .sort({ pickupDate: 1 })
       .lean();
 
-    res.json({ success: true, bookings });
+    res.json({ success: true, bookings: presentBookings(bookings) });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to fetch calendar data' });

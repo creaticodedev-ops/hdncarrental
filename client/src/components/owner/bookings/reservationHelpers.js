@@ -90,22 +90,16 @@ export const dateRangeLabel = (pickup, ret, language = 'en') => {
   return `${a} → ${b}`
 }
 
-/** Inclusive calendar span used for ops display (matches rental day count UX). */
-export const rentalDayCount = (pickup, ret) => {
-  const a = new Date(pickup)
-  const b = new Date(ret)
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0
-  const start = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
-  const end = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
-  return Math.max(1, Math.round((end - start) / 86400000) || 1)
-}
+import { calcRentalDays, extraRentalDays, presentBooking } from '../../../utils/pricing'
 
-export const extraCalendarDays = (from, to) => {
-  const a = new Date(from)
-  const b = new Date(to)
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0
-  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
-}
+export { presentBooking }
+
+/** Billed rental days (24h periods + 4h grace) — same rule as pricing. */
+export const rentalDayCount = (pickup, ret) => calcRentalDays(pickup, ret)
+
+/** Extra billed days when extending a reservation. */
+export const extraCalendarDays = (pickup, previousReturn, nextReturn) =>
+  extraRentalDays(pickup, previousReturn, nextReturn)
 
 export const AGENCY_TIMEZONE = 'Africa/Casablanca'
 
@@ -214,8 +208,9 @@ export const collectedPaidTotal = (booking) => {
 }
 
 export const bookingPaymentFigures = (booking) => {
-  const total = Number(booking?.price || 0)
-  const paid = collectedPaidTotal(booking)
+  const aligned = presentBooking(booking)
+  const total = Number(aligned?.price || 0)
+  const paid = collectedPaidTotal(aligned || booking)
   const remaining = Math.max(0, Math.round((total - paid) * 100) / 100)
   const overpaid = Math.max(0, Math.round((paid - total) * 100) / 100)
   return { total, paid, remaining, overpaid }
@@ -233,13 +228,14 @@ export const getPaymentDisplayFromAmounts = (paid, due, paymentStatus) => {
   return 'unpaid'
 }
 
-export const getPaymentDisplay = (booking) => (
-  getPaymentDisplayFromAmounts(
-    collectedPaidTotal(booking),
-    booking?.completion?.amountDue || booking?.price || 0,
-    booking?.paymentStatus,
+export const getPaymentDisplay = (booking) => {
+  const aligned = presentBooking(booking)
+  return getPaymentDisplayFromAmounts(
+    collectedPaidTotal(aligned || booking),
+    aligned?.completion?.amountDue || aligned?.price || 0,
+    aligned?.paymentStatus || booking?.paymentStatus,
   )
-)
+}
 
 export const getContractStatus = (booking) => {
   if (booking?.completion?.contractPdfUrl) return 'ready'

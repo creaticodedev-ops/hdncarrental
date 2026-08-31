@@ -1,4 +1,28 @@
 import { parseAgencyDateTime } from './moroccoTime.js';
+import {
+  RENTAL_DAY_MS,
+  RENTAL_GRACE_MS,
+  alignBookingCommercials,
+  bookingCommercialsAreStale,
+  bookingRentalDays as bookingRentalDaysCore,
+  calcRentalDays as calcRentalDaysCore,
+  cloneBookingCommercials,
+  extraRentalDays as extraRentalDaysCore,
+  presentBooking,
+  presentBookings,
+  toInstantMs,
+} from '../../shared/rentalDuration.js';
+
+export {
+  RENTAL_DAY_MS,
+  RENTAL_GRACE_MS,
+  alignBookingCommercials,
+  bookingCommercialsAreStale,
+  cloneBookingCommercials,
+  presentBooking,
+  presentBookings,
+  toInstantMs,
+};
 
 export const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -19,8 +43,16 @@ export const parseDateRange = (pickupDate, returnDate) => {
   return { valid: true, picked, returned };
 };
 
+const asInstant = (value) => (value instanceof Date ? value : parseAgencyDateTime(value));
+
 export const calcRentalDays = (picked, returned) =>
-  Math.max(1, Math.ceil((returned - picked) / (1000 * 60 * 60 * 24)));
+  calcRentalDaysCore(asInstant(picked), asInstant(returned));
+
+export const extraRentalDays = (pickup, previousReturn, nextReturn) =>
+  extraRentalDaysCore(asInstant(pickup), asInstant(previousReturn), asInstant(nextReturn));
+
+export const bookingRentalDays = (booking) =>
+  bookingRentalDaysCore(booking);
 
 export const safeErrorMessage = (error, fallback = 'Something went wrong') => {
   if (error?.name === 'ValidationError') return 'Invalid data provided';

@@ -21,7 +21,7 @@ import {
   isDateInBounds,
   parseDateDigits,
 } from './calendar/dateMask'
-import './calendar/calendar.css'
+import { calcRentalDays } from '../utils/pricing'
 
 export { toISODate, parseISODate } from './calendar/calendarUtils'
 
@@ -486,8 +486,7 @@ const DateRangePicker = ({
     setHover(null)
   }
 
-  const nights =
-    start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000)) : 0
+  const nights = start && end ? calcRentalDays(start, end) : 0
 
   const fieldBase =
     'booking-tap flex-1 min-w-0 h-[3.75rem] px-4 text-left transition-colors duration-200 rounded-2xl md:rounded-none flex items-center gap-3'

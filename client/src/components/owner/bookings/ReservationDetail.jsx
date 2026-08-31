@@ -17,6 +17,7 @@ import {
   vehicleLabel,
   vehicleMeta,
 } from './reservationHelpers'
+import { presentBooking } from '../../../utils/pricing'
 
 const PenIcon = () => (
   <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -128,6 +129,7 @@ const ReservationDetail = ({
   const extendable = canExtend(booking)
   const carBits = vehicleMeta(booking.car)
   const days = rentalDayCount(booking.pickupDate, booking.returnDate)
+  const aligned = presentBooking(booking)
   const walkIn = String(booking.channel || '').toLowerCase().includes('walk')
   const email = customerEmail(booking)
   const typedPaid = paidInput === '' ? 0 : Number(paidInput)
@@ -369,16 +371,16 @@ const ReservationDetail = ({
         </Fold>
 
         <Fold title={t('admin.bookings.priceBreakdown')}>
-          {booking.priceBreakdown ? (
+          {aligned?.priceBreakdown ? (
             <>
-              <Line label={t('admin.bookings.rentalPrice')}>{money(currency, booking.priceBreakdown.rentalPrice)}</Line>
-              {(booking.priceBreakdown.discountTotal || 0) > 0 ? (
-                <Line label={t('admin.bookings.discounts')}>−{money(currency, booking.priceBreakdown.discountTotal)}</Line>
+              <Line label={t('admin.bookings.rentalPrice')}>{money(currency, aligned.priceBreakdown.rentalPrice)}</Line>
+              {(aligned.priceBreakdown.discountTotal || 0) > 0 ? (
+                <Line label={t('admin.bookings.discounts')}>−{money(currency, aligned.priceBreakdown.discountTotal)}</Line>
               ) : null}
-              <Line label={t('admin.bookings.total')}>{money(currency, booking.price)}</Line>
+              <Line label={t('admin.bookings.total')}>{money(currency, aligned.price)}</Line>
             </>
           ) : (
-            <Line label={t('admin.bookings.total')}>{money(currency, booking.price)}</Line>
+            <Line label={t('admin.bookings.total')}>{money(currency, aligned?.price ?? booking.price)}</Line>
           )}
         </Fold>
 

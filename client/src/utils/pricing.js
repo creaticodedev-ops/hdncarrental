@@ -3,13 +3,21 @@
  * Server remains authoritative on create.
  */
 
-export const calcRentalDays = (pickupDate, returnDate) => {
-  const picked = new Date(pickupDate);
-  const returned = new Date(returnDate);
-  if (Number.isNaN(picked.getTime()) || Number.isNaN(returned.getTime())) return 0;
-  if (returned <= picked) return 0;
-  return Math.max(1, Math.ceil((returned - picked) / (1000 * 60 * 60 * 24)));
-};
+import {
+  alignBookingCommercials,
+  bookingRentalDays,
+  calcRentalDays,
+  extraRentalDays,
+  presentBooking,
+} from '../../../shared/rentalDuration.js'
+
+export {
+  alignBookingCommercials,
+  bookingRentalDays,
+  calcRentalDays,
+  extraRentalDays,
+  presentBooking,
+}
 
 const toMoney = (value) => {
   const n = Number(value);

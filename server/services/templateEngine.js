@@ -2,6 +2,7 @@ import { defaultAgencyName } from '../utils/brand.js';
 import { logoToDataUri } from '../utils/uploadPaths.js';
 import { appendSignedQuery } from '../middleware/uploadAccess.js';
 import { isSyntheticWalkInEmail } from '../utils/applyCompletionDetails.js';
+import { calcRentalDays, presentBooking } from '../utils/helpers.js';
 
 export const TEMPLATE_VARIABLES = [
   { key: 'contract_number', label: 'Contract Number', group: 'contract' },
@@ -223,7 +224,7 @@ export const buildSecondDriverSection = (booking) => {
  */
 export const buildTemplateVariables = (booking, { contractNumber, owner, agency = {}, template = {}, includeCompanyStamp = true } = {}) => {
   // Customer/rental fields live on the booking root; completion holds workflow URLs only.
-  const mergedBooking = { ...(booking || {}) };
+  const mergedBooking = presentBooking({ ...(booking || {}) });
   const car = mergedBooking?.car || {};
   const b = mergedBooking?.priceBreakdown || {};
   const currency = agency.currency || process.env.CURRENCY || 'MAD';
@@ -286,7 +287,7 @@ export const buildTemplateVariables = (booking, { contractNumber, owner, agency 
     return_date: formatDateTime(firstNonEmpty(mergedBooking, ['returnDate', 'return_date'])),
     pickup_location: firstNonEmpty(mergedBooking, ['pickupLocation', 'pickup_location']) || '—',
     return_location: firstNonEmpty(mergedBooking, ['returnLocation', 'return_location']) || '—',
-    rental_days: String(b.days || mergedBooking?.priceBreakdown?.days || 0),
+    rental_days: String(calcRentalDays(mergedBooking?.pickupDate, mergedBooking?.returnDate) || b.days || 0),
     price_per_day: money(b.pricePerDay ?? car.pricePerDay ?? mergedBooking?.priceBreakdown?.pricePerDay, currency),
     rental_price: money(b.rentalPrice ?? mergedBooking?.price, currency),
     pickup_fee: money(b.pickupDeliveryFee, currency),

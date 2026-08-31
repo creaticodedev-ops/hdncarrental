@@ -22,6 +22,7 @@ import {
   getSignatureStatus,
   money,
   paymentTone,
+  presentBooking,
   rentalDayCount,
   reservationRef,
   toAgencyDateTimeLocal,
@@ -42,8 +43,9 @@ const agencyDateInput = (value = new Date()) => {
 }
 
 const paymentFigures = (booking) => {
-  const total = Number(booking?.price || 0)
-  const paid = collectedPaidTotal(booking)
+  const aligned = presentBooking(booking)
+  const total = Number(aligned?.price || 0)
+  const paid = collectedPaidTotal(aligned || booking)
   const remaining = Math.max(0, total - paid)
   const overpaid = Math.max(0, paid - total)
   const deposit = Number(booking?.franchiseAmount || 0)

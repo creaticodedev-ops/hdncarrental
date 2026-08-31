@@ -11,6 +11,8 @@ import {
   formatDateTime as formatDt,
   hasSignedContractArchive,
   money,
+  presentBooking,
+  rentalDayCount,
   reservationRef,
   toAgencyDateTimeLocal,
   addHoursAgencyLocal,
@@ -816,8 +818,10 @@ const ManageBookings = () => {
 
   const printBooking = (booking) => {
     if (!booking) return
+    const aligned = presentBooking(booking)
     const reservationId = booking.reservationId || `RES-${booking._id?.toString().slice(-8).toUpperCase()}`
     const vehicle = booking.car ? `${booking.car.brand} ${booking.car.model}` : '-'
+    const billedDays = rentalDayCount(booking.pickupDate, booking.returnDate)
     const html = `
       <html>
         <head>
@@ -843,9 +847,10 @@ const ManageBookings = () => {
             <tr><td>Drop-off Location</td><td>${escapeHtml(booking.returnLocation || '-')}</td></tr>
             <tr><td>Pickup</td><td>${escapeHtml(formatDt(booking.pickupDate, language))}</td></tr>
             <tr><td>Return</td><td>${escapeHtml(formatDt(booking.returnDate, language))}</td></tr>
+            <tr><td>Duration</td><td>${escapeHtml(String(billedDays))} day(s)</td></tr>
             <tr><td>Status</td><td>${escapeHtml(booking.status)}</td></tr>
             <tr><td>Payment</td><td>${escapeHtml(booking.paymentStatus)}</td></tr>
-            <tr><td>Total</td><td>${escapeHtml(String(currency))}${escapeHtml(String(booking.price))}</td></tr>
+            <tr><td>Total</td><td>${escapeHtml(String(currency))}${escapeHtml(String(aligned?.price ?? booking.price))}</td></tr>
             <tr><td>Notes</td><td>${escapeHtml(booking.notes || '-')}</td></tr>
           </table>
           <script>window.onload = () => { window.print(); }</script>
@@ -872,7 +877,11 @@ const ManageBookings = () => {
   }
 
   const liveExtraDays = selectedBooking
-    ? extraCalendarDays(selectedBooking.returnDate, extensionForm.newReturnDate)
+    ? extraCalendarDays(
+        selectedBooking.pickupDate,
+        selectedBooking.returnDate,
+        extensionForm.newReturnDate,
+      )
     : 0
   const partnerDiscounts = extensionPreview?.priceBreakdown?.discounts?.filter((d) => Number(d.amount) > 0) || []
   const inputClass = 'admin-input'

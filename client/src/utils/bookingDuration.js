@@ -15,7 +15,7 @@ const toISODate = (date) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-/** Calendar offset so equal clock-times yield at least `minRentalDays` rental days. */
+/** Calendar offset so equal clock-times yield at least `minRentalDays` billed 24h days. */
 export const minReturnCalendarOffset = (minRentalDays = 1) => {
   const min = Math.max(1, Math.round(Number(minRentalDays) || 1))
   return min > 1 ? min : 0
