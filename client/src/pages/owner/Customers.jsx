@@ -202,7 +202,7 @@ const Customers = () => {
             <span className="crm-mono" data-tier={c.loyaltyLevel}>{initials(c.name)}</span>
             <span className="crm-person-meta">
               <span className="crm-person-name">{c.name}</span>
-              <span className="crm-person-sub">{c.phone || customerEmail(c) || '—'}</span>
+            <span className="crm-person-sub">{[c.phone || customerEmail(c), c.city].filter(Boolean).join(' · ') || '—'}</span>
             </span>
             <span className="crm-person-side">
               <span className="crm-pulse" data-tone={c.smartStatus === 'vip' ? 'vip' : (SMART_TONES[c.smartStatus] || 'neutral')} data-live={c.flags?.hasActiveRental ? 'true' : 'false'}>

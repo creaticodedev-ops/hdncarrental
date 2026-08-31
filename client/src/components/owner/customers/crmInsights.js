@@ -29,6 +29,9 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
     bookingId: bookingId || active?._id || '',
     ...extra,
   })
+  const vehicleOf = (car) => `${car?.brand || ''} ${car?.model || ''}`.trim()
+  const detailLine = (...parts) => parts.filter(Boolean).join(' · ')
+  const notReached = !care.contacted ? t('admin.customers.insight.notContacted') : ''
 
   if (openIssue) {
     return {
@@ -36,6 +39,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
       tone: 'danger',
       eyebrow: t('admin.customers.insight.now'),
       headline: openIssue.reportedIssue,
+      detail: t('admin.customers.insight.resolveIssue'),
       actionLabel: t('admin.customers.insight.resolveIssue'),
       action: { type: 'tab', tab: 'care' },
     }
@@ -43,6 +47,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
 
   if (active) {
     const until = hoursUntil(active.returnDate, now)
+    const car = vehicleOf(active.car)
     if (until < 0) {
       return {
         id: 'overdue',
@@ -51,6 +56,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
         headline: t('admin.customers.insight.overdue', {
           time: formatClock(active.returnDate, language),
         }),
+        detail: detailLine(car, notReached),
         actionLabel: t('admin.customers.insight.callReturn'),
         action: wa('return_reminder', active._id),
       }
@@ -64,6 +70,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
         tone: 'warn',
         eyebrow: t('admin.customers.insight.now'),
         headline: when,
+        detail: detailLine(car, notReached),
         actionLabel: t('admin.customers.followUp.return_reminder'),
         action: wa('return_reminder', active._id),
       }
@@ -74,8 +81,9 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
         tone: 'info',
         eyebrow: t('admin.customers.insight.onRent'),
         headline: t('admin.customers.insight.noCheckin', {
-          vehicle: `${active.car?.brand || ''} ${active.car?.model || ''}`.trim() || t('admin.customers.vehicle'),
+          vehicle: car || t('admin.customers.vehicle'),
         }),
+        detail: t('admin.customers.insight.notContacted'),
         actionLabel: t('admin.customers.followUp.during_rental'),
         action: wa('during_rental', active._id),
       }
@@ -92,6 +100,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
       tone: due.kind === 'winback' ? 'warn' : 'info',
       eyebrow: t('admin.customers.insight.next'),
       headline: t(`admin.customers.followUp.${due.kind}`),
+      detail: active ? vehicleOf(active.car) : '',
       actionLabel: t('admin.customers.send'),
       action: wa(FOLLOW_UP_TO_TEMPLATE[due.kind], due.booking),
     }
@@ -107,6 +116,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
         time: formatClock(upcoming.pickupDate, language),
         vehicle: `${upcoming.car?.brand || ''} ${upcoming.car?.model || ''}`.trim(),
       }),
+      detail: t('admin.customers.insight.next'),
       actionLabel: t('admin.customers.wa.pickup_reminder'),
       action: wa('pickup_reminder', upcoming._id),
     }
@@ -119,6 +129,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
       tone: 'neutral',
       eyebrow: t('admin.customers.insight.next'),
       headline: t('admin.customers.insight.askReview'),
+      detail: last.vehicle || '',
       actionLabel: t('admin.customers.followUp.review'),
       action: wa('review_request', last._id),
     }
@@ -130,6 +141,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
       tone: 'vip',
       eyebrow: t('admin.customers.insight.relationship'),
       headline: t('admin.customers.insight.fiveRentals', { count: completed }),
+      detail: t('admin.customers.insight.offerBenefit'),
       actionLabel: t('admin.customers.insight.offerBenefit'),
       action: wa('loyalty', last?._id),
     }
@@ -144,6 +156,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
       headline: Number.isFinite(days) && days < 400
         ? t('admin.customers.insight.noContactDays', { days })
         : t('admin.customers.insight.noContact'),
+      detail: last?.vehicle || '',
       actionLabel: t('admin.customers.followUp.winback'),
       action: wa('winback', last?._id),
     }
@@ -157,6 +170,7 @@ export const buildAgentInsight = (detail, { now = new Date(), t, language = 'en'
       count: kpis.totalReservations ?? customer.totalReservations ?? 0,
       date: last ? formatDay(last.pickupDate, language) : '—',
     }),
+    detail: '',
     actionLabel: t('admin.customers.whatsapp'),
     action: wa(active ? 'during_rental' : 'booking_confirmation', active?._id || last?._id),
   }
