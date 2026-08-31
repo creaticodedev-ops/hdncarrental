@@ -1433,9 +1433,10 @@
   flex-shrink: 0;
 }
 .crm-mono.is-lg {
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 3.4rem;
+  height: 3.4rem;
   font-size: 0.95rem;
+  border-radius: 0.95rem;
 }
 .crm-mono[data-tier='gold'],
 .crm-mono[data-tier='vip'] {
@@ -1492,10 +1493,11 @@
   align-items: start;
 }
 .crm-id-name {
-  font-size: clamp(1.35rem, 2vw, 1.75rem);
-  font-weight: 650;
-  letter-spacing: -0.03em;
-  line-height: 1.12;
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: clamp(1.7rem, 2.6vw, 2.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
   color: var(--admin-ink);
   overflow-wrap: anywhere;
 }
@@ -1549,10 +1551,19 @@
 .crm-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem 1.25rem;
-  margin: 1.15rem 0 0;
-  padding: 0.85rem 0 0;
+  gap: 0;
+  margin: 1.05rem 0 0;
+  padding: 0.7rem 0 0;
   border-top: 1px solid var(--admin-border);
+}
+.crm-metrics > div {
+  min-width: 0;
+  padding: 0 1rem;
+  border-left: 1px solid var(--admin-border);
+}
+.crm-metrics > div:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 .crm-metrics dt {
   font-size: 0.625rem;
@@ -1562,10 +1573,12 @@
   color: var(--admin-muted);
 }
 .crm-metrics dd {
-  margin-top: 0.2rem;
-  font-size: 1.05rem;
-  font-weight: 650;
+  margin-top: 0.15rem;
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.45rem;
+  font-weight: 500;
   letter-spacing: -0.02em;
+  line-height: 1.1;
   color: var(--admin-ink);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -1573,7 +1586,8 @@
   white-space: nowrap;
 }
 @media (max-width: 639px) {
-  .crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 0.75rem; }
+  .crm-metrics > div:nth-child(3) { padding-left: 0; border-left: 0; }
 }
 
 .crm-sit {
@@ -1583,24 +1597,44 @@
   justify-content: space-between;
   gap: 0.75rem 1.25rem;
   margin-top: 1rem;
-  padding: 0.9rem 0 0.95rem 0.9rem;
-  border-top: 1px solid var(--admin-border);
-  box-shadow: inset 3px 0 0 var(--admin-primary);
+  padding: 0.9rem 1rem;
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-primary-soft);
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 22%, var(--admin-border));
 }
-.crm-sit[data-tone='danger'] { box-shadow: inset 3px 0 0 var(--admin-danger); }
-.crm-sit[data-tone='warn'] { box-shadow: inset 3px 0 0 var(--admin-warn); }
-.crm-sit[data-tone='info'] { box-shadow: inset 3px 0 0 var(--admin-info); }
-.crm-sit[data-tone='vip'] { box-shadow: inset 3px 0 0 var(--admin-warn); }
-.crm-sit[data-tone='neutral'] { box-shadow: inset 3px 0 0 var(--admin-border-strong); }
+.crm-sit[data-tone='danger'] {
+  background: var(--admin-danger-soft);
+  border-color: color-mix(in srgb, var(--admin-danger) 28%, var(--admin-border));
+}
+.crm-sit[data-tone='warn'] {
+  background: var(--admin-warn-soft);
+  border-color: color-mix(in srgb, var(--admin-warn) 28%, var(--admin-border));
+}
+.crm-sit[data-tone='info'] {
+  background: var(--admin-info-soft);
+  border-color: color-mix(in srgb, var(--admin-info) 28%, var(--admin-border));
+}
+.crm-sit[data-tone='vip'] {
+  background: var(--admin-warn-soft);
+  border-color: color-mix(in srgb, var(--admin-warn) 28%, var(--admin-border));
+}
+.crm-sit[data-tone='neutral'] {
+  background: var(--admin-surface-2);
+  border-color: var(--admin-border);
+}
 .crm-sit-kicker {
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--admin-muted);
+  color: var(--admin-primary);
 }
+.crm-sit[data-tone='danger'] .crm-sit-kicker { color: var(--admin-danger); }
+.crm-sit[data-tone='warn'] .crm-sit-kicker,
+.crm-sit[data-tone='vip'] .crm-sit-kicker { color: var(--admin-warn); }
+.crm-sit[data-tone='info'] .crm-sit-kicker { color: var(--admin-info); }
 .crm-sit-title {
-  margin-top: 0.15rem;
+  margin-top: 0.12rem;
   font-size: 1.05rem;
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -1609,7 +1643,7 @@
   overflow-wrap: anywhere;
 }
 .crm-sit-detail {
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   font-size: 0.8125rem;
   color: var(--admin-muted);
   overflow-wrap: anywhere;
@@ -1618,6 +1652,44 @@
 @media (max-width: 639px) {
   .crm-sit { align-items: stretch; }
   .crm-sit-cta { width: 100%; }
+}
+
+.crm-stamps {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.crm-stamps::-webkit-scrollbar { display: none; }
+.crm-stamp {
+  flex: 1 0 auto;
+  min-width: 5.2rem;
+  padding: 0.5rem 0.45rem;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--admin-muted);
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.crm-stamp.is-reached {
+  border-color: color-mix(in srgb, var(--admin-primary) 40%, var(--admin-border));
+  color: var(--admin-primary);
+  background: var(--admin-primary-soft);
+}
+.crm-stamp.is-current {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: #fff;
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--admin-primary) 70%, transparent);
 }
 .crm-now-kicker {
   font-size: 0.6875rem;
@@ -1694,6 +1766,50 @@
   outline: none;
   box-shadow: var(--admin-focus);
   border-radius: var(--admin-radius-sm);
+}
+
+.crm-folio {
+  display: grid;
+  gap: 1.75rem;
+}
+@media (min-width: 768px) {
+  .crm-folio { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+}
+.crm-drives {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crm-drives li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+.crm-drives li:last-child { border-bottom: 0; }
+.crm-drives span {
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.35rem;
+  line-height: 1.15;
+  color: var(--admin-ink);
+}
+.crm-drives em {
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--admin-muted);
+}
+.crm-note {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+.crm-note p {
+  margin-top: 0.15rem;
+  font-size: 0.875rem;
+  color: var(--admin-ink-secondary);
+  overflow-wrap: anywhere;
 }
 
 .crm-panel {

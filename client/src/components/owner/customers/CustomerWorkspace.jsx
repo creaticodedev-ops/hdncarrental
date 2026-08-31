@@ -250,9 +250,20 @@ const CustomerWorkspace = ({
             {insight.detail ? <p className="crm-sit-detail">{insight.detail}</p> : null}
           </div>
           <button type="button" className="admin-btn admin-btn-primary crm-sit-cta" disabled={busy} onClick={runInsight}>
-            {insight.actionLabel}
+            {insight.actionLabel} →
           </button>
         </div>
+
+        <ol className="crm-stamps" aria-label={t('admin.customers.journeyTitle')}>
+          {journeyStages.map((stage) => (
+            <li
+              key={stage.id}
+              className={`crm-stamp ${stage.reached ? 'is-reached' : ''} ${stage.current ? 'is-current' : ''}`}
+            >
+              {t(`admin.customers.journey.${stage.id}`)}
+            </li>
+          ))}
+        </ol>
       </header>
 
       <nav className="crm-tabs" role="tablist" aria-label={t('admin.customers.workspace')}>
@@ -263,94 +274,72 @@ const CustomerWorkspace = ({
         ))}
       </nav>
 
-      <div className="crm-panel mt-4 space-y-3">
+      <div className="crm-panel mt-5">
         {tab === 'overview' && (
-          <>
-            <div>
-              <p className="admin-label mb-3">{t('admin.customers.journeyTitle')}</p>
-              <ol className="crm-path">
-                {journeyStages.map((stage) => (
-                  <li
-                    key={stage.id}
-                    className={`crm-path-step ${stage.reached ? 'is-reached' : ''} ${stage.current ? 'is-current' : ''}`}
-                  >
-                    <span className="crm-path-node" />
-                    <span className="crm-path-label">{t(`admin.customers.journey.${stage.id}`)}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="text-sm min-w-0">
-                <p className="admin-label mb-3">{t('admin.customers.favorite')}</p>
-                {(kpis.favoriteVehicles || []).length ? (
-                  <ul className="space-y-2">
-                    {kpis.favoriteVehicles.map((v) => (
-                      <li key={v.label} className="flex justify-between gap-3">
-                        <span className="font-display text-lg text-[var(--admin-ink)]">{v.label}</span>
-                        <span className="text-[var(--admin-muted)] text-xs self-center">{v.count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-[var(--admin-muted)]">{t('admin.customers.noneYet')}</p>
-                )}
-              </div>
-              <div className="crm-surface">
-                <p className="admin-label mb-3">{t('admin.customers.internalNotes')}</p>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {(customer.internalNotes || []).slice().reverse().slice(0, 5).map((n) => (
-                    <div key={n._id || n.createdAt}>
-                      {n.rating ? <Stars value={n.rating} size="text-sm" /> : null}
-                      <p className="text-sm text-[var(--admin-ink-secondary)]">{n.text}</p>
-                    </div>
+          <div className="crm-folio">
+            <div className="min-w-0">
+              <p className="admin-label mb-3">{t('admin.customers.favorite')}</p>
+              {(kpis.favoriteVehicles || []).length ? (
+                <ul className="crm-drives">
+                  {kpis.favoriteVehicles.map((v) => (
+                    <li key={v.label}>
+                      <span>{v.label}</span>
+                      <em>{v.count}</em>
+                    </li>
                   ))}
-                  {!(customer.internalNotes || []).length ? (
-                    <p className="text-sm text-[var(--admin-muted)]">{t('admin.customers.noNotes')}</p>
-                  ) : null}
-                </div>
-                <div className="mt-4 pt-3 border-t border-[var(--admin-border)]">
-                  <p className="admin-label mb-2">{t('admin.customers.rateCustomer')}</p>
-                  <Stars value={adminRating} onChange={setAdminRating} size="text-2xl" />
-                  <textarea className="admin-input mt-2" rows={2} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} placeholder={t('admin.customers.notePlaceholder')} />
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <button
-                      type="button"
-                      disabled={saving || busy}
-                      className="admin-btn admin-btn-primary admin-btn-sm"
-                      onClick={async () => {
-                        setBusy(true)
-                        try {
-                          const { data } = await axios.post('/api/owner/crm/rate', { email: emailKey, rating: adminRating, note: adminNote || undefined })
-                          if (data.success) { toast.success(t('admin.customers.rated')); setAdminNote(''); onReload?.() }
-                          else toast.error(data.message)
-                        } catch (error) { toast.error(getErrorMessage(error)) }
-                        finally { setBusy(false) }
-                      }}
-                    >
-                      {t('admin.customers.saveRating')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving || busy || !adminNote.trim()}
-                      className="admin-btn admin-btn-secondary admin-btn-sm"
-                      onClick={async () => {
-                        setBusy(true)
-                        try {
-                          const { data } = await axios.post('/api/owner/crm/note', { email: emailKey, note: adminNote })
-                          if (data.success) { toast.success(t('admin.customers.noteSaved')); setAdminNote(''); onReload?.() }
-                          else toast.error(data.message)
-                        } catch (error) { toast.error(getErrorMessage(error)) }
-                        finally { setBusy(false) }
-                      }}
-                    >
-                      {t('admin.customers.noteOnly')}
-                    </button>
+                </ul>
+              ) : (
+                <p className="text-sm text-[var(--admin-muted)]">{t('admin.customers.noneYet')}</p>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="admin-label mb-3">{t('admin.customers.internalNotes')}</p>
+              <div className="space-y-2">
+                {(customer.internalNotes || []).slice().reverse().slice(0, 4).map((n) => (
+                  <div key={n._id || n.createdAt} className="crm-note">
+                    {n.rating ? <Stars value={n.rating} size="text-sm" /> : null}
+                    <p>{n.text}</p>
                   </div>
-                </div>
+                ))}
+              </div>
+              <Stars value={adminRating} onChange={setAdminRating} size="text-xl" />
+              <textarea className="admin-input mt-2" rows={2} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} placeholder={t('admin.customers.notePlaceholder')} />
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button
+                  type="button"
+                  disabled={saving || busy}
+                  className="admin-btn admin-btn-primary admin-btn-sm"
+                  onClick={async () => {
+                    setBusy(true)
+                    try {
+                      const { data } = await axios.post('/api/owner/crm/rate', { email: emailKey, rating: adminRating, note: adminNote || undefined })
+                      if (data.success) { toast.success(t('admin.customers.rated')); setAdminNote(''); onReload?.() }
+                      else toast.error(data.message)
+                    } catch (error) { toast.error(getErrorMessage(error)) }
+                    finally { setBusy(false) }
+                  }}
+                >
+                  {t('admin.customers.saveRating')}
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || busy || !adminNote.trim()}
+                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                  onClick={async () => {
+                    setBusy(true)
+                    try {
+                      const { data } = await axios.post('/api/owner/crm/note', { email: emailKey, note: adminNote })
+                      if (data.success) { toast.success(t('admin.customers.noteSaved')); setAdminNote(''); onReload?.() }
+                      else toast.error(data.message)
+                    } catch (error) { toast.error(getErrorMessage(error)) }
+                    finally { setBusy(false) }
+                  }}
+                >
+                  {t('admin.customers.noteOnly')}
+                </button>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {tab === 'rentals' && (
