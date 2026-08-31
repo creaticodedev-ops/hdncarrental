@@ -229,6 +229,9 @@ const server = app.listen(PORT, () => {
   import('./services/pendingBookingExpiry.js')
     .then(({ startPendingBookingExpiryJob }) => startPendingBookingExpiryJob())
     .catch((error) => console.warn('[pendingExpiry] failed to start:', error.message));
+  import('./services/customerFollowUpJob.js')
+    .then(({ startCustomerFollowUpJob }) => startCustomerFollowUpJob())
+    .catch((error) => console.warn('[customerFollowUp] failed to start:', error.message));
 });
 
 const shutdown = async (signal) => {

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import GuestCustomer from '../models/GuestCustomer.js';
 import Booking from '../models/Booking.js';
 import { bookingCrmKey, crmIdentityMatch } from '../utils/customerIdentity.js';
+import { computeLoyaltyLevel } from '../../shared/customerCrm.js';
 
 const asObjectId = (id) => {
   if (!id) return id;
@@ -71,6 +72,13 @@ export const upsertGuestFromBooking = async (booking) => {
     else status = 'regular';
   }
 
+  const loyaltyLevel = computeLoyaltyLevel({
+    completedRentals: s.completedReservations,
+    totalSpent: s.totalSpent,
+    successfulReferrals: guest?.successfulReferrals || 0,
+    status,
+  });
+
   const payload = {
     name: booking.customerName || guest?.name || 'Guest',
     phone: booking.customerPhone || guest?.phone || '',
@@ -80,6 +88,7 @@ export const upsertGuestFromBooking = async (booking) => {
     completedReservations: s.completedReservations,
     totalSpent: s.totalSpent,
     lastBookingAt: s.lastBookingAt,
+    loyaltyLevel,
   };
 
   if (guest) {
@@ -124,6 +133,12 @@ export const refreshGuestStats = async (ownerId, email) => {
     else if (guest.totalSpent >= 5000 || guest.completedReservations >= 5) guest.status = 'vip';
     else guest.status = 'regular';
   }
+  guest.loyaltyLevel = computeLoyaltyLevel({
+    completedRentals: guest.completedReservations,
+    totalSpent: guest.totalSpent,
+    successfulReferrals: guest.successfulReferrals || 0,
+    status: guest.status,
+  });
 
   if (bookings[0]) {
     guest.name = bookings[0].customerName || guest.name;

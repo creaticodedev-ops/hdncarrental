@@ -30,6 +30,16 @@ import {
   updateCustomerStatus,
 } from "../controllers/adminOpsController.js";
 import {
+  updateCustomerCare,
+  createCustomerIssue,
+  updateCustomerIssue,
+  createCustomerReview,
+  updateCustomerReview,
+  updateCustomerReferral,
+  completeFollowUp,
+  composeCustomerWhatsApp,
+} from "../controllers/customerCrmController.js";
+import {
   exportReportXlsx,
   exportAccountingXlsx,
   exportMaintenanceXlsx,
@@ -117,6 +127,14 @@ ownerRouter.get('/customers', ...gate('customers'), getCustomers);
 ownerRouter.get('/crm/customers', ...gate('customers'), getCrmCustomers);
 ownerRouter.get('/crm/customers/export', ...gate('customers'), exportCustomersXlsx);
 ownerRouter.get('/crm/customers/:email', ...gate('customers'), getCrmCustomerDetail);
+ownerRouter.post('/crm/customers/:email/care', ...gate('customers'), updateCustomerCare);
+ownerRouter.post('/crm/customers/:email/issues', ...gate('customers'), createCustomerIssue);
+ownerRouter.post('/crm/customers/:email/reviews', ...gate('customers'), createCustomerReview);
+ownerRouter.post('/crm/customers/:email/referral', ...gate('customers'), updateCustomerReferral);
+ownerRouter.post('/crm/customers/:email/whatsapp', ...gate('customers'), composeCustomerWhatsApp);
+ownerRouter.post('/crm/issues/:id', ...gate('customers'), updateCustomerIssue);
+ownerRouter.post('/crm/reviews/:id', ...gate('customers'), updateCustomerReview);
+ownerRouter.post('/crm/follow-ups/:id/complete', ...gate('customers'), completeFollowUp);
 ownerRouter.post('/crm/rate', ...gate('customers'), rateCustomer);
 ownerRouter.post('/crm/note', ...gate('customers'), addCustomerNote);
 ownerRouter.post('/crm/status', ...gate('customers'), updateCustomerStatus);

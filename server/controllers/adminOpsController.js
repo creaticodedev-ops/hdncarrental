@@ -5,7 +5,8 @@ import AuditLog from '../models/AuditLog.js';
 import AdminNotification from '../models/AdminNotification.js';
 import { escapeRegex, calcRentalDays, presentBooking } from '../utils/helpers.js';
 import { logAudit } from '../utils/adminOps.js';
-import { refreshGuestStats, upsertGuestFromBooking } from '../services/guestCrm.js';
+import { upsertGuestFromBooking } from '../services/guestCrm.js';
+import { decorateCustomerList, matchesCrmListFilter, buildCustomer360 } from '../services/customer360.js';
 import mongoose from 'mongoose';
 import { isOnlineChannel } from '../utils/bookingChannel.js';
 import { crmIdentityMatch, crmIdentityStage } from '../utils/customerIdentity.js';
@@ -323,6 +324,7 @@ export const getCrmCustomers = async (req, res) => {
     const {
       search, status, city, minRating, maxRating,
       minBookings, maxBookings, minSpent, maxSpent, sortBy = 'lastBookingAt',
+      filter = '',
     } = req.query;
 
     const query = { owner: ownerId };
@@ -361,9 +363,14 @@ export const getCrmCustomers = async (req, res) => {
       name: { name: 1 },
     };
 
-    const customers = await GuestCustomer.find(query)
+    let customers = await GuestCustomer.find(query)
       .sort(sortMap[sortBy] || sortMap.lastBookingAt)
       .lean();
+
+    customers = await decorateCustomerList(ownerId, customers);
+    if (filter) {
+      customers = customers.filter((row) => matchesCrmListFilter(row, filter));
+    }
 
     res.json({ success: true, customers });
   } catch (error) {
@@ -378,18 +385,12 @@ export const getCrmCustomerDetail = async (req, res) => {
     const { email } = req.params;
     const normalized = decodeURIComponent(email).toLowerCase();
 
-    await refreshGuestStats(ownerId, normalized);
-    const customer = await GuestCustomer.findOne({ owner: ownerId, email: normalized }).lean();
-    if (!customer) {
+    const payload = await buildCustomer360(ownerId, normalized);
+    if (!payload) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
-    const bookings = await Booking.find({ owner: ownerId, ...crmIdentityMatch(normalized) })
-      .populate('car', 'brand model image')
-      .sort({ createdAt: -1 })
-      .lean();
-
-    res.json({ success: true, customer, bookings });
+    res.json({ success: true, ...payload });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to load customer' });
