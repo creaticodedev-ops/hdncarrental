@@ -7,9 +7,11 @@ import {
   getCompletionMode,
   getMissingContractFields,
   getSignatureStatus,
+  canShareSignedContract,
   reservationRef,
   vehicleLabel,
 } from './reservationHelpers'
+import WhatsAppGlyph from '../../WhatsAppGlyph'
 
 const SignatureRequestDrawer = ({
   open,
@@ -23,12 +25,15 @@ const SignatureRequestDrawer = ({
   onCopy,
   onResend,
   onShare,
+  onShareSigned,
+  sharingSigned = false,
   onCancelRequest,
   onEditReservation,
 }) => {
   if (!booking) return null
   const status = getSignatureStatus(booking)
   const signed = status === 'signed'
+  const canShareSigned = canShareSignedContract(booking) && Boolean(onShareSigned)
   const pending = status === 'pending'
   const showLinkActions = Boolean(linkUrl) || pending
   const canGenerate = !signed && !showLinkActions
@@ -47,9 +52,24 @@ const SignatureRequestDrawer = ({
       closeLabel={t('admin.ui.close')}
       footer={
         signed ? (
-          <button type="button" className="admin-btn admin-btn-secondary" onClick={onClose}>
-            {t('admin.ui.close')}
-          </button>
+          <>
+            {canShareSigned ? (
+              <button
+                type="button"
+                className="admin-btn admin-btn-whatsapp w-full sm:w-auto"
+                disabled={busy || sharingSigned}
+                onClick={onShareSigned}
+              >
+                <WhatsAppGlyph className="h-3.5 w-3.5 shrink-0" />
+                {sharingSigned
+                  ? t('admin.bookings.shareSignedContractOpening')
+                  : t('admin.bookings.shareSignedContract')}
+              </button>
+            ) : null}
+            <button type="button" className="admin-btn admin-btn-secondary" onClick={onClose}>
+              {t('admin.ui.close')}
+            </button>
+          </>
         ) : canGenerate ? (
           <button type="button" disabled={busy} className="admin-btn admin-btn-primary w-full sm:w-auto" onClick={onGenerate}>
             {busy ? t('admin.bookings.generatingLink') : t('admin.bookings.generateLink')}
@@ -102,7 +122,12 @@ const SignatureRequestDrawer = ({
 
         {signed ? (
           <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-success-soft)] px-4 py-3 text-sm text-[var(--admin-success)]">
-            {t('admin.bookings.signatureDrawerSigned')}
+            <p className="font-semibold">{t('admin.bookings.signatureDrawerSigned')}</p>
+            {canShareSigned ? (
+              <p className="mt-1 text-xs leading-relaxed text-[var(--admin-muted)]">
+                {t('admin.bookings.shareSignedContractHint')}
+              </p>
+            ) : null}
           </div>
         ) : signatureOnly ? (
           <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-success-soft)] px-4 py-3">

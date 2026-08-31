@@ -10,10 +10,12 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
-import { buildOwnerCompletionWaUrl, createExternalTabOpener } from '../../utils/whatsapp'
+import { buildOwnerCompletionWaUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp } from '../../utils/whatsapp'
+import WhatsAppGlyph from '../../components/WhatsAppGlyph'
 import { customerEmail } from '../../utils/customerEmail'
 import DateField from '../../components/calendar/DateField'
 import {
+  canShareSignedContract,
   collectedPaidTotal,
   customerInitials,
   formatDateTime,
@@ -237,6 +239,21 @@ const WalkInReady = () => {
     } catch (err) {
       opener.close()
       toast.error(getErrorMessage(err))
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const shareSignedContract = async () => {
+    if (!booking?._id) return
+    setBusy('share-signed')
+    const opener = createExternalTabOpener()
+    try {
+      await openOwnerSignedContractWhatsApp(axios, booking, { language, opener })
+      toast.success(t('admin.bookings.shareSignedContractOpened'))
+    } catch (err) {
+      opener.close()
+      toast.error(getErrorMessage(err) || t('admin.bookings.shareSignedContractFailed'))
     } finally {
       setBusy('')
     }
@@ -589,6 +606,19 @@ const WalkInReady = () => {
 
             {signed ? (
               <div className="wir-actions mt-4">
+                {canShareSignedContract(booking, contract) ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-whatsapp"
+                    disabled={Boolean(busy)}
+                    onClick={shareSignedContract}
+                  >
+                    <WhatsAppGlyph className="h-3.5 w-3.5 shrink-0" />
+                    {busy === 'share-signed'
+                      ? t('admin.bookings.shareSignedContractOpening')
+                      : t('admin.bookings.shareSignedContract')}
+                  </button>
+                ) : null}
                 <button type="button" className="admin-btn admin-btn-primary" onClick={viewContract}>
                   {t('admin.bookings.viewContract')}
                 </button>

@@ -7,6 +7,7 @@ import {
   bookingPaymentFigures,
   canExtend,
   canRequestSignature,
+  canShareSignedContract,
   customerEmail,
   entityName,
   formatCompactDate,
@@ -89,6 +90,8 @@ const ReservationDetail = ({
   onEditContract,
   onRegenerateContract,
   onViewSignedContract,
+  onShareSignedContract,
+  sharingSignedContract = false,
   contract = null,
   contractLoading = false,
   contractBusy = false,
@@ -157,6 +160,9 @@ const ReservationDetail = ({
       : null,
     { key: 'sep2', separator: true },
     { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: onPrint },
+    canShareSignedContract(booking, contract) && onShareSignedContract
+      ? { key: 'share-signed', label: t('admin.bookings.shareSignedContract'), icon: 'whatsapp', onClick: onShareSignedContract }
+      : null,
     walkIn
       ? { key: 'center', label: t('admin.walkInReady.titleExisting'), icon: 'contract', href: `/owner/walk-in/${booking._id}` }
       : null,
@@ -300,6 +306,8 @@ const ReservationDetail = ({
           onRegenerate={onRegenerateContract}
           onRequestSignature={onRequestSignature}
           onViewSigned={onViewSignedContract}
+          onShareSigned={onShareSignedContract}
+          sharingSigned={sharingSignedContract}
         />
         <InspectorDock
           t={t}

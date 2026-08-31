@@ -270,6 +270,22 @@
   min-height: 2.15rem;
 }
 
+.admin-btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: #128c7e;
+  border-color: #0f7a6e;
+  color: #fff;
+}
+
+.admin-btn-whatsapp:hover:not(:disabled) {
+  background: #0f7a6e;
+  border-color: #0c6860;
+  color: #fff;
+}
+
 .wir-signed {
   display: flex;
   align-items: flex-start;

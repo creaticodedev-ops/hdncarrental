@@ -138,6 +138,8 @@ export const getSignatureStatus = (booking) => {
   return 'none'
 }
 
+export const canShareSignedContract = (booking) => getSignatureStatus(booking) === 'signed'
+
 /**
  * Contract fields the reservation must carry before a customer can just sign.
  * Mirrors the server's required list — the server stays the authority on whether a

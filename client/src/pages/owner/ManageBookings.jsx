@@ -23,7 +23,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
-import { buildOwnerCompletionWaUrl, buildWaMeUrl } from '../../utils/whatsapp'
+import { buildOwnerCompletionWaUrl, buildWaMeUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp } from '../../utils/whatsapp'
 import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
@@ -90,6 +90,7 @@ const ManageBookings = () => {
   const [identityType, setIdentityType] = useState('national_id')
   const [completionLinkCache, setCompletionLinkCache] = useState({})
   const [openingWhatsApp, setOpeningWhatsApp] = useState(false)
+  const [sharingSignedContract, setSharingSignedContract] = useState(false)
   const [whatsappDials, setWhatsappDials] = useState({
     reservationDial: '',
     confirmationDial: '',
@@ -528,6 +529,21 @@ const ManageBookings = () => {
     } finally {
       setOpeningWhatsApp(false)
       setSignatureBusy(false)
+    }
+  }
+
+  const shareSignedContract = async (booking) => {
+    if (!booking?._id) return
+    setSharingSignedContract(true)
+    const opener = createExternalTabOpener()
+    try {
+      await openOwnerSignedContractWhatsApp(axios, booking, { language, opener })
+      toast.success(t('admin.bookings.shareSignedContractOpened'))
+    } catch (error) {
+      opener.close()
+      toast.error(getErrorMessage(error) || t('admin.bookings.shareSignedContractFailed'))
+    } finally {
+      setSharingSignedContract(false)
     }
   }
 
@@ -1072,6 +1088,7 @@ const ManageBookings = () => {
             onPrint={printBooking}
             onViewContract={openBookingContract}
             onWhatsApp={openWhatsApp}
+            onShareSigned={shareSignedContract}
             onDelete={(booking) => setConfirmAction({ type: 'delete', bookingId: booking._id })}
             onDownloadLicense={(booking) => downloadDocument(booking._id, 'driving_license')}
             onDownloadId={(booking) => downloadDocument(booking._id, 'identity')}
@@ -1132,6 +1149,8 @@ const ManageBookings = () => {
           onViewSignedContract={() => openContractPdf(inspectorContract, {
             signed: Boolean(inspectorContract?.signedPdfUrl),
           })}
+          onShareSignedContract={() => shareSignedContract(selectedBooking)}
+          sharingSignedContract={sharingSignedContract}
           contract={inspectorContract}
           contractLoading={contractLoading}
           contractBusy={docGen.running}
@@ -1152,11 +1171,13 @@ const ManageBookings = () => {
         t={t}
         language={language}
         linkUrl={resolveCompletionUrl(selectedBooking)}
-        busy={signatureBusy || openingWhatsApp}
+        busy={signatureBusy || openingWhatsApp || sharingSignedContract}
         onGenerate={() => generateSignatureLink(selectedBooking)}
         onCopy={() => copyCompletionLink(selectedBooking)}
         onResend={() => resendCompletionLink(selectedBooking._id)}
         onShare={() => confirmViaWhatsApp(selectedBooking)}
+        onShareSigned={() => shareSignedContract(selectedBooking)}
+        sharingSigned={sharingSignedContract}
         onCancelRequest={() => setConfirmAction({ type: 'cancelLink', bookingId: selectedBooking._id })}
         onEditReservation={() => {
           setSignatureOpen(false)

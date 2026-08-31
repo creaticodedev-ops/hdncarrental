@@ -1,4 +1,5 @@
 import Booking from "../models/Booking.js";
+import Contract from "../models/Contract.js";
 import {
   findBookingByCompletionToken,
   initiateBookingCompletion,
@@ -23,6 +24,8 @@ import {
 } from "../services/paymentService.js";
 import { cleanupUploadedFile } from "../middleware/multer.js";
 import { appendSignedQuery } from "../middleware/uploadAccess.js";
+import { BRAND_NAME } from "../utils/brand.js";
+import { buildSignedContractToCustomerWhatsAppUrl } from "../services/whatsappNotify.js";
 import {
   applyCompletionDetailsToBooking,
   validateCompletionDetails,
@@ -582,6 +585,82 @@ export const ensureCompletionLink = async (req, res) => {
   }
 };
 
+/** Owner: secure signed-contract URL + WhatsApp message to the customer. */
+export const shareSignedContract = async (req, res) => {
+  try {
+    const { bookingId, lang } = req.body || {};
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: "bookingId is required" });
+    }
+
+    const booking = await Booking.findOne({ _id: bookingId, owner: req.user._id })
+      .populate("car", "brand model licensePlate")
+      .lean();
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    const signed = Boolean(booking.completion?.signatureComplete)
+      || booking.completion?.requestStatus === "signed";
+    if (!signed) {
+      return res.status(409).json({
+        success: false,
+        code: "NOT_SIGNED",
+        message: "The contract must be fully signed before it can be shared.",
+      });
+    }
+
+    const contract = await Contract.findOne({ owner: req.user._id, booking: booking._id })
+      .sort({ updatedAt: -1 })
+      .select("signedPdfUrl pdfUrl")
+      .lean();
+    const rawUrl = contract?.signedPdfUrl
+      || booking.completion?.contractPdfUrl
+      || contract?.pdfUrl
+      || "";
+    if (!rawUrl) {
+      return res.status(409).json({
+        success: false,
+        code: "NO_PDF",
+        message: "The signed contract PDF is not available yet.",
+      });
+    }
+
+    const signedContractUrl = signIfLocalUpload(rawUrl);
+    const share = buildSignedContractToCustomerWhatsAppUrl({
+      language: lang,
+      brand: BRAND_NAME,
+      customerName: booking.customerName,
+      customerPhone: booking.customerPhone,
+      reservationId: booking.reservationId,
+      car: booking.car,
+      pickupDate: booking.pickupDate,
+      returnDate: booking.returnDate,
+      signedContractUrl,
+    });
+
+    if (!share.ok) {
+      return res.status(400).json({
+        success: false,
+        code: share.code || "NO_PHONE",
+        message: "Add the customer’s phone number to share the contract on WhatsApp.",
+        signedContractUrl,
+      });
+    }
+
+    res.json({
+      success: true,
+      signedContractUrl,
+      whatsappUrl: share.whatsappUrl,
+      customerDial: share.customerDial,
+      message: share.message,
+    });
+  } catch (error) {
+    console.error("[shareSignedContract]", error.message);
+    res.status(500).json({ success: false, message: "Could not prepare the signed contract for WhatsApp." });
+  }
+};
+
 /** Owner: cancel active signature / completion link */
 export const cancelCompletionLink = async (req, res) => {
   try {
@@ -710,6 +789,7 @@ export default {
   submitCompletionSignature,
   resendCompletionLink,
   ensureCompletionLink,
+  shareSignedContract,
   cancelCompletionLink,
   listOwnerSignatureRequests,
   emailDiagnostics,

@@ -8,6 +8,7 @@ import {
 } from './ReservationBadges'
 import {
   bookingPaymentFigures,
+  canShareSignedContract,
   customerEmail,
   customerInitials,
   formatCompactDate,
@@ -22,6 +23,9 @@ import {
 const rowMenuItems = (booking, t, handlers) => [
   { key: 'edit', label: t('admin.bookings.edit'), icon: 'edit', onClick: () => handlers.onEdit(booking) },
   { key: 'wa', label: t('admin.bookings.whatsapp'), icon: 'whatsapp', onClick: () => handlers.onWhatsApp(booking) },
+  canShareSignedContract(booking)
+    ? { key: 'share-signed', label: t('admin.bookings.shareSignedContract'), icon: 'whatsapp', onClick: () => handlers.onShareSigned(booking) }
+    : null,
   { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: () => handlers.onPrint(booking) },
   booking?.completion?.contractPdfUrl
     ? { key: 'viewcontract', label: t('admin.bookings.viewContract'), icon: 'contract', onClick: () => handlers.onViewContract(booking) }
@@ -46,6 +50,7 @@ const ReservationList = ({
   onPrint,
   onViewContract,
   onWhatsApp,
+  onShareSigned,
   onDelete,
   onDownloadLicense,
   onDownloadId,
@@ -60,6 +65,7 @@ const ReservationList = ({
     onPrint,
     onViewContract,
     onWhatsApp,
+    onShareSigned,
     onDelete,
     onDownloadLicense,
     onDownloadId,

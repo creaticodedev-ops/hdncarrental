@@ -19,6 +19,8 @@ import {
 import NoIndexHead from '../seo/NoIndexHead'
 import DateField from '../components/calendar/DateField'
 import SignatureOnlyCompletion from './completion/SignatureOnlyCompletion'
+import WhatsAppGlyph from '../components/WhatsAppGlyph'
+import { buildSignedContractWaUrl, createExternalTabOpener } from '../utils/whatsapp'
 
 const STEPS = ['documents', 'signature', 'done']
 
@@ -60,7 +62,7 @@ const StepRail = ({ steps, current, labels, doneFlags }) => (
 const CompleteBooking = () => {
   const { token } = useParams()
   const [searchParams] = useSearchParams()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const { currency } = useAppContext()
   const api = guestApi
 
@@ -675,6 +677,24 @@ const CompleteBooking = () => {
                     {t('completion.downloadContract')}
                   </a>
                 )}
+                {c?.signatureComplete && c?.contractPdfUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const opener = createExternalTabOpener()
+                      const wa = buildSignedContractWaUrl(
+                        { ...booking, customerPhone: booking.customerPhone || details.customerPhone },
+                        c.contractPdfUrl,
+                        { language, allowEmptyDial: true },
+                      )
+                      if (!opener.navigate(wa)) opener.close()
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#128C7E] px-5 py-2.5 text-sm text-white hover:bg-[#0f7a6e]"
+                  >
+                    <WhatsAppGlyph className="h-4 w-4" />
+                    {t('completion.saveOnWhatsApp')}
+                  </button>
+                ) : null}
               </div>
 
               <Link to="/" className="inline-block mt-8 text-sm text-primary hover:underline">{t('completion.backHome')}</Link>

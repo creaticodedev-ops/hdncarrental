@@ -383,6 +383,7 @@ export const en = {
     readyTitle: 'Ready for pickup',
     readyHint: 'Documents, payment, and signature are complete. Your contract and invoice are ready.',
     downloadContract: 'Download contract',
+    saveOnWhatsApp: 'Save a copy on WhatsApp',
     downloadInvoice: 'Download invoice',
     back: 'Back',
     viewingContract: 'Your signed contract',
@@ -407,6 +408,7 @@ export const en = {
       confirmedTitle: 'Signature confirmed',
       confirmedHint: 'Thank you. Your signed contract is below and the agency has been notified.',
       viewSigned: 'Signed contract',
+      saveOnWhatsApp: 'Save a copy on WhatsApp',
     },
   },
   docGen: {
@@ -848,6 +850,7 @@ export const fr = {
     readyTitle: 'Prêt pour la prise en charge',
     readyHint: 'Documents, paiement et signature sont complets. Contrat et facture sont prêts.',
     downloadContract: 'Télécharger le contrat',
+    saveOnWhatsApp: 'Conserver une copie sur WhatsApp',
     downloadInvoice: 'Télécharger la facture',
     back: 'Retour',
     viewingContract: 'Votre contrat signé',
@@ -872,6 +875,7 @@ export const fr = {
       confirmedTitle: 'Signature confirmée',
       confirmedHint: "Merci. Votre contrat signé est ci-dessous et l'agence a été notifiée.",
       viewSigned: 'Contrat signé',
+      saveOnWhatsApp: 'Conserver une copie sur WhatsApp',
     },
   },
   docGen: {
@@ -1313,6 +1317,7 @@ export const es = {
     readyTitle: 'Listo para la recogida',
     readyHint: 'Documentos, pago y firma completos. Contrato y factura listos.',
     downloadContract: 'Descargar contrato',
+    saveOnWhatsApp: 'Guardar una copia en WhatsApp',
     downloadInvoice: 'Descargar factura',
     back: 'Volver',
     viewingContract: 'Su contrato firmado',
@@ -1337,6 +1342,7 @@ export const es = {
       confirmedTitle: 'Firma confirmada',
       confirmedHint: 'Gracias. Su contrato firmado está abajo y la agencia ha sido notificada.',
       viewSigned: 'Contrato firmado',
+      saveOnWhatsApp: 'Guardar una copia en WhatsApp',
     },
   },
   docGen: {

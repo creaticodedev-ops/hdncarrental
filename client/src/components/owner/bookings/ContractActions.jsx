@@ -2,10 +2,12 @@ import React from 'react'
 import ActionMenu from './ActionMenu'
 import {
   canRequestSignature,
+  canShareSignedContract,
   getContractLifecycle,
   getSignatureStatus,
   hasSignedContractArchive,
 } from './reservationHelpers'
+import WhatsAppGlyph from '../../WhatsAppGlyph'
 
 const FileIcon = () => (
   <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -40,6 +42,8 @@ const ContractActions = ({
   onRegenerate,
   onRequestSignature,
   onViewSigned,
+  onShareSigned,
+  sharingSigned = false,
 }) => {
   if (!booking) return null
 
@@ -54,6 +58,7 @@ const ContractActions = ({
   const showGenerate = canManage && !hasRecord && !cancelled && lifecycle !== 'cancelled'
   const showManage = canManage && hasRecord && !cancelled
   const leadSignature = canRequestSignature(booking) && Boolean(onRequestSignature)
+  const showShareSigned = canShareSignedContract(booking, contract) && Boolean(onShareSigned)
 
   const items = showManage
     ? [
@@ -91,6 +96,18 @@ const ContractActions = ({
           {number}
           {lifecycle === 'signed' ? ` · ${t('admin.bookings.contractLabels.signed')}` : ''}
         </p>
+      ) : null}
+
+      {showShareSigned ? (
+        <button
+          type="button"
+          className="admin-btn admin-btn-whatsapp res-btn-block"
+          onClick={onShareSigned}
+          disabled={busy || sharingSigned}
+        >
+          <WhatsAppGlyph className="h-3.5 w-3.5 shrink-0" />
+          {sharingSigned ? t('admin.bookings.shareSignedContractOpening') : t('admin.bookings.shareSignedContract')}
+        </button>
       ) : null}
 
       {leadSignature ? (

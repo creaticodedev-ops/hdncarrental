@@ -2,15 +2,23 @@
 
 import { BRAND_NAME } from '../constants/brand'
 import { customerEmail } from './customerEmail'
+import { buildSignedContractWhatsAppMessage } from '../../../shared/signedContractWhatsApp.js'
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116'
+
+export const normalizeWhatsAppDial = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('0') && digits.length === 10) return `212${digits.slice(1)}`
+  return digits
+}
 
 export const getAgencyWhatsAppDial = () => {
   const raw =
     import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER ||
     import.meta.env.VITE_WHATSAPP_NUMBER ||
     DEFAULT_AGENCY_WHATSAPP
-  return String(raw).replace(/\D/g, '') || DEFAULT_AGENCY_WHATSAPP
+  return normalizeWhatsAppDial(raw) || DEFAULT_AGENCY_WHATSAPP
 }
 
 const formatDateTime = (value) => {
@@ -19,8 +27,32 @@ const formatDateTime = (value) => {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString()
 }
 
-export const buildWaMeUrl = (text, dial = getAgencyWhatsAppDial()) => {
-  const to = String(dial || '').replace(/\D/g, '') || DEFAULT_AGENCY_WHATSAPP
+const formatShareDateTime = (value, language = 'en') => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  const locale = language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB'
+  return d.toLocaleString(locale, {
+    timeZone: 'Africa/Casablanca',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+export const buildWaMeUrl = (text, dial = getAgencyWhatsAppDial(), { allowEmptyDial = false } = {}) => {
+  const to = normalizeWhatsAppDial(dial)
+  if (!to) {
+    if (allowEmptyDial) {
+      return text?.trim() ? `https://wa.me/?text=${encodeURIComponent(text)}` : 'https://wa.me/'
+    }
+    return text?.trim()
+      ? `https://wa.me/${DEFAULT_AGENCY_WHATSAPP}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/${DEFAULT_AGENCY_WHATSAPP}`
+  }
   if (!text?.trim()) return `https://wa.me/${to}`
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`
 }
@@ -138,6 +170,50 @@ export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = '
   return buildWaMeUrl(lines.join('\n'), dial || getAgencyWhatsAppDial())
 }
 
+const vehicleFromBooking = (booking) => {
+  if (booking?.car) {
+    const name = `${booking.car.brand || ''} ${booking.car.model || ''}`.trim()
+    const plate = booking.car.licensePlate ? ` (${booking.car.licensePlate})` : ''
+    return `${name}${plate}` || booking.carName || '—'
+  }
+  return booking?.carName || booking?.vehicle || '—'
+}
+
+/** Customer (or owner-to-customer) — signed contract copy. */
+export const buildSignedContractWaUrl = (
+  booking,
+  signedContractUrl,
+  { language = 'en', brand = BRAND_NAME, allowEmptyDial = false } = {},
+) => {
+  const message = buildSignedContractWhatsAppMessage({
+    language,
+    brand,
+    name: booking?.customerName,
+    reservationId: booking?.reservationId || (booking?._id ? `RES-${String(booking._id).slice(-8).toUpperCase()}` : ''),
+    vehicle: vehicleFromBooking(booking),
+    pickup: formatShareDateTime(booking?.pickupDate, language),
+    returnDate: formatShareDateTime(booking?.returnDate, language),
+    link: signedContractUrl,
+  })
+  return buildWaMeUrl(message, booking?.customerPhone, { allowEmptyDial })
+}
+
+export async function openOwnerSignedContractWhatsApp(axios, booking, { language, opener } = {}) {
+  const { data } = await axios.post('/api/booking-completion/owner/share-signed-contract', {
+    bookingId: booking._id,
+    lang: language,
+  })
+  if (!data?.success || !data.whatsappUrl) {
+    const error = new Error(data?.message || 'Could not prepare WhatsApp')
+    error.code = data?.code
+    throw error
+  }
+  const opened = opener
+    ? opener.navigate(data.whatsappUrl)
+    : Boolean(window.open(data.whatsappUrl, '_blank', 'noopener,noreferrer'))
+  return { ...data, opened }
+}
+
 /** @deprecated use buildOwnerCompletionWaUrl */
 export const buildCompletionWhatsAppUrl = buildOwnerCompletionWaUrl
 
@@ -149,6 +225,7 @@ export const buildGuestToAgencyWhatsAppUrlFromDial = (dial, reservation, opts) =
 export default {
   buildGuestReservationWaUrl,
   buildOwnerCompletionWaUrl,
+  buildSignedContractWaUrl,
   buildWaMeUrl,
   getAgencyWhatsAppDial,
   createExternalTabOpener,

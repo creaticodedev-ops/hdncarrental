@@ -8,6 +8,8 @@ import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
+import { buildSignedContractWaUrl, createExternalTabOpener } from '../../utils/whatsapp'
+import WhatsAppGlyph from '../../components/WhatsAppGlyph'
 
 const Row = ({ label, value }) => (
   <div className="flex items-baseline justify-between gap-4 py-2">
@@ -85,6 +87,14 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     blobUrlRef.current = URL.createObjectURL(new Blob([contractHtml], { type: 'text/html' }))
     window.open(blobUrlRef.current, '_blank', 'noopener')
+  }
+
+  const saveSignedContractOnWhatsApp = () => {
+    const url = completion?.contractPdfUrl
+    if (!url) return
+    const opener = createExternalTabOpener()
+    const wa = buildSignedContractWaUrl(booking, url, { language, allowEmptyDial: true })
+    if (!opener.navigate(wa)) opener.close()
   }
 
   const handleSign = async () => {
@@ -205,14 +215,24 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
                       className="h-[min(65vh,30rem)] w-full bg-white"
                     />
                   </div>
-                  <a
-                    href={completion.contractPdfUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-5 inline-block rounded-xl bg-primary px-5 py-2.5 text-sm text-white"
-                  >
-                    {t('completion.downloadContract')}
-                  </a>
+                  <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                    <a
+                      href={completion.contractPdfUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm text-white"
+                    >
+                      {t('completion.downloadContract')}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={saveSignedContractOnWhatsApp}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#128C7E] px-5 py-2.5 text-sm text-white hover:bg-[#0f7a6e]"
+                    >
+                      <WhatsAppGlyph className="h-4 w-4" />
+                      {t('completion.only.saveOnWhatsApp')}
+                    </button>
+                  </div>
                 </>
               ) : null}
 

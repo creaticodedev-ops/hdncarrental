@@ -3,6 +3,7 @@
  * Dial numbers are resolved from AgencySettings (DB) with env fallback.
  */
 import { BRAND_NAME } from '../utils/brand.js';
+import { buildSignedContractWhatsAppMessage } from '../../shared/signedContractWhatsApp.js';
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116';
 
@@ -115,6 +116,67 @@ export const buildCompletionToAgencyWhatsAppUrl = ({
     `Customer phone: ${customerPhone || '—'}`,
   ];
   return buildWaMeUrl(lines.join('\n'), dial || getAgencyWhatsAppDial());
+};
+
+const AGENCY_TZ = 'Africa/Casablanca';
+
+const formatShareDateTime = (value, language = 'en') => {
+  if (!value) return '—';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const locale = language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB';
+  return d.toLocaleString(locale, {
+    timeZone: AGENCY_TZ,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
+const vehicleLabel = (car, fallback = '') => {
+  if (!car) return fallback || '—';
+  const name = `${car.brand || ''} ${car.model || ''}`.trim();
+  const plate = car.licensePlate ? ` (${car.licensePlate})` : '';
+  return `${name}${plate}`.trim() || fallback || '—';
+};
+
+/** Owner → customer: signed contract copy (wa.me to the customer phone). */
+export const buildSignedContractToCustomerWhatsAppUrl = ({
+  language = 'en',
+  brand = BRAND_NAME,
+  customerName,
+  customerPhone,
+  reservationId,
+  vehicle,
+  car,
+  pickupDate,
+  returnDate,
+  signedContractUrl,
+} = {}) => {
+  const dial = normalizeWhatsAppDial(customerPhone);
+  const message = buildSignedContractWhatsAppMessage({
+    language,
+    brand,
+    name: customerName,
+    reservationId,
+    vehicle: vehicle || vehicleLabel(car),
+    pickup: formatShareDateTime(pickupDate, language),
+    returnDate: formatShareDateTime(returnDate, language),
+    link: signedContractUrl,
+  });
+  if (!dial) {
+    return { ok: false, code: 'NO_PHONE', message, whatsappUrl: '' };
+  }
+  return {
+    ok: true,
+    code: null,
+    message,
+    customerDial: dial,
+    whatsappUrl: buildWaMeUrl(message, dial),
+  };
 };
 
 /** Legacy no-op — API disabled */

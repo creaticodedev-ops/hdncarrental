@@ -10,6 +10,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const required = [
   { method: 'POST', path: '/api/booking-completion/owner/ensure-link', file: 'routes/bookingCompletionRoutes.js' },
+  { method: 'POST', path: '/api/booking-completion/owner/share-signed-contract', file: 'routes/bookingCompletionRoutes.js' },
   { method: 'POST', path: '/api/booking-completion/owner/resend-link', file: 'routes/bookingCompletionRoutes.js' },
   { method: 'POST', path: '/api/bookings/owner/completion/ensure-link', file: 'routes/bookingRoutes.js' },
   { method: 'POST', path: '/api/bookings/change-status', file: 'routes/bookingRoutes.js' },
@@ -21,6 +22,7 @@ const required = [
 const routePatterns = {
   'routes/bookingCompletionRoutes.js': [
     'post("/owner/ensure-link"',
+    'post("/owner/share-signed-contract"',
     'post("/owner/resend-link"',
     'get("/:token"',
     'post("/:token/details"',
