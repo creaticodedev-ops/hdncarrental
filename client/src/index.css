@@ -179,6 +179,7 @@ body.nav-open {
 }
 
 .date-range-popover {
+  z-index: 520;
   animation: calendarIn 0.2s ease-out;
 }
 

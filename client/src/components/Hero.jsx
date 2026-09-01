@@ -28,7 +28,6 @@ const Hero = () => {
     cameraY,
     compact,
     coverOpacity,
-    frameReady,
     perkOpacity,
     reduceMotion,
     tracking,
@@ -148,7 +147,7 @@ const Hero = () => {
 
         <Motion.form
           onSubmit={handleSearch}
-          className={`hero-booking-wrap relative z-20 mt-3 w-full max-w-4xl sm:mt-10 md:mt-11 ${frameReady ? '' : 'pointer-events-none'}`}
+          className="hero-booking-wrap relative z-20 mt-3 w-full max-w-4xl sm:mt-10 md:mt-11"
           style={formMotion}
         >
           <div className="hero-booking overflow-visible rounded-[1.25rem] border border-white/80 bg-white/92 shadow-[0_18px_50px_-34px_rgba(22,18,16,0.38)] backdrop-blur-md md:rounded-[1.6rem]">

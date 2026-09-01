@@ -429,13 +429,15 @@
   color: var(--hdn-cal-accent);
 }
 
-.hdn-cal-week {
+.hdn-cal-week,
+.hdn-cal__weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-bottom: 0.2rem;
 }
 
-.hdn-cal-weekday {
+.hdn-cal-weekday,
+.hdn-cal__weekday {
   height: 1.45rem;
   display: flex;
   align-items: center;
@@ -447,12 +449,20 @@
   color: var(--hdn-cal-muted);
 }
 
-.hdn-cal-grid {
+.hdn-cal-grid,
+.hdn-cal__days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-.hdn-cal-cell {
+.hdn-cal__grid {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hdn-cal-cell,
+.hdn-cal__cell {
   position: relative;
   height: 2.2rem;
   display: flex;
@@ -460,7 +470,8 @@
   justify-content: center;
 }
 
-.hdn-cal-day {
+.hdn-cal-day,
+.hdn-cal__day {
   position: relative;
   width: 2.05rem;
   height: 2.05rem;
@@ -530,13 +541,55 @@
   color: #fff;
 }
 
-.hdn-cal-day:disabled {
+.hdn-cal-day:disabled,
+.hdn-cal__day:disabled,
+.hdn-cal__day.is-disabled {
   color: color-mix(in srgb, var(--hdn-cal-muted) 50%, transparent);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   cursor: not-allowed;
   background: transparent;
   box-shadow: none;
+}
+
+.hdn-cal__day:hover:not(:disabled):not(.is-selected):not(.is-disabled) {
+  background: var(--hdn-cal-hover);
+}
+
+.hdn-cal__cell.is-outside .hdn-cal__day,
+.hdn-cal__day.is-outside {
+  color: color-mix(in srgb, var(--hdn-cal-muted) 62%, transparent);
+}
+
+.hdn-cal__day.is-selected,
+.hdn-cal__day.is-solo {
+  background: var(--hdn-cal-accent);
+  color: #fff;
+  font-weight: 650;
+}
+
+.hdn-cal__day.is-today:not(.is-selected)::after {
+  content: "";
+  position: absolute;
+  bottom: 0.22rem;
+  left: 50%;
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 999px;
+  background: var(--hdn-cal-accent);
+  transform: translateX(-50%);
+}
+
+.hdn-cal__cell.is-in-range {
+  background: var(--hdn-cal-accent-soft);
+}
+
+.hdn-cal__cell.is-range-start {
+  background: linear-gradient(90deg, transparent 50%, var(--hdn-cal-accent-soft) 50%);
+}
+
+.hdn-cal__cell.is-range-end {
+  background: linear-gradient(90deg, var(--hdn-cal-accent-soft) 50%, transparent 50%);
 }
 
 .hdn-cal-month-grid,
@@ -765,12 +818,108 @@
   min-height: 16rem;
 }
 
+.hdn-cal-month-body {
+  min-width: 0;
+}
+
+.hdn-cal-range-layer {
+  z-index: 520;
+}
+
+.hdn-cal-range-layer.is-sheet {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: color-mix(in srgb, #161210 42%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.hdn-cal-range-pop {
+  min-width: 0;
+  padding: 1rem 1.05rem 0.95rem;
+  background: var(--hdn-cal-surface);
+  border: 1px solid color-mix(in srgb, var(--hdn-cal-border) 80%, transparent);
+  border-radius: 1.15rem;
+  max-height: min(40rem, calc(100vh - 24px));
+  overflow: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--hdn-cal-ink) 4%, transparent),
+    0 28px 64px -28px rgba(22, 18, 16, 0.48);
+}
+
+.hdn-cal-range-pop.is-sheet {
+  width: 100%;
+  max-width: none;
+  border-radius: 1.25rem 1.25rem 0 0;
+  max-height: 88svh;
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+.hdn-cal-range-month {
+  min-width: 0;
+}
+
+.hdn-cal-range-month-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.hdn-cal-range-month-head .hdn-cal-kicker {
+  flex: 1;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.hdn-cal-range-month-slot {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.hdn-cal-range-months {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.15rem;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .hdn-cal-range-months.is-dual {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.35rem;
+  }
+}
+
+.hdn-cal-range-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--hdn-cal-border);
+}
+
+.hdn-cal-range-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, #fff 70%, transparent);
+}
+
 .hdn-cal-range-ticket {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: -0.15rem -0.15rem 1rem;
+  margin: 0 0 1rem;
   padding: 0.9rem 1rem;
   border-radius: 1rem;
   background:
@@ -806,6 +955,18 @@
   font-variant-numeric: tabular-nums;
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .hdn-cal-range-pop .hdn-cal-cell,
+  .hdn-cal-range-pop .hdn-cal__cell {
+    height: 2.7rem;
+  }
+  .hdn-cal-range-pop .hdn-cal-day,
+  .hdn-cal-range-pop .hdn-cal__day {
+    width: 2.45rem;
+    height: 2.45rem;
+  }
 }
 
 @media (max-width: 639px) {

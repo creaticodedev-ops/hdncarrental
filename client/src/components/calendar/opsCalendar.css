@@ -510,12 +510,54 @@
 }
 
 @media (max-width: 899px) {
+  .hdn-ops-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hdn-ops-views {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .hdn-ops-view {
+    flex: 1;
+    text-align: center;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+  }
+  .hdn-ops-nav {
+    justify-content: space-between;
+    flex: none;
+  }
+  .hdn-ops-title {
+    font-size: 1.15rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hdn-ops-tools {
+    margin-left: 0;
+  }
+  .hdn-ops-search {
+    min-width: 0;
+    flex: 1;
+  }
   .hdn-ops-scroll {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .hdn-ops-month,
   .hdn-ops-weekdays {
     min-width: 44rem;
+  }
+  .hdn-ops-week {
+    display: flex;
+    gap: 0.55rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+  }
+  .hdn-ops-week-col {
+    flex: 0 0 10.25rem;
+    min-height: 12rem;
   }
 }
 

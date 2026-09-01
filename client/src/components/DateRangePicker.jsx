@@ -22,6 +22,7 @@ import {
   parseDateDigits,
 } from './calendar/dateMask'
 import { calcRentalDays } from '../utils/pricing'
+import './calendar/calendar.css'
 
 export { toISODate, parseISODate } from './calendar/calendarUtils'
 
@@ -131,11 +132,23 @@ const addDays = (date, count) => {
   return d
 }
 
-const MonthBlock = ({ monthDate, language, ...gridProps }) => (
-  <div className="hdn-cal">
-    <div className="hdn-cal-kicker">
-      <span className="hdn-cal-month">{monthLabel(monthDate, language)}</span>
-      <span className="hdn-cal-year">{monthDate.getFullYear()}</span>
+const NavArrow = ({ dir, onClick, label }) => (
+  <button type="button" className="hdn-cal-icon-btn" onClick={onClick} aria-label={label}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      {dir === 'prev' ? <path d="M15 18l-6-6 6-6" /> : <path d="M9 18l6-6-6-6" />}
+    </svg>
+  </button>
+)
+
+const MonthBlock = ({ monthDate, language, leading = null, trailing = null, ...gridProps }) => (
+  <div className="hdn-cal hdn-cal-range-month">
+    <div className="hdn-cal-range-month-head">
+      {leading || <span className="hdn-cal-range-month-slot" aria-hidden />}
+      <div className="hdn-cal-kicker">
+        <span className="hdn-cal-month">{monthLabel(monthDate, language)}</span>
+        <span className="hdn-cal-year">{monthDate.getFullYear()}</span>
+      </div>
+      {trailing || <span className="hdn-cal-range-month-slot" aria-hidden />}
     </div>
     <CalendarGrid viewMonth={monthDate} language={language} {...gridProps} />
   </div>
@@ -319,7 +332,8 @@ const DateRangePicker = ({
 
   const openCalendar = (field) => {
     setActiveField(field)
-    setViewMonth(start || startOfDay(new Date()))
+    const basis = field === 'end' ? (end || start) : (start || startOfDay(new Date()))
+    setViewMonth(basis || startOfDay(new Date()))
     setOpen(true)
   }
 
@@ -545,29 +559,26 @@ const DateRangePicker = ({
     isDateBlocked,
   }
 
+  const shiftMonth = (delta) => setViewMonth((m) => addMonths(m, delta))
+  const nextMonth = addMonths(viewMonth, 1)
+
   const calendarPanel = open && (
     <div
       ref={panelRef}
       style={isMobile ? undefined : panelStyle}
       className={
         isMobile
-          ? 'fixed inset-0 z-[520] flex flex-col justify-end bg-ink/40 backdrop-blur-[2px]'
-          : 'date-range-popover'
+          ? 'hdn-cal-range-layer is-sheet'
+          : 'hdn-cal-range-layer date-range-popover'
       }
       onClick={isMobile ? () => setOpen(false) : undefined}
     >
       <div
-        className={
-          isMobile
-            ? 'hdn-cal bg-white rounded-t-3xl p-4 sm:p-5 pb-[max(2rem,env(safe-area-inset-bottom))] max-h-[88svh] overflow-y-auto shadow-2xl'
-            : 'hdn-cal rounded-2xl border border-borderColor bg-white p-4 sm:p-5 shadow-[0_24px_60px_-20px_rgba(22,18,16,0.35)] max-h-[min(560px,calc(100vh-24px))] overflow-y-auto'
-        }
+        className={`hdn-cal hdn-cal-range-pop${isMobile ? ' is-sheet' : ''}`}
         onMouseDown={() => { ignoreBlurRef.current = true }}
         onClick={(e) => e.stopPropagation()}
       >
-        {isMobile && (
-          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-borderColor" />
-        )}
+        {isMobile ? <div className="hdn-cal-sheet-handle" /> : null}
 
         <div className="hdn-cal-range-ticket">
           <div className="min-w-0">
@@ -580,12 +591,12 @@ const DateRangePicker = ({
                 : t('hero.selectPickup')}
             </p>
             {span > 1 ? (
-              <p className="mt-1 text-[11px] leading-snug text-white/70">
+              <p className="hdn-cal-range-hint">
                 {hint || t('carDetails.minRentalGuide', { days: span })}
               </p>
             ) : null}
             {periods.length > 0 ? (
-              <p className="mt-1 text-[11px] leading-snug text-white/70">{t('carDetails.unavailableLegend')}</p>
+              <p className="hdn-cal-range-hint">{t('carDetails.unavailableLegend')}</p>
             ) : null}
           </div>
           {nights > 0 ? (
@@ -593,49 +604,29 @@ const DateRangePicker = ({
           ) : null}
         </div>
 
-        <div className="mb-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setViewMonth((m) => addMonths(m, -1))}
-            className="hdn-cal-icon-btn"
-            aria-label={t('calendar.prevMonth')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMonth((m) => addMonths(m, 1))}
-            className="hdn-cal-icon-btn"
-            aria-label={t('calendar.nextMonth')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
+        <div className={`hdn-cal-range-months${isMobile ? '' : ' is-dual'}`}>
+          <MonthBlock
+            monthDate={viewMonth}
+            language={language}
+            leading={<NavArrow dir="prev" onClick={() => shiftMonth(-1)} label={t('calendar.prevMonth')} />}
+            trailing={isMobile ? <NavArrow dir="next" onClick={() => shiftMonth(1)} label={t('calendar.nextMonth')} /> : null}
+            {...monthProps}
+          />
+          {isMobile ? null : (
+            <MonthBlock
+              monthDate={nextMonth}
+              language={language}
+              trailing={<NavArrow dir="next" onClick={() => shiftMonth(1)} label={t('calendar.nextMonth')} />}
+              {...monthProps}
+            />
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          <MonthBlock monthDate={viewMonth} language={language} {...monthProps} />
-          <div className="hidden md:block">
-            <MonthBlock monthDate={addMonths(viewMonth, 1)} language={language} {...monthProps} />
-          </div>
-        </div>
-
-        <div className="mt-5 pt-4 border-t border-borderColor flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={clearDates}
-            className="booking-tap inline-flex h-12 items-center px-2 text-sm text-muted hover:text-ink transition-colors cursor-pointer"
-          >
+        <div className="hdn-cal-range-foot">
+          <button type="button" onClick={clearDates} className="hdn-cal-link">
             {t('hero.clear')}
           </button>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="booking-tap inline-flex h-12 items-center rounded-2xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-dull cursor-pointer"
-          >
+          <button type="button" onClick={() => setOpen(false)} className="hdn-cal-done">
             {t('hero.done')}
           </button>
         </div>

@@ -9,6 +9,7 @@ import {
   isAfterDay,
   toISODate,
 } from './calendarUtils'
+import './calendar.css'
 
 const CalendarGrid = ({
   viewMonth,
