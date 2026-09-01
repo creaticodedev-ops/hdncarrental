@@ -1703,10 +1703,11 @@
   display: none;
 }
 @media (max-width: 799px) {
-  .crm-workspace { padding-bottom: 5.75rem; }
+  .crm-workspace { padding-bottom: 8.75rem; }
   .crm-id-tools { display: none !important; }
   .crm-dock {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     position: fixed;
     left: 0;
@@ -1724,6 +1725,9 @@
   .crm-dock .admin-btn {
     flex: 1 1 0;
     min-width: 0;
+  }
+  .crm-dock .crm-dock-review {
+    flex: 1 1 100%;
   }
 }
 

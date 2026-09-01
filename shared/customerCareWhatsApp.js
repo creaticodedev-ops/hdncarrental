@@ -5,6 +5,8 @@
  * WhatsApp markup: *bold*
  */
 
+import { GOOGLE_REVIEW_URL } from './googleReview.js'
+
 const interpolate = (template, vars) =>
   String(template).replace(/\{\{(\w+)\}\}/g, (_, key) => (
     vars[key] == null || vars[key] === '' ? '—' : String(vars[key])
@@ -356,14 +358,9 @@ export const buildCustomerCareWhatsAppMessage = ({
   const pack = TEMPLATES[templateId];
   if (!pack) return '';
   const template = pack[lang] || pack.en;
-  let review = reviewLink || link || '';
-  if (templateId === 'review_request' && (!review || review === '—')) {
-    review = lang === 'fr'
-      ? '(lien Google dès que disponible — vous pouvez aussi nous répondre ici)'
-      : lang === 'es'
-        ? '(enlace de Google cuando esté disponible — también puede respondernos aquí)'
-        : '(Google link when available — you can also reply here)';
-  }
+  const review = templateId === 'review_request'
+    ? GOOGLE_REVIEW_URL
+    : (reviewLink || link || '');
   return interpolate(template, {
     brand,
     name: name || '—',

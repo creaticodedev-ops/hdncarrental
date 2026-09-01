@@ -91,6 +91,7 @@ const ReservationDetail = ({
   onRegenerateContract,
   onViewSignedContract,
   onShareSignedContract,
+  onRequestGoogleReview,
   sharingSignedContract = false,
   contract = null,
   contractLoading = false,
@@ -162,6 +163,9 @@ const ReservationDetail = ({
     { key: 'print', label: t('admin.bookings.print'), icon: 'print', onClick: onPrint },
     canShareSignedContract(booking, contract) && onShareSignedContract
       ? { key: 'share-signed', label: t('admin.bookings.shareSignedContract'), icon: 'whatsapp', onClick: onShareSignedContract }
+      : null,
+    hasPermission('customers') && onRequestGoogleReview
+      ? { key: 'google-review', label: t('admin.bookings.requestGoogleReview'), icon: 'whatsapp', onClick: onRequestGoogleReview }
       : null,
     walkIn
       ? { key: 'center', label: t('admin.walkInReady.titleExisting'), icon: 'contract', href: `/owner/walk-in/${booking._id}` }

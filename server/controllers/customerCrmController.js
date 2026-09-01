@@ -16,6 +16,7 @@ import {
   normalizeWhatsAppDial,
 } from '../services/whatsappNotify.js';
 import { buildCustomerCareWhatsAppMessage } from '../../shared/customerCareWhatsApp.js';
+import { GOOGLE_REVIEW_URL } from '../../shared/googleReview.js';
 import { buildSignedContractWhatsAppMessage } from '../../shared/signedContractWhatsApp.js';
 import { buildSignedContractShareUrl } from '../middleware/uploadAccess.js';
 import { loyaltyBenefitsFor } from '../../shared/customerCrm.js';
@@ -263,14 +264,13 @@ export const createCustomerReview = async (req, res) => {
       });
     }
 
-    const googleReviewUrl = process.env.GOOGLE_REVIEW_URL || '';
     const payload = await buildCustomer360(req.user._id, normalized);
     res.status(201).json({
       success: true,
       review,
       issue,
-      promptGoogle: rating >= 4 && Boolean(googleReviewUrl),
-      googleReviewUrl: rating >= 4 ? googleReviewUrl : '',
+      promptGoogle: false,
+      googleReviewUrl: GOOGLE_REVIEW_URL,
       ...payload,
     });
   } catch (error) {
@@ -390,7 +390,7 @@ export const composeCustomerWhatsApp = async (req, res) => {
       perkLine: loyaltyBenefitsFor(guest.loyaltyLevel).priorityService
         ? (language === 'fr' ? ', priorité au comptoir' : language === 'es' ? ', prioridad en agencia' : ', priority at the desk')
         : '',
-      reviewLink: process.env.GOOGLE_REVIEW_URL || '',
+      reviewLink: GOOGLE_REVIEW_URL,
       link: '',
     };
 

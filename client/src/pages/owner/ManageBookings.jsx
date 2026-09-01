@@ -547,6 +547,33 @@ const ManageBookings = () => {
     }
   }
 
+  const requestGoogleReview = async (booking) => {
+    const crmKey = String(booking?.customerEmail || '').trim()
+    if (!crmKey) {
+      toast.error(t('admin.bookings.requestGoogleReviewNoCustomer'))
+      return
+    }
+    if (!booking?.customerPhone) {
+      toast.error(t('admin.customers.whatsappNoPhone'))
+      return
+    }
+    const opener = createExternalTabOpener()
+    try {
+      const { data } = await axios.post(
+        `/api/owner/crm/customers/${encodeURIComponent(crmKey)}/whatsapp`,
+        { templateId: 'review_request', bookingId: booking._id, lang: language },
+      )
+      if (!data?.success || !data.whatsappUrl) {
+        throw new Error(data?.message || t('admin.bookings.requestGoogleReviewFailed'))
+      }
+      if (!opener.navigate(data.whatsappUrl)) opener.close()
+      toast.success(t('admin.bookings.requestGoogleReviewOpened'))
+    } catch (error) {
+      opener.close()
+      toast.error(getErrorMessage(error) || t('admin.bookings.requestGoogleReviewFailed'))
+    }
+  }
+
   const changePaymentStatus = async (bookingId, paymentStatus) => {
     try {
       const { data } = await axios.post('/api/bookings/change-payment-status', { bookingId, paymentStatus })
@@ -1150,6 +1177,7 @@ const ManageBookings = () => {
             signed: Boolean(inspectorContract?.signedPdfUrl),
           })}
           onShareSignedContract={() => shareSignedContract(selectedBooking)}
+          onRequestGoogleReview={() => requestGoogleReview(selectedBooking)}
           sharingSignedContract={sharingSignedContract}
           contract={inspectorContract}
           contractLoading={contractLoading}

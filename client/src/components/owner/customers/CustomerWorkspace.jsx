@@ -170,6 +170,21 @@ const CustomerWorkspace = ({
     else sendWhatsApp(a.templateId, a.bookingId)
   }
 
+  const requestGoogleReview = () => sendWhatsApp('review_request', waBooking || activeBookingId)
+
+  const GoogleReviewButton = ({ className = '' }) => (
+    <button
+      type="button"
+      className={`admin-btn admin-btn-whatsapp ${className}`.trim()}
+      disabled={busy || !customer.phone}
+      title={!customer.phone ? t('admin.customers.whatsappNoPhone') : t('admin.customers.requestGoogleReviewHint')}
+      onClick={requestGoogleReview}
+    >
+      <WhatsAppGlyph className="h-3.5 w-3.5" />
+      {t('admin.customers.requestGoogleReview')}
+    </button>
+  )
+
   const vehicleName = (car) => (car ? `${car.brand || ''} ${car.model || ''}`.trim() : '—')
   const phoneTel = customer.phone ? `tel:${String(customer.phone).replace(/[^\d+]/g, '')}` : ''
   const lastDays = daysSince(kpis.lastRental?.returnDate || kpis.lastRental?.pickupDate)
@@ -215,6 +230,7 @@ const CustomerWorkspace = ({
               <WhatsAppGlyph className="h-3.5 w-3.5" />
               {t('admin.customers.whatsapp')}
             </button>
+            <GoogleReviewButton />
             {phoneTel ? (
               <a className="admin-btn admin-btn-secondary" href={phoneTel}>{t('admin.customers.call')}</a>
             ) : null}
@@ -532,10 +548,20 @@ const CustomerWorkspace = ({
         )}
 
         {tab === 'reviews' && (
-          <div className="crm-surface space-y-4">
+          <div className="space-y-4">
+            <div className="crm-surface flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="admin-label">{t('admin.customers.requestGoogleReview')}</p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--admin-muted)]">
+                  {t('admin.customers.requestGoogleReviewHint')}
+                </p>
+              </div>
+              <GoogleReviewButton className="w-full sm:w-auto shrink-0" />
+            </div>
+            <div className="crm-surface space-y-4">
             <div className="flex flex-wrap items-end gap-6">
               <div>
-                <p className="admin-label">{t('admin.customers.rating')}</p>
+                <p className="admin-label">{t('admin.customers.internalReviews')}</p>
                 <p className="crm-score">{avgReview || '—'}</p>
               </div>
               <p className="text-sm text-[var(--admin-muted)] pb-2">{t('admin.customers.reviewCount', { count: (detail.reviews || []).length })}</p>
@@ -567,12 +593,12 @@ const CustomerWorkspace = ({
                   bookingId: reviewBooking || activeBookingId || null,
                   internalResponse,
                 }, 'admin.customers.reviewSaved')
-                if (data?.promptGoogle && data.googleReviewUrl) window.open(data.googleReviewUrl, '_blank', 'noopener,noreferrer')
                 if (data) { setReviewText(''); setInternalResponse('') }
               }}
             >
               {t('admin.customers.saveReview')}
             </button>
+            </div>
           </div>
         )}
 
@@ -656,6 +682,7 @@ const CustomerWorkspace = ({
       </div>
 
       <div className="crm-dock">
+        <GoogleReviewButton className="crm-dock-review" />
         <button type="button" className="admin-btn admin-btn-primary" disabled={busy} onClick={runInsight}>
           {insight.actionLabel}
         </button>
