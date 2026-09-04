@@ -794,6 +794,7 @@ export const adminEn = {
     signatureStepLink: 'Link',
     signatureDrawerTitle: 'Request signature',
     signatureDrawerSigned: 'This reservation is already signed.',
+    bothDriversMustSign: 'Both the main driver and the second driver must sign this contract.',
     linkModeSignatureOnly: 'Signature-only link',
     linkModeSignatureOnlyHint:
       'The customer opens the contract, signs, and is done. They cannot view or change any reservation details.',
@@ -2789,6 +2790,7 @@ export const adminFr = {
     signatureStepLink: 'Lien',
     signatureDrawerTitle: 'Demander une signature',
     signatureDrawerSigned: 'Cette réservation est déjà signée.',
+    bothDriversMustSign: 'Le conducteur principal et le deuxième conducteur doivent tous les deux signer ce contrat.',
     linkModeSignatureOnly: 'Lien de signature uniquement',
     linkModeSignatureOnlyHint:
       "Le client ouvre le contrat, signe, et c'est terminé. Il ne peut modifier aucune information de la réservation.",
@@ -4781,6 +4783,7 @@ export const adminEs = {
     signatureStepLink: 'Enlace',
     signatureDrawerTitle: 'Solicitar firma',
     signatureDrawerSigned: 'Esta reserva ya está firmada.',
+    bothDriversMustSign: 'El conductor principal y el segundo conductor deben firmar este contrato.',
     linkModeSignatureOnly: 'Enlace solo para firmar',
     linkModeSignatureOnlyHint:
       'El cliente abre el contrato, firma y listo. No puede modificar ningún dato de la reserva.',

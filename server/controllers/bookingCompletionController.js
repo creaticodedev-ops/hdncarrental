@@ -530,9 +530,10 @@ export const submitCompletionSignature = async (req, res) => {
       return res.status(400).json({ success: false, message: "Upload required documents first" });
     }
 
-    // A walk-in signature-only link has no second-driver option. Ignore any
-    // extra signature the client may send, and never require one.
-    if (!signatureOnly && booking.secondDriver?.enabled) {
+    // A second driver on the reservation must sign on every link type, including
+    // signature-only. The locked page still cannot edit second-driver details —
+    // only their signature is collected and stored against this booking.
+    if (booking.secondDriver?.enabled) {
       if (!secondDriverSignatureDataUrl || !String(secondDriverSignatureDataUrl).startsWith("data:image")) {
         return res.status(400).json({ success: false, message: "Please provide the second driver signature" });
       }
@@ -540,7 +541,9 @@ export const submitCompletionSignature = async (req, res) => {
 
     const result = await saveSignatureAndMaybeFinalize(booking, {
       signatureDataUrl,
-      secondDriverSignatureDataUrl: signatureOnly ? undefined : secondDriverSignatureDataUrl,
+      secondDriverSignatureDataUrl: booking.secondDriver?.enabled
+        ? secondDriverSignatureDataUrl
+        : undefined,
     });
     res.json({
       success: true,
@@ -595,6 +598,7 @@ export const ensureCompletionLink = async (req, res) => {
         returnDate: populated?.returnDate || booking.returnDate,
         completionUrl: result.completionUrl,
         signatureOnly: resolveCompletionMode(populated || booking) === "signature_only",
+        secondDriver: populated?.secondDriver || booking.secondDriver,
       });
       if (share.ok) {
         whatsappConfirmationUrl = share.whatsappUrl;

@@ -16,8 +16,10 @@ import {
 } from '../utils/applyCompletionDetails.js'
 import {
   DESK_CHANNELS,
+  bookingHasSecondDriver,
   getSignatureRequestSummary,
   isSignatureOnlyCompletion,
+  refreshCompletionFlags,
   resolveCompletionMode,
 } from '../services/bookingCompletionService.js'
 
@@ -101,6 +103,51 @@ check('a walk-in with an owner-added second driver stays signature_only', () => 
     secondDriver: { enabled: true, fullName: 'Sara Idrissi', dateOfBirth: '', driverLicenseNumber: '' },
   })
   assert.equal(resolveCompletionMode(booking), 'signature_only')
+})
+
+check('a second driver must sign on signature-only as well as full', () => {
+  const walkIn = completeWalkIn({
+    secondDriver: { enabled: true, fullName: 'Sara Idrissi' },
+  })
+  assert.equal(bookingHasSecondDriver(walkIn), true)
+  assert.equal(
+    refreshCompletionFlags({
+      ...walkIn,
+      completion: { signatureUrl: 'x', signatureSignedAt: new Date() },
+    }).signatureComplete,
+    false,
+    'main signature alone is not enough when a second driver is on the booking',
+  )
+  assert.equal(
+    refreshCompletionFlags({
+      ...walkIn,
+      completion: {
+        signatureUrl: 'x',
+        signatureSignedAt: new Date(),
+        secondDriverSignatureUrl: 'y',
+        secondDriverSignatureSignedAt: new Date(),
+      },
+    }).signatureComplete,
+    true,
+  )
+
+  const noSecond = completeWalkIn()
+  assert.equal(bookingHasSecondDriver(noSecond), false)
+  assert.equal(
+    refreshCompletionFlags({
+      ...noSecond,
+      completion: { signatureUrl: 'x', signatureSignedAt: new Date() },
+    }).signatureComplete,
+    true,
+    'single-driver walk-in still completes with only the main signature',
+  )
+
+  const online = completeWalkIn({
+    channel: 'online',
+    secondDriver: { enabled: true, fullName: 'Sara Idrissi' },
+  })
+  assert.equal(resolveCompletionMode(online), 'full')
+  assert.equal(bookingHasSecondDriver(online), true)
 })
 
 check('guest booking with a missing field falls back to the full customer flow', () => {
@@ -238,7 +285,13 @@ check('signature endpoint discards detail fields when the link is locked', () =>
   assert.match(signBody, /const signatureOnly = resolveCompletionMode\(booking\) === "signature_only"/)
   assert.match(signBody, /if \(!signatureOnly\) \{[\s\S]*applyCompletionDetailsToBooking/)
   assert.match(signBody, /if \(!signatureOnly && !booking\.completion\.documentsComplete\)/)
-  assert.match(signBody, /if \(!signatureOnly && booking\.secondDriver\?\.enabled\)/)
+  assert.match(signBody, /if \(booking\.secondDriver\?\.enabled\)/)
+  assert.doesNotMatch(signBody, /secondDriverSignatureDataUrl: signatureOnly \? undefined/)
+  assert.match(service, /export const bookingHasSecondDriver/)
+  assert.doesNotMatch(
+    service,
+    /resolveCompletionMode\(booking\) === "full" && Boolean\(booking\.secondDriver/,
+  )
 })
 
 // The bug that made a locked link unsignable: the completeness gate ran on every
@@ -295,13 +348,15 @@ check('the customer page renders the locked screen for signature_only', () => {
   assert.match(page, /<SignatureOnlyCompletion/)
 })
 
-check('the locked page posts nothing but the signature', () => {
+check('the locked page posts signatures only — no reservation edits', () => {
   const page = read('client', 'src', 'pages', 'completion', 'SignatureOnlyCompletion.jsx')
   const signIndex = page.indexOf('/signature`')
   assert.ok(signIndex > 0, 'the locked page must post the signature')
   const post = page.slice(signIndex, page.indexOf('if (!data.success)', signIndex))
   assert.match(post, /signatureDataUrl/)
   assert.match(post, /agreed: true/)
+  assert.match(post, /secondDriverSignatureDataUrl/)
+  assert.match(page, /booking\?\.secondDriver\?\.enabled/)
   for (const forbidden of [
     'customerName',
     'customerEmail',

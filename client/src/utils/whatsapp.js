@@ -3,7 +3,10 @@
 import { BRAND_NAME } from '../constants/brand'
 import { customerEmail } from './customerEmail'
 import { buildSignedContractWhatsAppMessage } from '../../../shared/signedContractWhatsApp.js'
-import { buildSignatureLinkWhatsAppMessage } from '../../../shared/signatureLinkWhatsApp.js'
+import {
+  buildSignatureLinkWhatsAppMessage,
+  secondDriverShareName,
+} from '../../../shared/signatureLinkWhatsApp.js'
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116'
 
@@ -197,6 +200,8 @@ export const buildSignatureLinkToCustomerWaUrl = (
     returnDate: formatShareDateTime(booking?.returnDate, language),
     link: completionUrl,
     signatureOnly: signOnly,
+    secondDriver: booking?.secondDriver,
+    secondDriverName: secondDriverShareName(booking?.secondDriver),
   })
   if (!dial) {
     return { ok: false, code: 'NO_PHONE', message, whatsappUrl: '' }

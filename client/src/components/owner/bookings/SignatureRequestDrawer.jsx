@@ -106,6 +106,29 @@ const SignatureRequestDrawer = ({
           </FormField>
         </DrawerSection>
 
+        {booking.secondDriver?.enabled ? (
+          <DrawerSection
+            title={t('admin.contracts.secondDriverName')}
+            description={t('admin.bookings.bothDriversMustSign')}
+          >
+            <FormField label={t('admin.contracts.secondDriverName')} className="sm:col-span-2">
+              <p className="text-sm font-medium text-[var(--admin-ink)]">
+                {booking.secondDriver.fullName || '—'}
+              </p>
+            </FormField>
+            {booking.secondDriver.phone ? (
+              <FormField label={t('admin.contracts.secondDriverPhone')}>
+                <p className="text-sm text-[var(--admin-ink)]">{booking.secondDriver.phone}</p>
+              </FormField>
+            ) : null}
+            {booking.secondDriver.driverLicenseNumber ? (
+              <FormField label={t('admin.contracts.driverLicense')}>
+                <p className="text-sm text-[var(--admin-ink)]">{booking.secondDriver.driverLicenseNumber}</p>
+              </FormField>
+            ) : null}
+          </DrawerSection>
+        ) : null}
+
         <DrawerSection title={t('admin.bookings.confirmDocument')} description={t('admin.bookings.confirmDocumentHint')}>
           <FormField label={t('admin.bookings.reservation')} className="sm:col-span-2">
             <p className="text-sm font-medium text-[var(--admin-ink)]">{reservationRef(booking)}</p>

@@ -180,13 +180,14 @@ export const buildSignaturesRowHtml = (booking, { template, includeCompanyStamp 
         'max-height:80px;max-width:220px;margin-top:6px;',
       )
     : '';
+  const customerSigLabel = secondEnabled ? 'Main Driver Signature' : 'Customer Signature';
   const secondBox = secondEnabled
     ? `<div class="sign-box"><strong>Second Driver Signature</strong><br/><span class="muted">${val(sd.fullName)}</span><br/>${secondSig}</div>`
     : '';
 
   return `<div class="sign-row" style="grid-template-columns: repeat(${cols}, 1fr);">
   <div class="sign-box"><strong>Agency Signature</strong><br/><span class="muted">${agencyName}</span><br/>${companySig}</div>
-  <div class="sign-box"><strong>Customer Signature</strong><br/><span class="muted">${customerName}</span><br/>${customerSig}</div>
+  <div class="sign-box"><strong>${customerSigLabel}</strong><br/><span class="muted">${customerName}</span><br/>${customerSig}</div>
   ${secondBox}
 </div>`;
 };

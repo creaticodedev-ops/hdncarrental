@@ -229,6 +229,59 @@ await check('the smuggled reservation edits were discarded', () => {
 })
 
 const signatureFile = booking.completion.signatureUrl
+const extraSignatureFiles = []
+
+await check('a walk-in with a second driver requires both signatures', async () => {
+  booking = makeWalkIn()
+  booking.secondDriver = {
+    enabled: true,
+    fullName: 'Sara Idrissi',
+    dateOfBirth: '',
+    nationality: '',
+    driverLicenseNumber: 'DL-2',
+    driverLicenseExpiry: '',
+    passportNumber: '',
+    phone: '',
+  }
+
+  const { status: getStatus, body: getBody } = await call('GET', `/${TOKEN}`)
+  assert.equal(getStatus, 200)
+  assert.equal(getBody.booking.mode, 'signature_only')
+  assert.equal(getBody.booking.secondDriver.enabled, true)
+  assert.equal(getBody.booking.secondDriver.fullName, 'Sara Idrissi')
+
+  const png =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
+
+  const missing = await call('POST', `/${TOKEN}/signature`, {
+    signatureDataUrl: png,
+    agreed: true,
+  })
+  assert.equal(missing.status, 400)
+  assert.match(missing.body.message || '', /second driver signature/i)
+  assert.equal(booking.completion.signatureUrl, '')
+  assert.equal(booking.completion.signatureComplete, false)
+
+  const { status, body } = await call('POST', `/${TOKEN}/signature`, {
+    signatureDataUrl: png,
+    secondDriverSignatureDataUrl: png,
+    agreed: true,
+    secondDriver: { enabled: true, fullName: 'Injected Driver' },
+  })
+  assert.ok(
+    !(status === 400 && /Please complete/i.test(body.message || '')),
+    `completeness gate wrongly rejected a desk booking: ${body.message}`,
+  )
+  assert.match(booking.completion.signatureUrl, /^https?:\/\/|\/uploads\//)
+  assert.match(booking.completion.secondDriverSignatureUrl, /^https?:\/\/|\/uploads\//)
+  assert.ok(booking.completion.secondDriverSignatureSignedAt instanceof Date)
+  assert.equal(booking.completion.signatureComplete, true)
+  assert.equal(booking.secondDriver.fullName, 'Sara Idrissi')
+  extraSignatureFiles.push(
+    booking.completion.signatureUrl,
+    booking.completion.secondDriverSignatureUrl,
+  )
+})
 
 await check('a bare ONLINE booking still gets the full customer wizard', async () => {
   booking = makeWalkIn()
@@ -245,7 +298,11 @@ server.close()
 
 // The signature write is real, so remove the image this run left on disk.
 const uploadsRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads')
-const rel = String(signatureFile).split('/uploads/')[1]
-if (rel) fs.rmSync(path.join(uploadsRoot, ...rel.split('/')), { force: true })
+const cleanupUpload = (url) => {
+  const rel = String(url || '').split('/uploads/')[1]
+  if (rel) fs.rmSync(path.join(uploadsRoot, ...rel.split('/')), { force: true })
+}
+cleanupUpload(signatureFile)
+extraSignatureFiles.forEach(cleanupUpload)
 
 console.log(`\n${passed} checks passed`)

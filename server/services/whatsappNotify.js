@@ -4,7 +4,10 @@
  */
 import { BRAND_NAME } from '../utils/brand.js';
 import { buildSignedContractWhatsAppMessage } from '../../shared/signedContractWhatsApp.js';
-import { buildSignatureLinkWhatsAppMessage } from '../../shared/signatureLinkWhatsApp.js';
+import {
+  buildSignatureLinkWhatsAppMessage,
+  secondDriverShareName,
+} from '../../shared/signatureLinkWhatsApp.js';
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116';
 
@@ -135,6 +138,8 @@ export const buildSignatureLinkToCustomerWhatsAppUrl = ({
   returnDate,
   completionUrl,
   signatureOnly = false,
+  secondDriver,
+  secondDriverName = '',
 } = {}) => {
   const dial = normalizeWhatsAppDial(customerPhone);
   const message = buildSignatureLinkWhatsAppMessage({
@@ -147,6 +152,8 @@ export const buildSignatureLinkToCustomerWhatsAppUrl = ({
     returnDate: formatShareDateTime(returnDate, language),
     link: completionUrl,
     signatureOnly,
+    secondDriverName: secondDriverName || secondDriverShareName(secondDriver),
+    secondDriver,
   });
   if (!dial) {
     return { ok: false, code: 'NO_PHONE', message, whatsappUrl: '' };

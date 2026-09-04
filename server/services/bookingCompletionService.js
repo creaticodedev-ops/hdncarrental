@@ -49,6 +49,9 @@ export const resolveCompletionMode = (booking) => {
 
 export const isSignatureOnlyCompletion = (booking) => resolveCompletionMode(booking) === "signature_only";
 
+/** A second driver on the booking must sign, on both signature-only and full links. */
+export const bookingHasSecondDriver = (booking) => Boolean(booking?.secondDriver?.enabled);
+
 const formatDt = (v) => {
   if (!v) return "—";
   const d = new Date(v);
@@ -447,8 +450,7 @@ export const refreshCompletionFlags = (booking) => {
     c.drivingLicenseUrl && c.identityDocumentUrl && (c.identityType === "national_id" || c.identityType === "passport"),
   );
   c.paymentComplete = Boolean(c.paymentCompletedAt && (c.amountPaid > 0 || booking.paymentStatus === "paid"));
-  const needsSecondDriverSig =
-    resolveCompletionMode(booking) === "full" && Boolean(booking.secondDriver?.enabled);
+  const needsSecondDriverSig = bookingHasSecondDriver(booking);
   const secondDriverSigOk =
     !needsSecondDriverSig || Boolean(c.secondDriverSignatureUrl && c.secondDriverSignatureSignedAt);
   c.signatureComplete = Boolean(c.signatureUrl && c.signatureSignedAt && secondDriverSigOk);
@@ -715,8 +717,7 @@ export const saveSignatureAndMaybeFinalize = async (
   booking.completion.signatureUrl = url;
   booking.completion.signatureSignedAt = new Date();
 
-  const needsSecond =
-    resolveCompletionMode(booking) === "full" && Boolean(booking.secondDriver?.enabled);
+  const needsSecond = bookingHasSecondDriver(booking);
   if (needsSecond) {
     if (!secondDriverSignatureDataUrl || !String(secondDriverSignatureDataUrl).startsWith('data:image')) {
       const err = new Error('Second driver signature is required');
@@ -754,6 +755,7 @@ export default {
   cancelSignatureRequest,
   listSignatureRequests,
   findBookingByCompletionToken,
+  bookingHasSecondDriver,
   refreshCompletionFlags,
   renderContractPreviewHtml,
   tryFinalizeBookingCompletion,

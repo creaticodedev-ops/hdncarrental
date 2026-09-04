@@ -30,12 +30,22 @@ const StepHeading = ({ index, title, hint }) => (
   </div>
 )
 
+const DriverPad = ({ label, name, onChange, disabled }) => (
+  <div className="space-y-2">
+    <p className="text-sm font-semibold text-ink">
+      {label}
+      {name ? <span className="ml-2 font-normal text-muted">{name}</span> : null}
+    </p>
+    <SignaturePad onChange={onChange} disabled={disabled} />
+  </div>
+)
+
 /**
  * Signature-only completion link.
  *
  * The reservation is already complete, so this page is deliberately read-only:
- * review the contract, sign, done. It posts nothing but the signature itself, and
- * the server refuses reservation edits on this kind of link regardless.
+ * review the contract, sign, done. It posts the signature(s) only — never
+ * reservation edits — and the server refuses detail writes on this kind of link.
  */
 const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
   const { t, language } = useI18n()
@@ -46,12 +56,15 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
   const [contractState, setContractState] = useState('idle')
   const [contractOpen, setContractOpen] = useState(false)
   const [signature, setSignature] = useState('')
+  const [secondDriverSignature, setSecondDriverSignature] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [signing, setSigning] = useState(false)
   const blobUrlRef = useRef('')
 
   const completion = booking?.completion
   const signed = Boolean(completion?.signatureComplete) || booking?.status === 'ready_for_pickup'
+  const secondDriverOn = Boolean(booking?.secondDriver?.enabled)
+  const secondDriverName = String(booking?.secondDriver?.fullName || '').trim()
 
   useEffect(
     () => () => {
@@ -102,6 +115,10 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
       toast.error(t('completion.needSignature'))
       return
     }
+    if (secondDriverOn && !secondDriverSignature) {
+      toast.error(t('completion.needSecondDriverSignature'))
+      return
+    }
     if (!agreed) {
       toast.error(t('completion.needAgree'))
       return
@@ -112,9 +129,10 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
     try {
       await docGen.run(
         async () => {
-          // Signature only — no reservation data is sent from this page.
+          // Signatures only — no reservation data is sent from this page.
           const { data } = await api.post(`/api/booking-completion/${token}/signature`, {
             signatureDataUrl: signature,
+            ...(secondDriverOn ? { secondDriverSignatureDataUrl: secondDriverSignature } : {}),
             agreed: true,
           })
           if (!data.success) throw new Error(data.message)
@@ -250,8 +268,22 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
                 />
 
                 <dl className="mt-5 divide-y divide-borderColor/70 rounded-2xl border border-borderColor bg-sand/25 px-4">
-                  <Row label={t('confirmation.name')} value={booking.customerName} />
+                  <Row
+                    label={secondDriverOn ? t('completion.mainDriverLabel') : t('confirmation.name')}
+                    value={booking.customerName}
+                  />
                   <Row label={t('confirmation.phoneLabel')} value={booking.customerPhone} />
+                  {secondDriverOn ? (
+                    <>
+                      <Row label={t('completion.secondDriverLabel')} value={secondDriverName} />
+                      {booking.secondDriver?.driverLicenseNumber ? (
+                        <Row
+                          label={t('completion.secondDriverLicense')}
+                          value={booking.secondDriver.driverLicenseNumber}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
                   <Row label={t('confirmation.vehicle')} value={vehicle} />
                   <Row label={t('confirmation.from')} value={dateLabel(booking.pickupDate)} />
                   <Row label={t('confirmation.until')} value={dateLabel(booking.returnDate)} />
@@ -319,17 +351,29 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
                 <StepHeading
                   index={2}
                   title={t('completion.only.signStep')}
-                  hint={t('completion.only.signHint')}
+                  hint={secondDriverOn ? t('completion.only.signHintBoth') : t('completion.only.signHint')}
                 />
 
                 <div className="mt-5 space-y-5">
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-ink">
-                      {t('completion.signatureCustomerLabel')}
-                      <span className="ml-2 font-normal text-muted">{booking.customerName}</span>
-                    </p>
-                    <SignaturePad onChange={setSignature} disabled={signing} />
-                  </div>
+                  <DriverPad
+                    label={
+                      secondDriverOn
+                        ? t('completion.signatureMainDriverLabel')
+                        : t('completion.signatureCustomerLabel')
+                    }
+                    name={booking.customerName}
+                    onChange={setSignature}
+                    disabled={signing}
+                  />
+
+                  {secondDriverOn ? (
+                    <DriverPad
+                      label={t('completion.signatureSecondDriverLabel')}
+                      name={secondDriverName || '—'}
+                      onChange={setSecondDriverSignature}
+                      disabled={signing}
+                    />
+                  ) : null}
 
                   <label className="flex cursor-pointer items-start gap-3 text-sm text-muted">
                     <input
@@ -349,7 +393,9 @@ const SignatureOnlyCompletion = ({ token, api, booking, onBookingChange }) => {
                   >
                     {signing || docGen.running
                       ? t('completion.only.saving')
-                      : t('completion.only.saveSignature')}
+                      : secondDriverOn
+                        ? t('completion.only.saveSignatures')
+                        : t('completion.only.saveSignature')}
                   </button>
 
                   <p className="text-center text-xs text-muted">

@@ -612,15 +612,22 @@ const CompleteBooking = () => {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-ink">{t('completion.signatureCustomerLabel')}</p>
+                <p className="text-sm font-semibold text-ink">
+                  {showSecondDriverSign
+                    ? t('completion.signatureMainDriverLabel')
+                    : t('completion.signatureCustomerLabel')}
+                  <span className="ml-2 font-normal text-muted">{booking?.customerName || ''}</span>
+                </p>
                 <SignaturePad onChange={setSignature} disabled={signing || signDone} />
               </div>
 
               {showSecondDriverSign && (
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-ink">{t('completion.signatureSecondDriverLabel')}</p>
-                  <p className="text-xs text-muted">
-                    {details.secondDriverFullName || booking?.secondDriver?.fullName || '—'}
+                  <p className="text-sm font-semibold text-ink">
+                    {t('completion.signatureSecondDriverLabel')}
+                    <span className="ml-2 font-normal text-muted">
+                      {details.secondDriverFullName || booking?.secondDriver?.fullName || '—'}
+                    </span>
                   </p>
                   <SignaturePad onChange={setSecondDriverSignature} disabled={signing || signDone} />
                 </div>

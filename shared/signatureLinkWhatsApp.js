@@ -109,6 +109,23 @@ export const normalizeShareLanguage = (language) => {
   return SIGNATURE_ONLY[lang] ? lang : 'en';
 };
 
+const SECOND_DRIVER_LINE = {
+  en: 'Second driver: {{secondDriverName}}',
+  fr: 'Deuxième conducteur : {{secondDriverName}}',
+  es: 'Segundo conductor: {{secondDriverName}}',
+};
+
+const RESERVATION_LINE = {
+  en: 'Reservation: {{reservationId}}',
+  fr: 'Réservation : {{reservationId}}',
+  es: 'Reserva: {{reservationId}}',
+};
+
+export const secondDriverShareName = (secondDriver) => {
+  if (!secondDriver?.enabled) return '';
+  return String(secondDriver.fullName || '').trim();
+};
+
 export const buildSignatureLinkWhatsAppMessage = ({
   language = 'en',
   brand = 'HDN Car',
@@ -119,18 +136,32 @@ export const buildSignatureLinkWhatsAppMessage = ({
   returnDate = '',
   link = '',
   signatureOnly = false,
+  secondDriverName = '',
+  secondDriver,
 } = {}) => {
   const lang = normalizeShareLanguage(language);
   const template = (signatureOnly ? SIGNATURE_ONLY : FULL)[lang];
-  return interpolate(template, {
+  const id = reservationId || '—';
+  let text = interpolate(template, {
     brand,
     name: name || '—',
-    reservationId: reservationId || '—',
+    reservationId: id,
     vehicle: vehicle || '—',
     pickup: pickup || '—',
     returnDate: returnDate || '—',
     link: link || '—',
   }).trim();
+  const sdName = String(secondDriverName || secondDriverShareName(secondDriver) || '').trim();
+  if (sdName) {
+    const reservationLine = interpolate(RESERVATION_LINE[lang], { reservationId: id });
+    const extra = interpolate(SECOND_DRIVER_LINE[lang], { secondDriverName: sdName });
+    if (text.includes(reservationLine)) {
+      text = text.replace(reservationLine, `${reservationLine}\n${extra}`);
+    } else {
+      text = `${text}\n${extra}`;
+    }
+  }
+  return text;
 };
 
 export default buildSignatureLinkWhatsAppMessage;

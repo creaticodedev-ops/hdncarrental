@@ -46,7 +46,25 @@ check('signature-only copy asks the customer to sign', () => {
   assert.match(text, /complete-booking\/token-abc/);
   assert.doesNotMatch(text, /please send to customer/i);
   assert.doesNotMatch(text, /Customer phone/);
+  assert.doesNotMatch(text, /Second driver/i);
 });
+
+check('WhatsApp copy names the second driver when one is on the reservation', () => {
+  const text = buildSignatureLinkWhatsAppMessage({
+    language: 'en',
+    signatureOnly: true,
+    ...sample,
+    secondDriverName: 'Sara Idrissi',
+  })
+  assert.match(text, /Second driver: Sara Idrissi/)
+  const fr = buildSignatureLinkWhatsAppMessage({
+    language: 'fr',
+    signatureOnly: true,
+    ...sample,
+    secondDriver: { enabled: true, fullName: 'Sara Idrissi' },
+  })
+  assert.match(fr, /Deuxième conducteur : Sara Idrissi/)
+})
 
 check('full completion copy asks the customer to complete the booking', () => {
   const text = buildSignatureLinkWhatsAppMessage({ language: 'en', signatureOnly: false, ...sample });
