@@ -10,7 +10,7 @@ import { getCarLocations } from '../../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../../utils/pricing'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import DateField from '../../components/calendar/DateField'
-import { VehicleSelect } from '../../admin/ui'
+import { SearchSelect, VehicleSelect, toLocationOption } from '../../admin/ui'
 import { findDefaultLocationId } from '../../utils/defaultLocation'
 
 const emptyForm = {
@@ -91,6 +91,28 @@ const WalkInBooking = () => {
     const citySet = new Set(cities.map((c) => c.toLowerCase()))
     return pickupLocations.filter((l) => citySet.has(String(l.city || '').toLowerCase()))
   }, [selectedCar, pickupLocations])
+
+  const locationTypeLabel = (type) => {
+    if (type === 'airport') return t('admin.walkIn.locAirport')
+    if (type === 'hotel') return t('admin.walkIn.locHotel')
+    if (type === 'office') return t('admin.walkIn.locOffice')
+    return t('admin.walkIn.locCity')
+  }
+
+  const locationOptions = useMemo(
+    () => bookableLocations.map((loc) => toLocationOption(loc, locationTypeLabel(loc.locationType))).filter(Boolean),
+    [bookableLocations, t],
+  )
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'pending', label: t('admin.bookings.statuses.pending'), mark: 'status-pending' },
+      { value: 'confirmed', label: t('admin.bookings.statuses.confirmed'), mark: 'status-confirmed' },
+      { value: 'ready_for_pickup', label: t('admin.bookings.statuses.ready_for_pickup'), mark: 'status-ready' },
+      { value: 'active', label: t('admin.bookings.statuses.active'), mark: 'status-active' },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     const ids = new Set(bookableLocations.map((l) => String(l._id)))
@@ -539,8 +561,10 @@ const WalkInBooking = () => {
                 required
                 cars={cars}
                 value={form.car}
+                currency={currency}
+                showRate
                 placeholder={t('admin.walkIn.selectVehicle')}
-                searchPlaceholder={t('admin.accounting.searchVehicle')}
+                searchPlaceholder={t('admin.walkIn.searchVehicle')}
                 emptyLabel={t('admin.ui.noResults')}
                 onChange={(carId) => {
                   const car = cars.find((c) => c._id === carId)
@@ -563,21 +587,29 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.pickupLoc')} *</label>
-              <select className={input} required value={form.pickupLocationId} onChange={(e) => setField('pickupLocationId', e.target.value)}>
-                <option value="">{t('admin.walkIn.selectLoc')}</option>
-                {bookableLocations.map((l) => (
-                  <option key={l._id} value={l._id}>{l.city} — {l.name}</option>
-                ))}
-              </select>
+              <SearchSelect
+                required
+                value={form.pickupLocationId}
+                onChange={(id) => setField('pickupLocationId', id)}
+                options={locationOptions}
+                placeholder={t('admin.walkIn.selectLoc')}
+                searchPlaceholder={t('admin.walkIn.searchLocation')}
+                emptyLabel={t('admin.ui.noResults')}
+                searchable
+              />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.returnLoc')} *</label>
-              <select className={input} required value={form.returnLocationId} onChange={(e) => setField('returnLocationId', e.target.value)}>
-                <option value="">{t('admin.walkIn.selectLoc')}</option>
-                {bookableLocations.map((l) => (
-                  <option key={l._id} value={l._id}>{l.city} — {l.name}</option>
-                ))}
-              </select>
+              <SearchSelect
+                required
+                value={form.returnLocationId}
+                onChange={(id) => setField('returnLocationId', id)}
+                options={locationOptions}
+                placeholder={t('admin.walkIn.selectLoc')}
+                searchPlaceholder={t('admin.walkIn.searchLocation')}
+                emptyLabel={t('admin.ui.noResults')}
+                searchable
+              />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.franchise')}</label>
@@ -662,12 +694,13 @@ const WalkInBooking = () => {
             <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.options')}</h2>
             <div>
               <label className="admin-label">{t('admin.walkIn.initialStatus')}</label>
-              <select className={input} value={form.status} onChange={(e) => setField('status', e.target.value)}>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="ready_for_pickup">Ready for pickup</option>
-                <option value="active">Active (out)</option>
-              </select>
+              <SearchSelect
+                value={form.status}
+                onChange={(status) => setField('status', status)}
+                options={statusOptions}
+                placeholder={t('admin.walkIn.initialStatus')}
+                searchable={false}
+              />
             </div>
             <label className="flex items-center gap-2 text-sm text-[var(--admin-ink-secondary)]">
               <input type="checkbox" checked={form.markPaid} onChange={(e) => setField('markPaid', e.target.checked)} />

@@ -245,9 +245,49 @@ export const PercentInput = ({ value, onChange, required, min = '0', max = '100'
 )
 
 const optionSearchText = (option) =>
-  `${option.label || ''} ${option.hint || ''} ${option.keywords || ''}`.toLowerCase()
+  `${option.label || ''} ${option.hint || ''} ${option.meta || ''} ${option.keywords || ''}`.toLowerCase()
 
 const resolveAdminShell = (node) => node?.closest?.('.admin-shell') || null
+
+const IconCar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <path d="M4 15.5h16M5.2 15.5l1.4-5.1A2 2 0 0 1 8.5 9h7a2 2 0 0 1 1.9 1.4l1.4 5.1" />
+    <path d="M7 12h10M7.8 18.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM16.2 18.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
+  </svg>
+)
+
+const IconPin = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <path d="M12 21s7-6.1 7-11.2A7 7 0 1 0 5 9.8C5 14.9 12 21 12 21Z" />
+    <circle cx="12" cy="9.8" r="2.2" />
+  </svg>
+)
+
+const IconPlane = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <path d="M21 12.5 14 13l-3.2 6.4-.9-.5L11.2 13H7.6L6 15.2l-.8-.3L6.2 12 5.2 9.1l.8-.3L7.6 11h3.6L9.9 5.1l.9-.5L14 11.5l7 .5v.5Z" />
+  </svg>
+)
+
+const IconHotel = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <path d="M4 20V8.5A1.5 1.5 0 0 1 5.5 7H14a1.5 1.5 0 0 1 1.5 1.5V20M4 20h16M15.5 20v-6.5A1.5 1.5 0 0 1 17 12h2.5A1.5 1.5 0 0 1 21 13.5V20" />
+    <path d="M7.5 10.5h2M7.5 13.5h2M7.5 16.5h2" />
+  </svg>
+)
+
+const ComboMark = ({ mark }) => {
+  if (!mark) return null
+  if (String(mark).startsWith('status-')) {
+    return <span className={`admin-combobox-dot is-${String(mark).slice(7)}`} />
+  }
+  const Icon = mark === 'vehicle' ? IconCar : mark === 'airport' ? IconPlane : mark === 'hotel' ? IconHotel : IconPin
+  return (
+    <span className={`admin-combobox-mark is-${mark}`}>
+      <Icon />
+    </span>
+  )
+}
 
 export const SearchSelect = ({
   value,
@@ -256,6 +296,7 @@ export const SearchSelect = ({
   placeholder = 'Search…',
   searchPlaceholder,
   emptyLabel = 'No results',
+  searchable,
   required,
   id,
   disabled = false,
@@ -270,10 +311,11 @@ export const SearchSelect = ({
   const searchRef = useRef(null)
   const listRef = useRef(null)
   const selected = options.find((o) => String(o.value) === String(value))
+  const canSearch = searchable ?? options.length > 6
   const query = q.trim().toLowerCase()
   const filtered = useMemo(
-    () => (query ? options.filter((o) => optionSearchText(o).includes(query)) : options),
-    [options, query],
+    () => (canSearch && query ? options.filter((o) => optionSearchText(o).includes(query)) : options),
+    [options, query, canSearch],
   )
 
   const close = () => {
@@ -335,9 +377,9 @@ export const SearchSelect = ({
     if (!open) return undefined
     const selectedIdx = filtered.findIndex((o) => String(o.value) === String(value))
     setActive(selectedIdx >= 0 ? selectedIdx : filtered.length ? 0 : -1)
-    const frame = requestAnimationFrame(() => searchRef.current?.focus())
+    const frame = requestAnimationFrame(() => (canSearch ? searchRef.current : panelRef.current)?.focus?.())
     return () => cancelAnimationFrame(frame)
-  }, [open])
+  }, [open, canSearch])
 
   useEffect(() => {
     if (!open) return undefined
@@ -385,9 +427,11 @@ export const SearchSelect = ({
     ? createPortal(
         <div
           ref={panelRef}
-          className="admin-combobox-panel is-ported"
+          className={`admin-combobox-panel is-ported${canSearch ? '' : ' is-simple'}`}
           data-theme={theme}
           role="listbox"
+          tabIndex={-1}
+          onKeyDown={onSearchKeyDown}
           style={{
             top: coords.top,
             bottom: coords.bottom,
@@ -396,28 +440,30 @@ export const SearchSelect = ({
             maxHeight: coords.maxHeight,
           }}
         >
-          <div className="admin-combobox-search">
-            <label className="admin-combobox-search-field">
-              <svg className="admin-combobox-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </svg>
-              <input
-                ref={searchRef}
-                type="search"
-                className="admin-combobox-search-input"
-                placeholder={searchPlaceholder || placeholder}
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value)
-                  setActive(0)
-                }}
-                onKeyDown={onSearchKeyDown}
-                autoComplete="off"
-                aria-autocomplete="list"
-              />
-            </label>
-          </div>
+          {canSearch ? (
+            <div className="admin-combobox-search">
+              <label className="admin-combobox-search-field">
+                <svg className="admin-combobox-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
+                <input
+                  ref={searchRef}
+                  type="search"
+                  className="admin-combobox-search-input"
+                  placeholder={searchPlaceholder || placeholder}
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value)
+                    setActive(0)
+                  }}
+                  onKeyDown={onSearchKeyDown}
+                  autoComplete="off"
+                  aria-autocomplete="list"
+                />
+              </label>
+            </div>
+          ) : null}
           {filtered.length === 0 ? (
             <p className="admin-combobox-empty">{emptyLabel}</p>
           ) : (
@@ -435,8 +481,19 @@ export const SearchSelect = ({
                     onMouseEnter={() => setActive(index)}
                     onClick={() => pick(o)}
                   >
-                    <span className="admin-combobox-option-label">{o.label}</span>
-                    {o.hint ? <span className="admin-combobox-option-hint">{o.hint}</span> : null}
+                    <ComboMark mark={o.mark} />
+                    <span className="admin-combobox-option-body">
+                      <span className="admin-combobox-option-label">{o.label}</span>
+                      {o.hint ? (
+                        <span className={`admin-combobox-option-hint${o.hintKind === 'code' ? ' is-code' : ''}`}>{o.hint}</span>
+                      ) : null}
+                    </span>
+                    {o.meta ? <span className="admin-combobox-option-meta">{o.meta}</span> : null}
+                    {isSelected ? (
+                      <svg className="admin-combobox-check" viewBox="0 0 20 20" fill="none" aria-hidden>
+                        <path d="M4.5 10.5 8 14l7.5-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : null}
                   </button>
                 )
               })}
@@ -469,10 +526,15 @@ export const SearchSelect = ({
         }}
       >
         {selected ? (
-          <span className="admin-combobox-trigger-copy">
-            <span className="admin-combobox-trigger-label">{selected.label}</span>
-            {selected.hint ? <span className="admin-combobox-trigger-hint">{selected.hint}</span> : null}
-          </span>
+          <>
+            <ComboMark mark={selected.mark} />
+            <span className="admin-combobox-trigger-copy">
+              <span className="admin-combobox-trigger-label">{selected.label}</span>
+              {selected.hint ? (
+                <span className={`admin-combobox-trigger-hint${selected.hintKind === 'code' ? ' is-code' : ''}`}>{selected.hint}</span>
+              ) : null}
+            </span>
+          </>
         ) : (
           <span className="admin-combobox-trigger-copy">
             <span className="admin-combobox-trigger-placeholder">{placeholder}</span>
@@ -487,17 +549,41 @@ export const SearchSelect = ({
   )
 }
 
-export const toVehicleOption = (car) => {
+export const toVehicleOption = (car, extras = {}) => {
   if (!car) return null
   const model = String(car.model || '').trim()
   const brand = String(car.brand || '').trim()
   const plate = String(car.licensePlate || '').trim()
   const fleetId = String(car.fleetId || '').trim()
+  const rate = extras.showRate && car.pricePerDay != null
+    ? `${extras.currency || ''}${car.pricePerDay}`
+    : ''
   return {
     value: car._id,
     label: model || brand || '—',
     hint: plate,
+    hintKind: 'code',
+    meta: rate,
+    mark: 'vehicle',
     keywords: [brand, model, plate, fleetId, car.vin].filter(Boolean).join(' '),
+  }
+}
+
+export const toLocationOption = (loc, typeLabel) => {
+  if (!loc) return null
+  const city = String(loc.city || '').trim()
+  const name = String(loc.name || '').trim()
+  const type = String(loc.locationType || '').trim()
+  const same = city && name && city.toLowerCase() === name.toLowerCase()
+  const hintParts = []
+  if (!same && city) hintParts.push(city)
+  if (typeLabel) hintParts.push(typeLabel)
+  return {
+    value: loc._id,
+    label: same ? city : (name || city || '—'),
+    hint: hintParts.join(' · '),
+    mark: type === 'airport' || type === 'hotel' ? type : 'place',
+    keywords: [city, name, loc.address, type].filter(Boolean).join(' '),
   }
 }
 
@@ -513,12 +599,14 @@ export const VehicleSelect = ({
   required,
   id,
   disabled = false,
+  currency,
+  showRate = false,
 }) => {
   const options = useMemo(() => {
-    const list = cars.map(toVehicleOption).filter(Boolean)
+    const list = cars.map((car) => toVehicleOption(car, { currency, showRate })).filter(Boolean)
     if (!includeEmpty) return list
     return [{ value: '', label: emptyOptionLabel || 'All', hint: '' }, ...list]
-  }, [cars, includeEmpty, emptyOptionLabel])
+  }, [cars, includeEmpty, emptyOptionLabel, currency, showRate])
 
   return (
     <SearchSelect
@@ -529,6 +617,7 @@ export const VehicleSelect = ({
       placeholder={placeholder}
       searchPlaceholder={searchPlaceholder}
       emptyLabel={emptyLabel}
+      searchable
       required={required}
       disabled={disabled}
     />

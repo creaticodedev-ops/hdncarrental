@@ -533,11 +533,11 @@
 .admin-combobox-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem;
-  min-height: 2.75rem;
-  padding: 0.4rem 0.75rem;
+  gap: 0.6rem;
+  min-height: 2.85rem;
+  padding: 0.38rem 0.7rem;
   text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .admin-combobox.is-open .admin-combobox-trigger {
   border-color: color-mix(in srgb, var(--admin-primary, #8f1f1f) 45%, var(--admin-border, #e4ddd8));
@@ -549,7 +549,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.12rem;
+  gap: 0.1rem;
   line-height: 1.15;
 }
 .admin-combobox-trigger-label {
@@ -559,6 +559,7 @@
   white-space: nowrap;
   font-size: 0.875rem;
   font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--admin-ink, #14110f);
 }
 .admin-combobox-trigger-hint {
@@ -567,9 +568,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-weight: 550;
   color: var(--admin-muted, #6b6560);
+}
+.admin-combobox-trigger-hint.is-code {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .admin-combobox-trigger-placeholder {
   display: block;
@@ -581,15 +585,42 @@
   font-weight: 500;
 }
 .admin-combobox-caret {
+  margin-left: auto;
   flex-shrink: 0;
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 0.95rem;
+  height: 0.95rem;
   color: var(--admin-muted, #6b6560);
-  transition: transform 0.15s ease;
+  transition: transform 0.16s ease;
 }
 .admin-combobox.is-open .admin-combobox-caret {
   transform: rotate(180deg);
 }
+.admin-combobox-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.45rem;
+  background: var(--admin-surface-2, #f8f6f5);
+  color: var(--admin-muted, #6b6560);
+}
+.admin-combobox-mark svg {
+  width: 0.92rem;
+  height: 0.92rem;
+}
+.admin-combobox-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--admin-muted, #6b6560);
+}
+.admin-combobox-dot.is-pending { background: var(--admin-warn, #b54708); }
+.admin-combobox-dot.is-confirmed { background: var(--admin-info, #175cd3); }
+.admin-combobox-dot.is-ready { background: var(--admin-success, #067647); }
+.admin-combobox-dot.is-active { background: var(--admin-primary, #8f1f1f); }
 .admin-combobox-panel {
   --cb-surface: var(--admin-surface, #ffffff);
   --cb-surface-2: var(--admin-surface-2, #f8f6f5);
@@ -600,7 +631,7 @@
   --cb-primary: var(--admin-primary, #8f1f1f);
   --cb-soft: var(--admin-primary-soft, rgb(143 31 31 / 0.1));
   --cb-radius: var(--admin-radius, 0.75rem);
-  --cb-shadow: var(--admin-shadow-lg, 0 16px 40px rgb(20 17 15 / 0.16));
+  --cb-shadow: var(--admin-shadow-lg, 0 18px 44px rgb(20 17 15 / 0.18));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -624,10 +655,20 @@
 .admin-combobox-panel.is-ported {
   position: fixed;
   z-index: 90;
+  animation: admin-combo-in 0.16s ease-out;
+}
+@keyframes admin-combo-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-combobox-panel.is-ported {
+    animation: none;
+  }
 }
 .admin-combobox-search {
   flex-shrink: 0;
-  padding: 0.55rem 0.55rem 0.5rem;
+  padding: 0.5rem;
   border-bottom: 1px solid var(--cb-border);
   background: var(--cb-surface-2);
 }
@@ -647,8 +688,8 @@
 }
 .admin-combobox-search-input {
   width: 100%;
-  min-height: 2.15rem;
-  padding: 0.4rem 0.7rem 0.4rem 2rem;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.7rem 0.35rem 2rem;
   border: 1px solid var(--cb-border);
   border-radius: calc(var(--cb-radius) - 0.15rem);
   background: var(--cb-surface);
@@ -671,7 +712,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.3rem;
+  padding: 0.28rem;
   scrollbar-width: thin;
   scrollbar-color: var(--cb-border) transparent;
 }
@@ -691,26 +732,34 @@
 }
 .admin-combobox-option {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.12rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
   width: 100%;
   text-align: left;
-  padding: 0.5rem 0.7rem;
+  padding: 0.42rem 0.55rem;
   border-radius: calc(var(--cb-radius) - 0.2rem);
   background: transparent;
   border: 0;
   color: var(--cb-ink);
   cursor: pointer;
+  transition: background 0.12s ease;
+}
+.admin-combobox-option-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 .admin-combobox-option-label {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
-  font-size: 0.875rem;
+  font-size: 0.84rem;
   font-weight: 650;
+  letter-spacing: -0.01em;
   line-height: 1.2;
   color: var(--cb-ink);
 }
@@ -719,12 +768,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
   font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-weight: 550;
   color: var(--cb-muted);
   line-height: 1.2;
+}
+.admin-combobox-option-hint.is-code {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.admin-combobox-option-meta {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: var(--cb-muted);
+  white-space: nowrap;
+}
+.admin-combobox-check {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  color: var(--cb-primary);
+}
+.admin-combobox-option .admin-combobox-mark {
+  background: var(--cb-surface-2);
+  color: var(--cb-muted);
 }
 .admin-combobox-option:hover,
 .admin-combobox-option.is-active {
@@ -736,9 +804,9 @@
 .admin-combobox-option.is-selected .admin-combobox-option-label {
   color: var(--cb-primary);
 }
-.admin-combobox-option.is-selected .admin-combobox-option-hint {
+.admin-combobox-option.is-selected .admin-combobox-mark {
+  background: color-mix(in srgb, var(--cb-primary) 12%, var(--cb-surface));
   color: var(--cb-primary);
-  opacity: 0.75;
 }
 
 .admin-modal {
