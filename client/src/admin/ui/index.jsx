@@ -247,6 +247,8 @@ export const PercentInput = ({ value, onChange, required, min = '0', max = '100'
 const optionSearchText = (option) =>
   `${option.label || ''} ${option.hint || ''} ${option.keywords || ''}`.toLowerCase()
 
+const resolveAdminShell = (node) => node?.closest?.('.admin-shell') || null
+
 export const SearchSelect = ({
   value,
   onChange,
@@ -262,6 +264,7 @@ export const SearchSelect = ({
   const [q, setQ] = useState('')
   const [active, setActive] = useState(-1)
   const [coords, setCoords] = useState(null)
+  const [theme, setTheme] = useState('light')
   const wrapRef = useRef(null)
   const panelRef = useRef(null)
   const searchRef = useRef(null)
@@ -290,13 +293,20 @@ export const SearchSelect = ({
     if (!el) return
     const rect = el.getBoundingClientRect()
     const gutter = 8
-    const maxH = Math.min(288, Math.max(160, window.innerHeight - rect.bottom - gutter))
+    const spaceBelow = window.innerHeight - rect.bottom - gutter
+    const spaceAbove = rect.top - gutter
+    const placeAbove = spaceBelow < 200 && spaceAbove > spaceBelow
+    const available = placeAbove ? spaceAbove : spaceBelow
+    const maxH = Math.min(280, Math.max(168, available))
     setCoords({
-      top: rect.bottom + 4,
+      top: placeAbove ? undefined : rect.bottom + 4,
+      bottom: placeAbove ? window.innerHeight - rect.top + 4 : undefined,
       left: Math.max(gutter, Math.min(rect.left, window.innerWidth - rect.width - gutter)),
       width: rect.width,
       maxHeight: maxH,
     })
+    const shell = resolveAdminShell(el)
+    if (shell) setTheme(shell.getAttribute('data-theme') || 'light')
   }
 
   useEffect(() => {
@@ -367,34 +377,46 @@ export const SearchSelect = ({
     }
   }
 
-  const panel = open && coords
+  const portalHost = typeof document !== 'undefined'
+    ? resolveAdminShell(wrapRef.current) || document.body
+    : null
+
+  const panel = open && coords && portalHost
     ? createPortal(
         <div
           ref={panelRef}
           className="admin-combobox-panel is-ported"
+          data-theme={theme}
           role="listbox"
           style={{
             top: coords.top,
+            bottom: coords.bottom,
             left: coords.left,
             width: coords.width,
             maxHeight: coords.maxHeight,
           }}
         >
           <div className="admin-combobox-search">
-            <input
-              ref={searchRef}
-              type="search"
-              className="admin-input admin-combobox-search-input"
-              placeholder={searchPlaceholder || placeholder}
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value)
-                setActive(0)
-              }}
-              onKeyDown={onSearchKeyDown}
-              autoComplete="off"
-              aria-autocomplete="list"
-            />
+            <label className="admin-combobox-search-field">
+              <svg className="admin-combobox-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.5-3.5" />
+              </svg>
+              <input
+                ref={searchRef}
+                type="search"
+                className="admin-combobox-search-input"
+                placeholder={searchPlaceholder || placeholder}
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value)
+                  setActive(0)
+                }}
+                onKeyDown={onSearchKeyDown}
+                autoComplete="off"
+                aria-autocomplete="list"
+              />
+            </label>
           </div>
           {filtered.length === 0 ? (
             <p className="admin-combobox-empty">{emptyLabel}</p>
@@ -421,12 +443,12 @@ export const SearchSelect = ({
             </div>
           )}
         </div>,
-        document.body,
+        portalHost,
       )
     : null
 
   return (
-    <div className={`admin-combobox${disabled ? ' is-disabled' : ''}`} ref={wrapRef}>
+    <div className={`admin-combobox${open ? ' is-open' : ''}${disabled ? ' is-disabled' : ''}`} ref={wrapRef}>
       <input type="hidden" value={value || ''} required={required} readOnly />
       <button
         id={id}
@@ -456,7 +478,9 @@ export const SearchSelect = ({
             <span className="admin-combobox-trigger-placeholder">{placeholder}</span>
           </span>
         )}
-        <span className="admin-combobox-caret" aria-hidden>▾</span>
+        <svg className="admin-combobox-caret" viewBox="0 0 20 20" fill="none" aria-hidden>
+          <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {panel}
     </div>
@@ -472,8 +496,8 @@ export const toVehicleOption = (car) => {
   return {
     value: car._id,
     label: model || brand || '—',
-    hint: plate || fleetId,
-    keywords: [brand, model, plate, fleetId, car.vin, car.branch].filter(Boolean).join(' '),
+    hint: plate,
+    keywords: [brand, model, plate, fleetId, car.vin].filter(Boolean).join(' '),
   }
 }
 
