@@ -624,6 +624,204 @@ export const VehicleSelect = ({
   )
 }
 
+const DocIconLicense = () => (
+  <svg viewBox="0 0 40 28" aria-hidden>
+    <rect x="1.25" y="1.25" width="37.5" height="25.5" rx="4" fill="currentColor" opacity="0.08" />
+    <rect x="1.25" y="1.25" width="37.5" height="25.5" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="4.5" y="5.5" width="11" height="13" rx="2" fill="currentColor" opacity="0.14" />
+    <circle cx="10" cy="11.6" r="3.35" fill="none" stroke="currentColor" strokeWidth="1.35" />
+    <circle cx="10" cy="11.6" r="1.05" fill="currentColor" />
+    <path d="M7.4 11.6h5.2M10 8.25v6.7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    <rect x="18.5" y="6.2" width="16" height="2.2" rx="1.1" fill="currentColor" />
+    <rect x="18.5" y="10.6" width="11.5" height="1.8" rx="0.9" fill="currentColor" opacity="0.45" />
+    <rect x="18.5" y="14.4" width="13.5" height="1.8" rx="0.9" fill="currentColor" opacity="0.28" />
+    <rect x="4.5" y="21.2" width="31" height="2.4" rx="1.2" fill="currentColor" opacity="0.18" />
+  </svg>
+)
+
+const DocIconCin = () => (
+  <svg viewBox="0 0 40 28" aria-hidden>
+    <rect x="1.25" y="1.25" width="37.5" height="25.5" rx="4" fill="currentColor" opacity="0.08" />
+    <rect x="1.25" y="1.25" width="37.5" height="25.5" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="4.6" y="5.2" width="9.4" height="11.4" rx="1.6" fill="currentColor" opacity="0.16" />
+    <circle cx="9.3" cy="9.1" r="2.05" fill="currentColor" opacity="0.55" />
+    <path d="M6.3 14.6c.7-1.5 2-2.3 3-2.3s2.3.8 3 2.3" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    <rect x="16.4" y="5.6" width="6.2" height="4.6" rx="1" fill="none" stroke="currentColor" strokeWidth="1.25" />
+    <rect x="17.7" y="6.8" width="3.6" height="2.2" rx="0.4" fill="currentColor" opacity="0.35" />
+    <rect x="24.2" y="6" width="11.2" height="1.7" rx="0.85" fill="currentColor" />
+    <rect x="24.2" y="9.4" width="8.4" height="1.5" rx="0.75" fill="currentColor" opacity="0.4" />
+    <path d="M5 19.4h30M5 21.6h30M5 23.8h22" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeDasharray="1.6 1.5" opacity="0.55" />
+  </svg>
+)
+
+const DocIconPassport = () => (
+  <svg viewBox="0 0 40 28" aria-hidden>
+    <rect x="5.5" y="2.4" width="31" height="23.2" rx="3.2" fill="currentColor" opacity="0.1" />
+    <rect x="3.2" y="1.3" width="31.2" height="23.6" rx="3.2" fill="currentColor" opacity="0.08" />
+    <rect x="3.2" y="1.3" width="31.2" height="23.6" rx="3.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="3.2" y="10.4" width="31.2" height="4.2" fill="currentColor" opacity="0.2" />
+    <circle cx="18.8" cy="12.5" r="5.1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    <ellipse cx="18.8" cy="12.5" rx="2.15" ry="5.1" fill="none" stroke="currentColor" strokeWidth="1.05" />
+    <path d="M13.7 12.5h10.2M15.1 9.4h7.4M15.1 15.6h7.4" stroke="currentColor" strokeWidth="1.05" strokeLinecap="round" />
+  </svg>
+)
+
+const DOC_ICONS = {
+  license: DocIconLicense,
+  cin: DocIconCin,
+  passport: DocIconPassport,
+}
+
+const shortDocName = (file) => {
+  const name = typeof file === 'string' ? file : file?.name
+  if (!name) return ''
+  if (name.length <= 24) return name
+  const dot = name.lastIndexOf('.')
+  const ext = dot > 0 ? name.slice(dot) : ''
+  return `${name.slice(0, Math.max(10, 22 - ext.length))}…${ext}`
+}
+
+const DocumentUploadTile = ({
+  kind = 'license',
+  title,
+  hint,
+  required = false,
+  file,
+  uploading = false,
+  disabled = false,
+  accept = 'image/*',
+  addLabel,
+  replaceLabel,
+  clearLabel,
+  uploadingLabel,
+  onChange,
+  onClear,
+}) => {
+  const inputId = useId()
+  const inputRef = useRef(null)
+  const [dragOver, setDragOver] = useState(false)
+  const filled = Boolean(file) && !uploading
+  const Icon = DOC_ICONS[kind] || DocIconLicense
+  const busy = Boolean(uploading || disabled)
+
+  const takeFile = (next) => {
+    if (!next || busy) return
+    onChange?.(next)
+  }
+
+  return (
+    <div
+      className={`admin-doc-tile is-${kind}${filled ? ' is-filled' : ''}${required ? ' is-required' : ''}${dragOver ? ' is-drop' : ''}${uploading ? ' is-busy' : ''}${disabled ? ' is-disabled' : ''}`}
+      onDragEnter={(e) => {
+        e.preventDefault()
+        if (!busy) setDragOver(true)
+      }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        if (!busy) setDragOver(true)
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        takeFile(e.dataTransfer.files?.[0])
+      }}
+    >
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="file"
+        accept={accept}
+        disabled={busy}
+        className="admin-sr-only"
+        onChange={(e) => {
+          takeFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      <label
+        htmlFor={inputId}
+        className="admin-doc-tile-hit"
+        aria-label={`${title}. ${uploading ? uploadingLabel : filled ? replaceLabel : addLabel}`}
+      >
+        <span className="admin-doc-mark">
+          <Icon />
+          {filled ? (
+            <span className="admin-doc-check" aria-hidden>
+              <svg viewBox="0 0 16 16" fill="none">
+                <path d="M3.2 8.3 6.4 11.4 12.8 4.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          ) : null}
+        </span>
+        <span className="admin-doc-copy">
+          <span className="admin-doc-title">{title}</span>
+          <span className="admin-doc-hint">{filled ? shortDocName(file) : hint}</span>
+        </span>
+        <span className="admin-doc-action">
+          {uploading ? (
+            <>
+              <span className="admin-doc-spin" aria-hidden />
+              {uploadingLabel}
+            </>
+          ) : filled ? (
+            replaceLabel
+          ) : (
+            <>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path d="M8 3.2v9.6M3.2 8h9.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              {addLabel}
+            </>
+          )}
+        </span>
+      </label>
+      {filled && onClear && !disabled ? (
+        <button
+          type="button"
+          className="admin-doc-clear"
+          aria-label={`${clearLabel} — ${title}`}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onClear()
+            if (inputRef.current) inputRef.current.value = ''
+          }}
+        >
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+export const DocumentUploadGroup = ({
+  items = [],
+  addLabel = 'Add photo',
+  replaceLabel = 'Replace',
+  clearLabel = 'Remove',
+  uploadingLabel = 'Uploading…',
+  accept = 'image/*',
+  disabled = false,
+}) => (
+  <div className="admin-doc-group" role="group">
+    {items.map((item) => (
+      <DocumentUploadTile
+        key={item.id}
+        {...item}
+        addLabel={addLabel}
+        replaceLabel={replaceLabel}
+        clearLabel={clearLabel}
+        uploadingLabel={uploadingLabel}
+        accept={item.accept || accept}
+        disabled={disabled || item.disabled}
+      />
+    ))}
+  </div>
+)
+
 export const AdminDrawer = ({
   open,
   onClose,

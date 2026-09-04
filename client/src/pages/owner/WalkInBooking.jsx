@@ -10,7 +10,7 @@ import { getCarLocations } from '../../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../../utils/pricing'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import DateField from '../../components/calendar/DateField'
-import { SearchSelect, VehicleSelect, toLocationOption } from '../../admin/ui'
+import { SearchSelect, VehicleSelect, toLocationOption, DocumentUploadGroup } from '../../admin/ui'
 import { findDefaultLocationId } from '../../utils/defaultLocation'
 
 const emptyForm = {
@@ -63,6 +63,11 @@ const WalkInBooking = () => {
   const [saving, setSaving] = useState(false)
   const [created, setCreated] = useState(null)
   const [docFiles, setDocFiles] = useState({
+    driving_license: null,
+    national_id: null,
+    passport: null,
+  })
+  const [uploadedDocs, setUploadedDocs] = useState({
     driving_license: null,
     national_id: null,
     passport: null,
@@ -250,8 +255,11 @@ const WalkInBooking = () => {
       const { data } = await axios.post(`/api/bookings/owner/${bookingId}/documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      if (data.success) toast.success(data.message)
-      else toast.error(data.message)
+      if (data.success) {
+        toast.success(data.message)
+        const slot = docType === 'identity' ? 'national_id' : docType
+        setUploadedDocs((current) => ({ ...current, [slot]: file.name }))
+      } else toast.error(data.message)
     } catch (error) {
       toast.error(getErrorMessage(error))
     } finally {
@@ -351,6 +359,55 @@ const WalkInBooking = () => {
   }
 
   const input = 'admin-input'
+  const documentGroup = ({ files, onPick, onClear, uploadingKey = '' }) => (
+    <DocumentUploadGroup
+      addLabel={t('admin.walkIn.docAdd')}
+      replaceLabel={t('admin.walkIn.docReplace')}
+      clearLabel={t('admin.walkIn.docClear')}
+      uploadingLabel={t('admin.walkIn.docUploading')}
+      disabled={Boolean(uploadingKey)}
+      items={[
+        {
+          id: 'driving_license',
+          kind: 'license',
+          title: t('admin.walkIn.docLicense'),
+          hint: t('admin.walkIn.docRequired'),
+          required: true,
+          file: files.driving_license,
+          uploading: uploadingKey === 'driving_license',
+          onChange: (file) => onPick('driving_license', file),
+          onClear: onClear ? () => onClear('driving_license') : undefined,
+        },
+        {
+          id: 'national_id',
+          kind: 'cin',
+          title: t('admin.walkIn.docCin'),
+          hint: t('admin.walkIn.docRequired'),
+          required: true,
+          file: files.national_id,
+          uploading: uploadingKey === 'identity' || uploadingKey === 'national_id',
+          onChange: (file) => onPick('national_id', file),
+          onClear: onClear ? () => onClear('national_id') : undefined,
+        },
+        {
+          id: 'passport',
+          kind: 'passport',
+          title: t('admin.walkIn.docPassport'),
+          hint: t('admin.walkIn.docOptional'),
+          file: files.passport,
+          uploading: uploadingKey === 'passport',
+          onChange: (file) => onPick('passport', file),
+          onClear: onClear ? () => onClear('passport') : undefined,
+        },
+      ]}
+    />
+  )
+  const pickCreatedDocument = (key, file) => {
+    if (!file || !created?.booking?._id) return
+    if (key === 'driving_license') uploadDocument(created.booking._id, file, 'driving_license')
+    else if (key === 'national_id') uploadDocument(created.booking._id, file, 'identity', 'national_id')
+    else uploadDocument(created.booking._id, file, 'passport')
+  }
 
   return (
     <div className="admin-page-pad flex-1 pb-12 min-w-0">
@@ -375,47 +432,11 @@ const WalkInBooking = () => {
           <div className="rounded-lg border border-emerald-100 bg-white/70 p-3 space-y-2">
             <p className="font-medium text-sm">{t('admin.walkIn.uploadDocuments')}</p>
             <p className="text-xs text-gray-500">{t('admin.walkIn.uploadDocumentsHint')}</p>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-gray-500">{t('admin.walkIn.uploadLicense')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block text-xs mt-1 w-full"
-                  disabled={!!uploadingDoc}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file && created.booking?._id) uploadDocument(created.booking._id, file, 'driving_license')
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">{t('admin.walkIn.uploadNationalId')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block text-xs mt-1 w-full"
-                  disabled={!!uploadingDoc}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file && created.booking?._id) uploadDocument(created.booking._id, file, 'identity', 'national_id')
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">{t('admin.walkIn.uploadPassport')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block text-xs mt-1 w-full"
-                  disabled={!!uploadingDoc}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file && created.booking?._id) uploadDocument(created.booking._id, file, 'passport')
-                  }}
-                />
-              </div>
-            </div>
+            {documentGroup({
+              files: uploadedDocs,
+              onPick: pickCreatedDocument,
+              uploadingKey: uploadingDoc,
+            })}
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -434,7 +455,10 @@ const WalkInBooking = () => {
             </button>
             <button
               type="button"
-              onClick={() => setCreated(null)}
+              onClick={() => {
+                setCreated(null)
+                setUploadedDocs({ driving_license: null, national_id: null, passport: null })
+              }}
               className="px-3 py-1.5 border rounded-lg text-xs"
             >
               {t('admin.walkIn.createAnother')}
@@ -654,38 +678,11 @@ const WalkInBooking = () => {
           <section className="admin-card p-4 sm:p-5 space-y-3">
             <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.uploadDocuments')}</h2>
             <p className="text-xs text-[var(--admin-muted)]">{t('admin.walkIn.uploadDocumentsHint')}</p>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div>
-                <label className="admin-label">{t('admin.walkIn.uploadLicense')} *</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block text-xs mt-1 w-full"
-                  onChange={(e) => setDocFiles((d) => ({ ...d, driving_license: e.target.files?.[0] || null }))}
-                />
-                {docFiles.driving_license && <p className="text-[11px] text-[var(--admin-success)] mt-1 truncate">{docFiles.driving_license.name}</p>}
-              </div>
-              <div>
-                <label className="admin-label">{t('admin.walkIn.uploadNationalId')} *</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block text-xs mt-1 w-full"
-                  onChange={(e) => setDocFiles((d) => ({ ...d, national_id: e.target.files?.[0] || null }))}
-                />
-                {docFiles.national_id && <p className="text-[11px] text-[var(--admin-success)] mt-1 truncate">{docFiles.national_id.name}</p>}
-              </div>
-              <div>
-                <label className="admin-label">{t('admin.walkIn.uploadPassport')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block text-xs mt-1 w-full"
-                  onChange={(e) => setDocFiles((d) => ({ ...d, passport: e.target.files?.[0] || null }))}
-                />
-                {docFiles.passport && <p className="text-[11px] text-[var(--admin-success)] mt-1 truncate">{docFiles.passport.name}</p>}
-              </div>
-            </div>
+            {documentGroup({
+              files: docFiles,
+              onPick: (key, file) => setDocFiles((current) => ({ ...current, [key]: file })),
+              onClear: (key) => setDocFiles((current) => ({ ...current, [key]: null })),
+            })}
           </section>
         </div>
 
