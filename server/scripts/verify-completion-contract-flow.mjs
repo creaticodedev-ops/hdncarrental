@@ -27,7 +27,7 @@ const payload = {
   customerAddress: 'Rue Flow Verify',
   placeOfBirth: 'Rabat',
   identityDocumentNumber: 'CIN-FLOW',
-  identityIssuedOn: '2010-01-01',
+  identityExpiresOn: '2010-01-01',
   driverLicenseNumber: 'DL-FLOW',
   driverLicenseExpiry: '2035-01-01',
   driverLicenseIssuedOn: '2010-01-01',

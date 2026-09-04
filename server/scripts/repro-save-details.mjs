@@ -18,7 +18,7 @@ const payload = {
   customerAddress: 'Rue de Repro',
   placeOfBirth: 'Casablanca',
   identityDocumentNumber: 'CIN-REPRO',
-  identityIssuedOn: '2018-01-01',
+  identityExpiresOn: '2018-01-01',
   driverLicenseNumber: 'DL-REPRO',
   driverLicenseExpiry: '2035-01-01',
   driverLicenseIssuedOn: '2020-01-01',

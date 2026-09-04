@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 
 /** Consistent page chrome for Owner/Admin modules. */
@@ -243,86 +244,270 @@ export const PercentInput = ({ value, onChange, required, min = '0', max = '100'
   </div>
 )
 
+const optionSearchText = (option) =>
+  `${option.label || ''} ${option.hint || ''} ${option.keywords || ''}`.toLowerCase()
+
 export const SearchSelect = ({
   value,
   onChange,
   options = [],
   placeholder = 'Search…',
+  searchPlaceholder,
   emptyLabel = 'No results',
   required,
   id,
+  disabled = false,
 }) => {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
+  const [active, setActive] = useState(-1)
+  const [coords, setCoords] = useState(null)
   const wrapRef = useRef(null)
+  const panelRef = useRef(null)
+  const searchRef = useRef(null)
+  const listRef = useRef(null)
   const selected = options.find((o) => String(o.value) === String(value))
-  const filtered = options.filter((o) => {
-    const hay = `${o.label || ''} ${o.hint || ''}`.toLowerCase()
-    return hay.includes(q.trim().toLowerCase())
-  })
+  const query = q.trim().toLowerCase()
+  const filtered = useMemo(
+    () => (query ? options.filter((o) => optionSearchText(o).includes(query)) : options),
+    [options, query],
+  )
+
+  const close = () => {
+    setOpen(false)
+    setQ('')
+    setActive(-1)
+  }
+
+  const pick = (option) => {
+    if (!option) return
+    onChange?.(option.value)
+    close()
+  }
+
+  const updateCoords = () => {
+    const el = wrapRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const gutter = 8
+    const maxH = Math.min(288, Math.max(160, window.innerHeight - rect.bottom - gutter))
+    setCoords({
+      top: rect.bottom + 4,
+      left: Math.max(gutter, Math.min(rect.left, window.innerWidth - rect.width - gutter)),
+      width: rect.width,
+      maxHeight: maxH,
+    })
+  }
 
   useEffect(() => {
     if (!open) return undefined
     const onDoc = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setOpen(false)
+      if (wrapRef.current?.contains(e.target) || panelRef.current?.contains(e.target)) return
+      close()
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
 
+  useEffect(() => {
+    if (!open) return undefined
+    updateCoords()
+    const onMove = () => updateCoords()
+    window.addEventListener('resize', onMove)
+    window.addEventListener('scroll', onMove, true)
+    return () => {
+      window.removeEventListener('resize', onMove)
+      window.removeEventListener('scroll', onMove, true)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const selectedIdx = filtered.findIndex((o) => String(o.value) === String(value))
+    setActive(selectedIdx >= 0 ? selectedIdx : filtered.length ? 0 : -1)
+    const frame = requestAnimationFrame(() => searchRef.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        close()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [open])
+
+  useEffect(() => {
+    if (!open || active < 0) return
+    const node = listRef.current?.querySelector(`[data-combo-index="${active}"]`)
+    node?.scrollIntoView({ block: 'nearest' })
+  }, [active, open])
+
+  const onSearchKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((i) => Math.min(filtered.length - 1, Math.max(0, i + 1)))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((i) => Math.max(0, i < 0 ? filtered.length - 1 : i - 1))
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      if (filtered.length) setActive(0)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      if (filtered.length) setActive(filtered.length - 1)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (active >= 0 && filtered[active]) pick(filtered[active])
+    }
+  }
+
+  const panel = open && coords
+    ? createPortal(
+        <div
+          ref={panelRef}
+          className="admin-combobox-panel is-ported"
+          role="listbox"
+          style={{
+            top: coords.top,
+            left: coords.left,
+            width: coords.width,
+            maxHeight: coords.maxHeight,
+          }}
+        >
+          <div className="admin-combobox-search">
+            <input
+              ref={searchRef}
+              type="search"
+              className="admin-input admin-combobox-search-input"
+              placeholder={searchPlaceholder || placeholder}
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value)
+                setActive(0)
+              }}
+              onKeyDown={onSearchKeyDown}
+              autoComplete="off"
+              aria-autocomplete="list"
+            />
+          </div>
+          {filtered.length === 0 ? (
+            <p className="admin-combobox-empty">{emptyLabel}</p>
+          ) : (
+            <div ref={listRef} className="admin-combobox-list">
+              {filtered.map((o, index) => {
+                const isSelected = String(o.value) === String(value)
+                return (
+                  <button
+                    key={String(o.value) || index}
+                    type="button"
+                    role="option"
+                    data-combo-index={index}
+                    aria-selected={isSelected}
+                    className={`admin-combobox-option${isSelected ? ' is-selected' : ''}${index === active ? ' is-active' : ''}`}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => pick(o)}
+                  >
+                    <span className="admin-combobox-option-label">{o.label}</span>
+                    {o.hint ? <span className="admin-combobox-option-hint">{o.hint}</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>,
+        document.body,
+      )
+    : null
+
   return (
-    <div className="admin-combobox" ref={wrapRef}>
+    <div className={`admin-combobox${disabled ? ' is-disabled' : ''}`} ref={wrapRef}>
       <input type="hidden" value={value || ''} required={required} readOnly />
       <button
         id={id}
         type="button"
-        className="admin-input flex items-center justify-between gap-2 text-left"
+        className="admin-input admin-combobox-trigger"
+        aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return
+          if (open) {
+            close()
+            return
+          }
           setQ('')
-          setOpen((v) => !v)
+          updateCoords()
+          setOpen(true)
         }}
       >
-        <span className={`min-w-0 truncate ${selected ? 'text-[var(--admin-ink)]' : 'text-[var(--admin-muted)]'}`}>
-          {selected ? selected.label : placeholder}
-        </span>
-        <span className="text-[var(--admin-muted)] shrink-0" aria-hidden>▾</span>
+        {selected ? (
+          <span className="admin-combobox-trigger-copy">
+            <span className="admin-combobox-trigger-label">{selected.label}</span>
+            {selected.hint ? <span className="admin-combobox-trigger-hint">{selected.hint}</span> : null}
+          </span>
+        ) : (
+          <span className="admin-combobox-trigger-copy">
+            <span className="admin-combobox-trigger-placeholder">{placeholder}</span>
+          </span>
+        )}
+        <span className="admin-combobox-caret" aria-hidden>▾</span>
       </button>
-      {open && (
-        <div className="admin-combobox-panel" role="listbox">
-          <div className="p-2 border-b border-[var(--admin-border)]">
-            <input
-              type="search"
-              autoFocus
-              className="admin-input min-h-10"
-              placeholder={placeholder}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-          {filtered.length === 0 ? (
-            <p className="px-3 py-3 text-sm text-[var(--admin-muted)]">{emptyLabel}</p>
-          ) : (
-            filtered.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                role="option"
-                aria-selected={String(o.value) === String(value)}
-                className="admin-combobox-option"
-                onClick={() => {
-                  onChange?.(o.value)
-                  setOpen(false)
-                }}
-              >
-                <span className="block text-sm font-medium">{o.label}</span>
-                {o.hint ? <span className="block text-xs text-[var(--admin-muted)] mt-0.5">{o.hint}</span> : null}
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      {panel}
     </div>
+  )
+}
+
+export const toVehicleOption = (car) => {
+  if (!car) return null
+  const model = String(car.model || '').trim()
+  const brand = String(car.brand || '').trim()
+  const plate = String(car.licensePlate || '').trim()
+  const fleetId = String(car.fleetId || '').trim()
+  return {
+    value: car._id,
+    label: model || brand || '—',
+    hint: plate || fleetId,
+    keywords: [brand, model, plate, fleetId, car.vin, car.branch].filter(Boolean).join(' '),
+  }
+}
+
+export const VehicleSelect = ({
+  cars = [],
+  value,
+  onChange,
+  placeholder = 'Select a vehicle…',
+  searchPlaceholder = 'Search model or plate…',
+  emptyLabel = 'No results',
+  emptyOptionLabel,
+  includeEmpty = false,
+  required,
+  id,
+  disabled = false,
+}) => {
+  const options = useMemo(() => {
+    const list = cars.map(toVehicleOption).filter(Boolean)
+    if (!includeEmpty) return list
+    return [{ value: '', label: emptyOptionLabel || 'All', hint: '' }, ...list]
+  }, [cars, includeEmpty, emptyOptionLabel])
+
+  return (
+    <SearchSelect
+      id={id}
+      value={value}
+      onChange={onChange}
+      options={options}
+      placeholder={placeholder}
+      searchPlaceholder={searchPlaceholder}
+      emptyLabel={emptyLabel}
+      required={required}
+      disabled={disabled}
+    />
   )
 }
 

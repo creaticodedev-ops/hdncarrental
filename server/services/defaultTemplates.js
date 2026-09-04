@@ -57,7 +57,7 @@ export const DEFAULT_CONTRACT_BODY = `
       <tr><td>Lieu de naissance</td><td>{{customer_birth_place}}</td></tr>
       <tr><td>Pièce d'identité (CIN / Passeport)</td><td>{{identity_document}}</td></tr>
       <tr><td>N° Passeport</td><td>{{passport_number}}</td></tr>
-      <tr><td>Délivré le</td><td>{{identity_issued_on}}</td></tr>
+      <tr><td>Date d'expiration</td><td>{{identity_expires_on}}</td></tr>
       <tr><td>Permis de conduire N°</td><td>{{driver_license}}</td></tr>
       <tr><td>Permis délivré le</td><td>{{driver_license_issued_on}}</td></tr>
       <tr><td>Adresse</td><td>{{customer_address}}</td></tr>

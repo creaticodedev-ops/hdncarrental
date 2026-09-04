@@ -21,6 +21,7 @@ export const applyCompletionDetailsToBooking = (booking, body = {}, options = {}
     placeOfBirth,
     identityDocumentNumber,
     identityIssuedOn,
+    identityExpiresOn,
     driverLicenseNumber,
     driverLicenseExpiry,
     driverLicenseIssuedOn,
@@ -43,6 +44,7 @@ export const applyCompletionDetailsToBooking = (booking, body = {}, options = {}
   if (placeOfBirth !== undefined) booking.placeOfBirth = String(placeOfBirth).trim();
   if (identityDocumentNumber !== undefined) booking.identityDocumentNumber = String(identityDocumentNumber).trim();
   if (identityIssuedOn !== undefined) booking.identityIssuedOn = String(identityIssuedOn).trim();
+  if (identityExpiresOn !== undefined) booking.identityExpiresOn = String(identityExpiresOn).trim();
   if (driverLicenseNumber !== undefined) booking.driverLicenseNumber = String(driverLicenseNumber).trim();
   if (driverLicenseExpiry !== undefined) booking.driverLicenseExpiry = String(driverLicenseExpiry).trim();
   if (driverLicenseIssuedOn !== undefined) booking.driverLicenseIssuedOn = String(driverLicenseIssuedOn).trim();
@@ -100,7 +102,7 @@ const REQUIRED_COMPLETION_FIELDS = [
   ['nationality', 'nationality'],
   ['placeOfBirth', 'place of birth'],
   ['identityDocumentNumber', 'identity document number'],
-  ['identityIssuedOn', 'identity issued date'],
+  ['identityExpiresOn', 'identity expiration date'],
   ['driverLicenseNumber', 'driver license number'],
   ['driverLicenseExpiry', 'driver license expiry'],
   ['driverLicenseIssuedOn', 'driver license issued date'],
@@ -114,6 +116,10 @@ const SECOND_DRIVER_REQUIRED_FIELDS = [
 
 const blank = (value) => value === undefined || value === null || String(value).trim() === '';
 
+/** CIN date is filled if expiration is set, or a legacy issue date still exists. */
+const hasIdentityDate = (booking) =>
+  !blank(booking?.identityExpiresOn) || !blank(booking?.identityIssuedOn);
+
 /**
  * Which contract fields are still empty on this booking.
  * Returns `{ field, label }` pairs — `field` is stable and safe to translate
@@ -123,7 +129,7 @@ export const getMissingCompletionFields = (booking) => {
   if (!booking) return REQUIRED_COMPLETION_FIELDS.map(([field, label]) => ({ field, label }));
 
   const missing = REQUIRED_COMPLETION_FIELDS
-    .filter(([field]) => blank(booking[field]))
+    .filter(([field]) => (field === 'identityExpiresOn' ? !hasIdentityDate(booking) : blank(booking[field])))
     .map(([field, label]) => ({ field, label }));
 
   const sd = booking.secondDriver;

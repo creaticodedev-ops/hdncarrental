@@ -85,7 +85,7 @@ const CompleteBooking = () => {
     customerAddress: '',
     placeOfBirth: '',
     identityDocumentNumber: '',
-    identityIssuedOn: '',
+    identityExpiresOn: '',
     driverLicenseNumber: '',
     driverLicenseExpiry: '',
     driverLicenseIssuedOn: '',
@@ -119,7 +119,7 @@ const CompleteBooking = () => {
         customerAddress: data.booking.customerAddress || '',
         placeOfBirth: data.booking.placeOfBirth || '',
         identityDocumentNumber: data.booking.identityDocumentNumber || '',
-        identityIssuedOn: data.booking.identityIssuedOn || '',
+        identityExpiresOn: data.booking.identityExpiresOn || '',
         driverLicenseNumber: data.booking.driverLicenseNumber || '',
         driverLicenseExpiry: data.booking.driverLicenseExpiry || '',
         driverLicenseIssuedOn: data.booking.driverLicenseIssuedOn || '',
@@ -214,7 +214,7 @@ const CompleteBooking = () => {
     customerAddress: details.customerAddress,
     placeOfBirth: details.placeOfBirth,
     identityDocumentNumber: details.identityDocumentNumber,
-    identityIssuedOn: details.identityIssuedOn,
+    identityExpiresOn: details.identityExpiresOn,
     driverLicenseNumber: details.driverLicenseNumber,
     driverLicenseExpiry: details.driverLicenseExpiry,
     driverLicenseIssuedOn: details.driverLicenseIssuedOn,
@@ -263,7 +263,7 @@ const CompleteBooking = () => {
     req(details.nationality, t('completion.fieldNationality'))
     req(details.placeOfBirth, t('completion.fieldBirthPlace'))
     req(details.identityDocumentNumber, t('completion.fieldIdNumber'))
-    req(details.identityIssuedOn, t('completion.fieldIdIssued'))
+    req(details.identityExpiresOn, t('completion.fieldIdIssued'))
     req(details.driverLicenseNumber, t('completion.fieldLicenseNumber'))
     req(details.driverLicenseExpiry, t('completion.fieldLicenseExpiry'))
     req(details.driverLicenseIssuedOn, t('completion.fieldLicenseIssued'))
@@ -458,7 +458,7 @@ const CompleteBooking = () => {
                     <input value={details.identityDocumentNumber} onChange={(e) => updateDetail('identityDocumentNumber', e.target.value)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldIdIssued')}>
-                    <DateField value={details.identityIssuedOn} onChange={(identityIssuedOn) => updateDetail('identityIssuedOn', identityIssuedOn)} className={formInputOnLightClass} />
+                    <DateField value={details.identityExpiresOn} onChange={(identityExpiresOn) => updateDetail('identityExpiresOn', identityExpiresOn)} className={formInputOnLightClass} />
                   </Field>
                   <Field label={t('completion.fieldLicenseNumber')}>
                     <input value={details.driverLicenseNumber} onChange={(e) => updateDetail('driverLicenseNumber', e.target.value)} className={formInputOnLightClass} />

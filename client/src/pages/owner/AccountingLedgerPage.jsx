@@ -5,7 +5,7 @@ import ConfirmDialog from '../../components/owner/ConfirmDialog'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
-import { AdminDrawer } from '../../admin/ui'
+import { AdminDrawer, VehicleSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import DateField from '../../components/calendar/DateField'
 
@@ -267,14 +267,16 @@ const AccountingLedgerPage = ({ config }) => {
         {config.needsCars ? (
           <label className="min-w-[12rem] flex-1 text-sm">
             <span className={labelClass}>{t('admin.accounting.vehicle')}</span>
-            <select value={carId} onChange={(e) => { setPage(1); setCarId(e.target.value) }} className={inputClass}>
-              <option value="">{t('admin.accounting.filterAll')}</option>
-              {cars.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {carLabel(c)}
-                </option>
-              ))}
-            </select>
+            <VehicleSelect
+              includeEmpty
+              emptyOptionLabel={t('admin.accounting.filterAll')}
+              cars={cars}
+              value={carId}
+              onChange={(v) => { setPage(1); setCarId(v) }}
+              placeholder={t('admin.accounting.searchVehicle')}
+              searchPlaceholder={t('admin.accounting.searchVehicle')}
+              emptyLabel={t('admin.ui.noResults')}
+            />
           </label>
         ) : null}
         {config.needsSamsars ? (

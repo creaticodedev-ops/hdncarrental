@@ -24,7 +24,7 @@ import toast from 'react-hot-toast'
 import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import { buildOwnerCompletionWaUrl, buildWaMeUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp } from '../../utils/whatsapp'
-import { AdminDrawer, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
+import { AdminDrawer, DrawerSection, FormField, VehicleSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import DocumentGenerationOverlay from '../../components/DocumentGenerationOverlay'
@@ -1417,16 +1417,13 @@ const ManageBookings = () => {
             </DrawerSection>
             <DrawerSection title={t('admin.bookings.assignVehicle')}>
               <FormField label={t('admin.bookings.assignVehicle')} className="sm:col-span-2">
-                <SearchSelect
+                <VehicleSelect
+                  cars={editVehicleOptions}
                   value={editForm.carId}
                   onChange={(carId) => setEditForm({ ...editForm, carId })}
                   placeholder={t('admin.accounting.searchVehicle')}
+                  searchPlaceholder={t('admin.accounting.searchVehicle')}
                   emptyLabel={t('admin.ui.noResults')}
-                  options={editVehicleOptions.map((c) => ({
-                    value: c._id,
-                    label: `${c.brand} ${c.model}`,
-                    hint: [c.licensePlate, c.fleetId].filter(Boolean).join(' · '),
-                  }))}
                 />
               </FormField>
               <FormField label={t('admin.walkIn.notes')} className="sm:col-span-2">

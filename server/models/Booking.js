@@ -120,7 +120,10 @@ const bookingSchema = new mongoose.Schema({
   placeOfBirth: { type: String, default: "" },
   customerAddress: { type: String, default: "" },
   identityDocumentNumber: { type: String, default: "" },
+  /** Legacy CIN issue date — kept so existing records are not lost. */
   identityIssuedOn: { type: String, default: "" },
+  /** CIN / identity-card expiration date (replaces issue date on new forms). */
+  identityExpiresOn: { type: String, default: "" },
   driverLicenseNumber: { type: String, default: "" },
   driverLicenseExpiry: { type: String, default: "" },
   driverLicenseIssuedOn: { type: String, default: "" },

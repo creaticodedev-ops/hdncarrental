@@ -8,6 +8,7 @@ import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { formatLocationsDisplay, getCarLocations } from '../utils/carLocations'
+import { findDefaultLocationId } from '../utils/defaultLocation'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../utils/pricing'
 import {
   earliestReturnIsoDate,
@@ -279,6 +280,20 @@ const CarDetails = () => {
     const citySet = new Set(cities.map((c) => c.toLowerCase()))
     return pickupLocations.filter((l) => citySet.has(String(l.city || '').toLowerCase()))
   }, [car, pickupLocations])
+
+  useEffect(() => {
+    const ids = new Set(bookableLocations.map((l) => String(l._id)))
+    const preferred = findDefaultLocationId(bookableLocations)
+    if (!preferred && ids.size === 0) return
+    setForm((f) => {
+      const pickupOk = Boolean(f.pickupLocationId) && ids.has(String(f.pickupLocationId))
+      const returnOk = Boolean(f.returnLocationId) && ids.has(String(f.returnLocationId))
+      const pickupLocationId = pickupOk ? f.pickupLocationId : preferred
+      const returnLocationId = returnOk ? f.returnLocationId : preferred
+      if (pickupLocationId === f.pickupLocationId && returnLocationId === f.returnLocationId) return f
+      return { ...f, pickupLocationId, returnLocationId }
+    })
+  }, [bookableLocations])
 
   const localPreview = useMemo(() => {
     if (!car) return null

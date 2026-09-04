@@ -19,6 +19,7 @@ import {
   vehicleMeta,
 } from './reservationHelpers'
 import { presentBooking } from '../../../utils/pricing'
+import { VehicleSelect } from '../../../admin/ui'
 
 const PenIcon = () => (
   <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -367,18 +368,17 @@ const ReservationDetail = ({
           <Line label={t('admin.bookings.vehicle')}>{vehicleLabel(booking.car)}</Line>
           {carBits ? <p className="res-muted">{carBits}</p> : null}
           {compatibleVehicles.length > 0 ? (
-            <select
-              className="admin-input res-input-sm mt-1.5"
-              disabled={assigningVehicle}
-              value={booking.car?._id || ''}
-              onChange={(e) => onAssignVehicle(e.target.value)}
-            >
-              {compatibleVehicles.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.licensePlate || c.fleetId || String(c._id).slice(-6)} — {c.brand} {c.model}
-                </option>
-              ))}
-            </select>
+            <div className="mt-1.5">
+              <VehicleSelect
+                cars={compatibleVehicles}
+                value={booking.car?._id || ''}
+                disabled={assigningVehicle}
+                placeholder={t('admin.walkIn.selectVehicle')}
+                searchPlaceholder={t('admin.accounting.searchVehicle')}
+                emptyLabel={t('admin.ui.noResults')}
+                onChange={onAssignVehicle}
+              />
+            </div>
           ) : null}
         </Fold>
 

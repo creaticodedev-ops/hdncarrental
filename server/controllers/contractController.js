@@ -907,6 +907,7 @@ export const listBookingsForContracts = async (req, res) => {
         'placeOfBirth',
         'identityDocumentNumber',
         'identityIssuedOn',
+        'identityExpiresOn',
         'driverLicenseNumber',
         'driverLicenseExpiry',
         'driverLicenseIssuedOn',

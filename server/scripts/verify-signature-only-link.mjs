@@ -89,7 +89,7 @@ check('desk channel is signature_only regardless of blank fields', () => {
   // Every single required field blank except the two the walk-in form enforces.
   for (const field of getMissingCompletionFields(completeWalkIn()).concat(
     ['customerAddress', 'dateOfBirth', 'nationality', 'placeOfBirth', 'identityDocumentNumber',
-      'identityIssuedOn', 'driverLicenseNumber', 'driverLicenseExpiry', 'driverLicenseIssuedOn']
+      'identityIssuedOn', 'identityExpiresOn', 'driverLicenseNumber', 'driverLicenseExpiry', 'driverLicenseIssuedOn']
       .map((f) => ({ field: f })),
   )) {
     assert.equal(resolveCompletionMode(completeWalkIn({ [field.field]: '' })), 'signature_only')

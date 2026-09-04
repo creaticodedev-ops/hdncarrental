@@ -16,7 +16,7 @@ import {
   persistDurableTemplateAsset,
 } from '../utils/templateAssets.js';
 
-const BUILTIN_CONTRACT_VERSION = 5;
+const BUILTIN_CONTRACT_VERSION = 6;
 const BUILTIN_INVOICE_VERSION = 2;
 
 /**
@@ -57,10 +57,28 @@ export const ensureDefaultTemplates = async (ownerId) => {
     systemKey: 'builtin_invoice',
   };
 
+  const patchBuiltinContractCinExpiry = (bodyHtml = '') =>
+    String(bodyHtml)
+      .replace(
+        /<tr><td>Délivré le<\/td><td>\{\{identity_issued_on\}\}<\/td><\/tr>/g,
+        "<tr><td>Date d'expiration</td><td>{{identity_expires_on}}</td></tr>",
+      )
+      .replace(
+        /<tr><td>Date of issue<\/td><td>\{\{identity_issued_on\}\}<\/td><\/tr>/gi,
+        '<tr><td>Expiration date</td><td>{{identity_expires_on}}</td></tr>',
+      );
+
   const upsertBuiltin = async (systemKey, defaults) => {
     const doc = await ExportTemplate.findOne({ owner, systemKey });
     if (!doc) {
       await ExportTemplate.create({ owner, ...defaults });
+      return;
+    }
+    if (systemKey === 'builtin_contract' && Number(doc.templateVersion || 0) < BUILTIN_CONTRACT_VERSION) {
+      const patched = patchBuiltinContractCinExpiry(doc.bodyHtml);
+      const updates = { templateVersion: BUILTIN_CONTRACT_VERSION };
+      if (patched !== doc.bodyHtml) updates.bodyHtml = patched;
+      await ExportTemplate.updateOne({ _id: doc._id }, { $set: updates });
     }
   };
 

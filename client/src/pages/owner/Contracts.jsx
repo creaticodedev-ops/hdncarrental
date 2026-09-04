@@ -45,7 +45,7 @@ const Contracts = () => {
     customerAddress: '',
     placeOfBirth: '',
     identityDocumentNumber: '',
-    identityIssuedOn: '',
+    identityExpiresOn: '',
     driverLicenseNumber: '',
     driverLicenseExpiry: '',
     driverLicenseIssuedOn: '',
@@ -165,7 +165,7 @@ const Contracts = () => {
       customerAddress: booking.customerAddress || '',
       placeOfBirth: booking.placeOfBirth || '',
       identityDocumentNumber: booking.identityDocumentNumber || '',
-      identityIssuedOn: booking.identityIssuedOn || '',
+      identityExpiresOn: booking.identityExpiresOn || '',
       driverLicenseNumber: booking.driverLicenseNumber || '',
       driverLicenseExpiry: booking.driverLicenseExpiry || '',
       driverLicenseIssuedOn: booking.driverLicenseIssuedOn || '',
@@ -196,7 +196,7 @@ const Contracts = () => {
       customerAddress: generateForm.customerAddress,
       placeOfBirth: generateForm.placeOfBirth,
       identityDocumentNumber: generateForm.identityDocumentNumber,
-      identityIssuedOn: generateForm.identityIssuedOn,
+      identityExpiresOn: generateForm.identityExpiresOn,
       driverLicenseNumber: generateForm.driverLicenseNumber,
       driverLicenseExpiry: generateForm.driverLicenseExpiry,
       driverLicenseIssuedOn: generateForm.driverLicenseIssuedOn,
@@ -693,7 +693,7 @@ const Contracts = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.identityIssued')}</label>
-                <DateField className={inputClass} value={generateForm.identityIssuedOn} onChange={(identityIssuedOn) => setGenerateForm((f) => ({ ...f, identityIssuedOn }))} />
+                <DateField className={inputClass} value={generateForm.identityExpiresOn} onChange={(identityExpiresOn) => setGenerateForm((f) => ({ ...f, identityExpiresOn }))} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">{t('admin.contracts.driverLicense')}</label>

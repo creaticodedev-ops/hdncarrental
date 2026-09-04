@@ -10,6 +10,8 @@ import { getCarLocations } from '../../utils/carLocations'
 import { calculateBookingPricePreview, resolveLocationDeliveryFees } from '../../utils/pricing'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import DateField from '../../components/calendar/DateField'
+import { VehicleSelect } from '../../admin/ui'
+import { findDefaultLocationId } from '../../utils/defaultLocation'
 
 const emptyForm = {
   car: '',
@@ -29,7 +31,7 @@ const emptyForm = {
   customerAddress: '',
   placeOfBirth: '',
   identityDocumentNumber: '',
-  identityIssuedOn: '',
+  identityExpiresOn: '',
   driverLicenseNumber: '',
   driverLicenseExpiry: '',
   driverLicenseIssuedOn: '',
@@ -92,15 +94,14 @@ const WalkInBooking = () => {
 
   useEffect(() => {
     const ids = new Set(bookableLocations.map((l) => String(l._id)))
+    const preferred = findDefaultLocationId(bookableLocations)
     setForm((f) => {
-      const pickupOk = !f.pickupLocationId || ids.has(String(f.pickupLocationId))
-      const returnOk = !f.returnLocationId || ids.has(String(f.returnLocationId))
-      if (pickupOk && returnOk) return f
-      return {
-        ...f,
-        pickupLocationId: pickupOk ? f.pickupLocationId : '',
-        returnLocationId: returnOk ? f.returnLocationId : '',
-      }
+      const pickupOk = Boolean(f.pickupLocationId) && ids.has(String(f.pickupLocationId))
+      const returnOk = Boolean(f.returnLocationId) && ids.has(String(f.returnLocationId))
+      const pickupLocationId = pickupOk ? f.pickupLocationId : preferred
+      const returnLocationId = returnOk ? f.returnLocationId : preferred
+      if (pickupLocationId === f.pickupLocationId && returnLocationId === f.returnLocationId) return f
+      return { ...f, pickupLocationId, returnLocationId }
     })
   }, [bookableLocations])
 
@@ -268,7 +269,7 @@ const WalkInBooking = () => {
     customerAddress: form.customerAddress,
     placeOfBirth: form.placeOfBirth,
     identityDocumentNumber: form.identityDocumentNumber,
-    identityIssuedOn: form.identityIssuedOn,
+    identityExpiresOn: form.identityExpiresOn,
     driverLicenseNumber: form.driverLicenseNumber,
     driverLicenseExpiry: form.driverLicenseExpiry,
     driverLicenseIssuedOn: form.driverLicenseIssuedOn,
@@ -465,7 +466,7 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.identityIssued')}</label>
-              <DateField className={input} value={form.identityIssuedOn} onChange={(identityIssuedOn) => setField('identityIssuedOn', identityIssuedOn)} />
+              <DateField className={input} value={form.identityExpiresOn} onChange={(identityExpiresOn) => setField('identityExpiresOn', identityExpiresOn)} />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.license')}</label>
@@ -534,12 +535,14 @@ const WalkInBooking = () => {
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="admin-label">{t('admin.walkIn.vehicle')} *</label>
-              <select
-                className={input}
+              <VehicleSelect
                 required
+                cars={cars}
                 value={form.car}
-                onChange={(e) => {
-                  const carId = e.target.value
+                placeholder={t('admin.walkIn.selectVehicle')}
+                searchPlaceholder={t('admin.accounting.searchVehicle')}
+                emptyLabel={t('admin.ui.noResults')}
+                onChange={(carId) => {
                   const car = cars.find((c) => c._id === carId)
                   setForm((f) => ({
                     ...f,
@@ -548,16 +551,7 @@ const WalkInBooking = () => {
                     kmDepart: car?.mileage != null ? String(car.mileage) : '',
                   }))
                 }}
-              >
-                <option value="">{t('admin.walkIn.selectVehicle')}</option>
-                {cars.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.fleetId ? `[${c.fleetId}] ` : ''}{c.brand} {c.model} — {currency}{c.pricePerDay}/day
-                    {c.licensePlate ? ` · ${c.licensePlate}` : ''}
-                    {c.branch ? ` · ${c.branch}` : ''}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.pickup')} *</label>

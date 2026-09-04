@@ -27,7 +27,7 @@ const run = async () => {
     customerAddress: '12 Rue de la Paix, Casablanca',
     placeOfBirth: 'Marrakech',
     identityDocumentNumber: 'CIN-1001',
-    identityIssuedOn: '2015-05-10',
+    identityExpiresOn: '2015-05-10',
     driverLicenseNumber: 'DL-7777',
     driverLicenseExpiry: '2035-06-30',
     driverLicenseIssuedOn: '2012-06-30',
@@ -64,7 +64,7 @@ const run = async () => {
 
   const placeholders = [
     'customer_name','customer_dob','customer_birth_place','customer_address','customer_phone','customer_email','customer_nationality',
-    'driver_license','driver_license_expiry','driver_license_issued_on','passport_number','identity_document','identity_issued_on',
+    'driver_license','driver_license_expiry','driver_license_issued_on','passport_number','identity_document','identity_expires_on',
     'car_make','car_registration','pickup_date','return_date','pickup_location','return_location','rental_days','price_per_day','total_price',
     'franchise_amount','payment_status','second_driver_name','second_driver_nationality','second_driver_license','second_driver_phone'
   ];

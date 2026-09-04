@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Title from '../../components/owner/Title'
-import { AdminPage } from '../../admin/ui'
+import { AdminPage, VehicleSelect } from '../../admin/ui'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
@@ -318,12 +318,17 @@ const VehicleStatsListPage = () => {
           <div className="fp-filters">
             <div className="fp-field">
               <label htmlFor="fp-vehicle">{t('admin.vehicleStats.filterVehicle')}</label>
-              <select id="fp-vehicle" className="fp-select" value={filters.vehicleId} onChange={(e) => setFilter('vehicleId', e.target.value)}>
-                <option value="">{t('admin.vehicleStats.any')}</option>
-                {vehicles.map((car) => (
-                  <option key={car._id} value={car._id}>{car.brand} {car.model}</option>
-                ))}
-              </select>
+              <VehicleSelect
+                id="fp-vehicle"
+                includeEmpty
+                emptyOptionLabel={t('admin.vehicleStats.any')}
+                cars={vehicles}
+                value={filters.vehicleId}
+                onChange={(vehicleId) => setFilter('vehicleId', vehicleId)}
+                placeholder={t('admin.vehicleStats.filterVehicle')}
+                searchPlaceholder={t('admin.accounting.searchVehicle')}
+                emptyLabel={t('admin.ui.noResults')}
+              />
             </div>
             <div className="fp-field">
               <label htmlFor="fp-brand">{t('admin.vehicleStats.filterBrand')}</label>

@@ -1,9 +1,8 @@
 import React from 'react'
 import AccountingLedgerPage, {
   toInputDate,
-  carLabel,
 } from './AccountingLedgerPage'
-import { CurrencyInput, DrawerSection, FormField, SearchSelect, SegmentedControl } from '../../admin/ui'
+import { CurrencyInput, DrawerSection, FormField, VehicleSelect, SegmentedControl } from '../../admin/ui'
 import DateField from '../../components/calendar/DateField'
 
 const VEHICLE_CATEGORIES = [
@@ -94,17 +93,14 @@ const config = {
     <>
       <DrawerSection title={t('admin.accounting.sectionDetails')}>
         <FormField label={t('admin.accounting.vehicle')} required className="sm:col-span-2">
-          <SearchSelect
+          <VehicleSelect
             required
+            cars={cars}
             value={form.car}
             onChange={(v) => setField('car', v)}
             placeholder={t('admin.accounting.searchVehicle')}
+            searchPlaceholder={t('admin.accounting.searchVehicle')}
             emptyLabel={t('admin.ui.noResults')}
-            options={cars.map((c) => ({
-              value: c._id,
-              label: carLabel(c),
-              hint: [c.fleetId, c.branch].filter(Boolean).join(' · '),
-            }))}
           />
         </FormField>
         <FormField label={t('admin.accounting.category')}>

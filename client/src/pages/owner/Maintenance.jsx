@@ -4,7 +4,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
-import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField, SearchSelect } from '../../admin/ui'
+import { AdminDrawer, AdminSwitch, CurrencyInput, DrawerSection, FormField, VehicleSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import DateField from '../../components/calendar/DateField'
 import {
@@ -769,13 +769,14 @@ const Maintenance = () => {
         <form id="maintenance-record-form" onSubmit={saveRecord} className="space-y-6">
           <DrawerSection title={t('admin.accounting.sectionDetails')}>
             <FormField label={t('admin.accounting.vehicle')} required className="sm:col-span-2">
-              <SearchSelect
+              <VehicleSelect
                 required
+                cars={cars}
                 value={recordForm.carId}
                 onChange={(carId) => setRecordForm({ ...recordForm, carId })}
                 placeholder={t('admin.accounting.searchVehicle')}
+                searchPlaceholder={t('admin.accounting.searchVehicle')}
                 emptyLabel={t('admin.ui.noResults')}
-                options={cars.map((c) => ({ value: c._id, label: formatUnit(c) }))}
               />
             </FormField>
             <FormField label={t('admin.accounting.category')}>

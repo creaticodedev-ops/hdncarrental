@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
@@ -9,6 +9,7 @@ import HeroLiveBadge from './hero/HeroLiveBadge'
 import HeroWorld from './hero/HeroWorld'
 import { useHeroCamera } from './hero/useHeroCamera'
 import { BRAND_NAME } from '../constants/brand'
+import { findDefaultCityName } from '../utils/defaultLocation'
 import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
@@ -38,6 +39,12 @@ const Hero = () => {
   const cities = useMemo(() => {
     return [...new Set(pickupLocations.map((location) => location.city))].sort()
   }, [pickupLocations])
+
+  useEffect(() => {
+    if (pickupLocation) return
+    const safi = findDefaultCityName(cities)
+    if (safi) setPickupLocation(safi)
+  }, [cities, pickupLocation])
 
   const startISO = typeof pickupDate === 'string' ? pickupDate.slice(0, 10) : ''
   const endISO = typeof returnDate === 'string' ? returnDate.slice(0, 10) : ''

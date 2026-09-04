@@ -20,6 +20,7 @@ const WALK_IN = {
   customerAddress: '45 Avenue Hassan II, Rabat',
   identityDocumentNumber: 'BE998877',
   identityIssuedOn: '2018-01-20',
+  identityExpiresOn: '2028-01-20',
   driverLicenseNumber: 'PERM-WALK-11',
   driverLicenseExpiry: '2031-09-01',
   driverLicenseIssuedOn: '2012-06-15',
@@ -90,7 +91,8 @@ const expect = {
   customer_birth_place: 'Rabat',
   customer_address: '45 Avenue Hassan II, Rabat',
   identity_document: 'BE998877',
-  identity_issued_on: '2018-01-20',
+  identity_expires_on: '2028-01-20',
+  identity_issued_on: '2028-01-20',
   driver_license: 'PERM-WALK-11',
   driver_license_expiry: '2031-09-01',
   driver_license_issued_on: '2012-06-15',
@@ -139,6 +141,7 @@ applyCompletionDetailsToBooking(booking, {
   customerAddress: 'X',
   placeOfBirth: 'Y',
   identityDocumentNumber: 'ID1',
+  identityExpiresOn: '2029-01-01',
   identityIssuedOn: '2020-01-01',
   driverLicenseIssuedOn: '2015-01-01',
   franchiseAmount: 1234,
@@ -157,6 +160,7 @@ applyCompletionDetailsToBooking(booking, {
 });
 assert.equal(booking.customerAddress, 'X');
 assert.equal(booking.identityDocumentNumber, 'ID1');
+assert.equal(booking.identityExpiresOn, '2029-01-01');
 assert.equal(booking.franchiseAmount, 1234);
 assert.equal(booking.secondDriver.enabled, true);
 assert.equal(booking.secondDriver.fullName, 'B');

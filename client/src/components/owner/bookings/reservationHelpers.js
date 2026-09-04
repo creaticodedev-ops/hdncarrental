@@ -154,7 +154,7 @@ const CONTRACT_FIELDS = [
   ['nationality', 'nationality'],
   ['placeOfBirth', 'placeOfBirth'],
   ['identityDocumentNumber', 'identityNumber'],
-  ['identityIssuedOn', 'identityIssued'],
+  ['identityExpiresOn', 'identityIssued'],
   ['driverLicenseNumber', 'driverLicense'],
   ['driverLicenseExpiry', 'licenseExpiry'],
   ['driverLicenseIssuedOn', 'licenseIssued'],
@@ -168,10 +168,15 @@ const SECOND_DRIVER_FIELDS = [
 
 const isBlank = (value) => value === undefined || value === null || String(value).trim() === ''
 
+const hasIdentityDate = (booking) =>
+  !isBlank(booking?.identityExpiresOn) || !isBlank(booking?.identityIssuedOn)
+
 /** Translation keys for the contract fields still empty on this reservation. */
 export const getMissingContractFields = (booking) => {
   if (!booking) return []
-  const missing = CONTRACT_FIELDS.filter(([field]) => isBlank(booking[field])).map(([, key]) => key)
+  const missing = CONTRACT_FIELDS
+    .filter(([field]) => (field === 'identityExpiresOn' ? !hasIdentityDate(booking) : isBlank(booking[field])))
+    .map(([, key]) => key)
   const sd = booking.secondDriver
   if (sd?.enabled) {
     for (const [field, key] of SECOND_DRIVER_FIELDS) {
