@@ -13,6 +13,7 @@ import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import { buildSignatureLinkToCustomerWaUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp, preferCustomerWhatsAppUrl } from '../../utils/whatsapp'
 import WhatsAppGlyph from '../../components/WhatsAppGlyph'
 import { customerEmail } from '../../utils/customerEmail'
+import ChangeVehicleDrawer from '../../components/owner/bookings/ChangeVehicleDrawer'
 import DateField from '../../components/calendar/DateField'
 import {
   canShareSignedContract,
@@ -100,6 +101,7 @@ const WalkInReady = () => {
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewOpen, setPreviewOpen] = useState(false)
   const [confirm, setConfirm] = useState(null)
+  const [changeVehicleOpen, setChangeVehicleOpen] = useState(false)
   const [payFormOpen, setPayFormOpen] = useState(false)
   const [payForm, setPayForm] = useState({ amount: '', method: 'cash', paidAt: '', note: '' })
   const [paidInput, setPaidInput] = useState('')
@@ -817,9 +819,22 @@ const WalkInReady = () => {
           </section>
 
           <section className="wir-card">
-            <p className="wir-card-kicker">{t('admin.walkInReady.tripKicker')}</p>
-            <h3 className="wir-card-title" style={{ fontSize: '1.2rem' }}>{vehicleLabel(booking.car)}</h3>
-            <p className="mt-1 text-xs text-[var(--admin-muted)]">{booking.car?.licensePlate || '—'}</p>
+            <div className="wir-card-head">
+              <div>
+                <p className="wir-card-kicker">{t('admin.walkInReady.tripKicker')}</p>
+                <h3 className="wir-card-title" style={{ fontSize: '1.2rem' }}>{vehicleLabel(booking.car)}</h3>
+                <p className="mt-1 text-xs text-[var(--admin-muted)]">{booking.car?.licensePlate || '—'}</p>
+              </div>
+              {booking.status !== 'cancelled' ? (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary admin-btn-sm shrink-0"
+                  onClick={() => setChangeVehicleOpen(true)}
+                >
+                  {t('admin.bookings.changeVehicle')}
+                </button>
+              ) : null}
+            </div>
             <div className="wir-kv mt-3">
               <div className="wir-kv-row">
                 <span>{t('admin.walkIn.pickup')}</span>
@@ -854,6 +869,19 @@ const WalkInReady = () => {
           {t('admin.walkIn.createAnother')}
         </button>
       </div>
+
+      <ChangeVehicleDrawer
+        open={Boolean(changeVehicleOpen && booking)}
+        onClose={() => setChangeVehicleOpen(false)}
+        booking={booking}
+        t={t}
+        language={language}
+        axios={axios}
+        onApplied={(next) => {
+          if (next) setBooking(next)
+          loadContract().catch(() => {})
+        }}
+      />
 
       <ConfirmDialog
         isOpen={Boolean(confirm)}

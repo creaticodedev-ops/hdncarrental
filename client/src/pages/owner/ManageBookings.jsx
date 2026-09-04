@@ -5,6 +5,7 @@ import ConfirmDialog from '../../components/owner/ConfirmDialog'
 import ReservationList from '../../components/owner/bookings/ReservationList'
 import ReservationDetail from '../../components/owner/bookings/ReservationDetail'
 import SignatureRequestDrawer from '../../components/owner/bookings/SignatureRequestDrawer'
+import ChangeVehicleDrawer from '../../components/owner/bookings/ChangeVehicleDrawer'
 import {
   customerEmail,
   extraCalendarDays,
@@ -17,6 +18,7 @@ import {
   toAgencyDateTimeLocal,
   addHoursAgencyLocal,
   getSignatureStatus,
+  vehicleLabelWithPlate,
 } from '../../components/owner/bookings/reservationHelpers'
 import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
@@ -24,7 +26,7 @@ import toast from 'react-hot-toast'
 import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
 import { buildSignatureLinkToCustomerWaUrl, buildWaMeUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp, preferCustomerWhatsAppUrl } from '../../utils/whatsapp'
-import { AdminDrawer, DrawerSection, FormField, VehicleSelect } from '../../admin/ui'
+import { AdminDrawer, DrawerSection, FormField } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import DocumentGenerationOverlay from '../../components/DocumentGenerationOverlay'
@@ -84,8 +86,6 @@ const ManageBookings = () => {
   const [editForm, setEditForm] = useState(emptyEdit)
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [fleetCars, setFleetCars] = useState([])
-  const [assigningVehicle, setAssigningVehicle] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState('')
   const [identityType, setIdentityType] = useState('national_id')
   const [completionLinkCache, setCompletionLinkCache] = useState({})
@@ -101,6 +101,7 @@ const ManageBookings = () => {
   const [extensionBusy, setExtensionBusy] = useState(false)
   const [extensionError, setExtensionError] = useState('')
   const [signatureOpen, setSignatureOpen] = useState(false)
+  const [changeVehicleOpen, setChangeVehicleOpen] = useState(false)
   const [signatureBusy, setSignatureBusy] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
   const [sigFilter, setSigFilter] = useState('')
@@ -158,12 +159,6 @@ const ManageBookings = () => {
   useEffect(() => {
     fetchOwnerBookings()
   }, [queryString])
-
-  useEffect(() => {
-    axios.get('/api/owner/cars')
-      .then(({ data }) => { if (data.success) setFleetCars(data.cars || []) })
-      .catch(() => {})
-  }, [axios])
 
   useEffect(() => {
     axios
@@ -236,24 +231,6 @@ const ManageBookings = () => {
       cancelled = true
     }
   }, [selectedBooking?._id, selectedBooking?.updatedAt, axios, hasPermission])
-
-  const compatibleVehicles = useMemo(() => {
-    if (!selectedBooking?.car) return []
-    const brand = selectedBooking.car.brand
-    const model = selectedBooking.car.model
-    return fleetCars.filter(
-      (c) => c.brand === brand && c.model === model && c.status !== 'maintenance' && c.isAvaliable !== false,
-    )
-  }, [fleetCars, selectedBooking])
-
-  const editVehicleOptions = useMemo(() => {
-    if (!editing?.car) return []
-    const brand = editing.car.brand
-    const model = editing.car.model
-    return fleetCars.filter(
-      (c) => c.brand === brand && c.model === model && c.status !== 'maintenance' && c.isAvaliable !== false,
-    )
-  }, [fleetCars, editing])
 
   const applyFilters = (e) => {
     e?.preventDefault()
@@ -606,9 +583,11 @@ const ManageBookings = () => {
       return
     }
     try {
+      const editPayload = { ...editForm }
+      delete editPayload.carId
       const { data } = await axios.post('/api/bookings/update', {
         bookingId: editing._id,
-        ...editForm,
+        ...editPayload,
       })
       if (data.success) {
         toast.success(data.message)
@@ -672,25 +651,6 @@ const ManageBookings = () => {
       toast.error(getErrorMessage(error))
     } finally {
       setUploadingDoc('')
-    }
-  }
-
-  const assignVehicle = async (bookingId, carId) => {
-    if (!carId) return
-    setAssigningVehicle(true)
-    try {
-      const { data } = await axios.post('/api/bookings/assign-vehicle', { bookingId, carId })
-      if (data.success) {
-        toast.success(data.message)
-        setSelectedBooking(data.booking)
-        fetchOwnerBookings()
-      } else {
-        toast.error(data.message)
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error))
-    } finally {
-      setAssigningVehicle(false)
     }
   }
 
@@ -1126,8 +1086,6 @@ const ManageBookings = () => {
           language={language}
           currency={currency}
           booking={selectedBooking}
-          compatibleVehicles={compatibleVehicles}
-          assigningVehicle={assigningVehicle}
           uploadingDoc={uploadingDoc}
           identityType={identityType}
           setIdentityType={setIdentityType}
@@ -1136,11 +1094,11 @@ const ManageBookings = () => {
           onRequestSignature={() => setSignatureOpen(true)}
           onExtend={() => openExtensionModal(selectedBooking)}
           onEdit={() => startEdit(selectedBooking)}
+          onChangeVehicle={() => setChangeVehicleOpen(true)}
           onResendSignature={() => resendCompletionLink(selectedBooking._id)}
           onCancelSignature={() => setConfirmAction({ type: 'cancelLink', bookingId: selectedBooking._id })}
           onChangeStatus={(status) => changeBookingStatus(selectedBooking._id, status)}
           onChangePayment={(status) => changePaymentStatus(selectedBooking._id, status)}
-          onAssignVehicle={(carId) => assignVehicle(selectedBooking._id, carId)}
           onWhatsApp={() => openWhatsApp(selectedBooking)}
           onEmail={() => resendCompletionLink(selectedBooking._id)}
           onCopyLink={() => copyCompletionLink(selectedBooking)}
@@ -1204,6 +1162,19 @@ const ManageBookings = () => {
         onEditReservation={() => {
           setSignatureOpen(false)
           startEdit(selectedBooking)
+        }}
+      />
+
+      <ChangeVehicleDrawer
+        open={Boolean(changeVehicleOpen && selectedBooking)}
+        onClose={() => setChangeVehicleOpen(false)}
+        booking={selectedBooking}
+        t={t}
+        language={language}
+        axios={axios}
+        onApplied={(next) => {
+          if (next) setSelectedBooking(next)
+          fetchOwnerBookings()
         }}
       />
 
@@ -1409,16 +1380,24 @@ const ManageBookings = () => {
                 <input className={inputClass} value={editForm.returnLocation} onChange={(e) => setEditForm({ ...editForm, returnLocation: e.target.value })} required />
               </FormField>
             </DrawerSection>
-            <DrawerSection title={t('admin.bookings.assignVehicle')}>
-              <FormField label={t('admin.bookings.assignVehicle')} className="sm:col-span-2">
-                <VehicleSelect
-                  cars={editVehicleOptions}
-                  value={editForm.carId}
-                  onChange={(carId) => setEditForm({ ...editForm, carId })}
-                  placeholder={t('admin.accounting.searchVehicle')}
-                  searchPlaceholder={t('admin.accounting.searchVehicle')}
-                  emptyLabel={t('admin.ui.noResults')}
-                />
+            <DrawerSection title={t('admin.bookings.vehicle')}>
+              <FormField label={t('admin.bookings.vehicle')} className="sm:col-span-2">
+                <p className="text-sm font-semibold text-[var(--admin-ink)]">
+                  {vehicleLabelWithPlate(editing?.car)}
+                </p>
+                <p className="mt-1 text-xs text-[var(--admin-muted)]">{t('admin.bookings.changeVehicleEditHint')}</p>
+                {editing?.status !== 'cancelled' ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary mt-3"
+                    onClick={() => {
+                      setEditing(null)
+                      setChangeVehicleOpen(true)
+                    }}
+                  >
+                    {t('admin.bookings.changeVehicle')}
+                  </button>
+                ) : null}
               </FormField>
               <FormField label={t('admin.walkIn.notes')} className="sm:col-span-2">
                 <textarea className={inputClass} rows="3" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />

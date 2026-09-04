@@ -51,6 +51,10 @@ import {
   isModelAvailableForDates,
   publicUnavailablePayload,
 } from "../services/availabilityService.js";
+import {
+  changeBookingVehicle,
+  listAvailableVehiclesForBooking,
+} from "../services/bookingVehicleChangeService.js";
 
 const BOOKING_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'active', 'completed', 'cancelled'];
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
@@ -1419,7 +1423,7 @@ export const updateBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid booking ID' });
     }
 
-    const booking = await Booking.findById(bookingId).populate('car');
+    let booking = await Booking.findById(bookingId).populate('car');
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
@@ -1437,25 +1441,26 @@ export const updateBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid payment status' });
     }
 
+    const preservedDailyRate = booking.car?.pricePerDay;
+    let vehicleChanged = false;
+    let datesChanged = false;
+
     if (carId && mongoose.isValidObjectId(carId) && String(carId) !== String(booking.car._id)) {
-      const newCar = await Car.findOne({ _id: carId, owner: _id });
-      if (!newCar) {
-        return res.status(404).json({ success: false, message: 'Vehicle not found' });
+      try {
+        await changeBookingVehicle(_id, bookingId, carId, { actor: req.user });
+        vehicleChanged = true;
+      } catch (error) {
+        const statusCode = error.status || 500;
+        return res.status(statusCode).json({
+          success: false,
+          message: error.message || 'Failed to change vehicle',
+          code: error.code,
+        });
       }
-      if (newCar.status === 'maintenance' || !newCar.isAvaliable) {
-        return res.status(409).json({ success: false, message: 'Selected vehicle is unavailable' });
+      booking = await Booking.findById(bookingId).populate('car');
+      if (!booking?.car) {
+        return res.status(404).json({ success: false, message: 'Booking not found' });
       }
-      const available = await checkAvailability(
-        carId,
-        booking.pickupDate,
-        booking.returnDate,
-        bookingId,
-      );
-      if (!available) {
-        return res.status(409).json({ success: false, message: 'Selected vehicle is already booked for these dates' });
-      }
-      booking.car = carId;
-      booking.markModified('car');
     }
 
     if (pickupDate && returnDate) {
@@ -1489,6 +1494,9 @@ export const updateBooking = async (req, res) => {
         return res.status(409).json({ success: false, message: 'Car is not available for the selected dates' });
       }
 
+      const prevPick = new Date(booking.pickupDate).getTime();
+      const prevRet = new Date(booking.returnDate).getTime();
+      datesChanged = dates.picked.getTime() !== prevPick || dates.returned.getTime() !== prevRet;
       booking.pickupDate = dates.picked;
       booking.returnDate = dates.returned;
     }
@@ -1509,7 +1517,8 @@ export const updateBooking = async (req, res) => {
     // Pricing:
     // - pending: re-resolve promotions against current dates/vehicle (server-side)
     // - confirmed+: keep frozen discount amounts so expired/disabled promos don't alter history
-    {
+    // Vehicle changes never reprice; they keep the reservation's existing daily rate and totals.
+    if (!(vehicleChanged && !datesChanged)) {
       let pickupLoc = null;
       let returnLoc = null;
       let pickupFee = booking.priceBreakdown?.pickupDeliveryFee ?? 0;
@@ -1534,9 +1543,14 @@ export const updateBooking = async (req, res) => {
         }
       }
 
-      const carDoc = booking.car?.pricePerDay != null
+      const liveCar = booking.car?.pricePerDay != null
         ? booking.car
         : await Car.findById(booking.car);
+      const livePlain = liveCar?.toObject ? liveCar.toObject() : { ...(liveCar || {}) };
+      const carDoc = {
+        ...livePlain,
+        pricePerDay: preservedDailyRate != null ? preservedDailyRate : livePlain.pricePerDay,
+      };
 
       if (booking.status === 'pending') {
         const quote = await buildAuthoritativeQuote({
@@ -1670,46 +1684,38 @@ export const updateBooking = async (req, res) => {
   }
 };
 
+export const listBookingAvailableVehicles = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const result = await listAvailableVehiclesForBooking(req.user._id, bookingId);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to list available vehicles',
+    });
+  }
+};
+
 export const assignBookingVehicle = async (req, res) => {
   try {
     const { bookingId, carId } = req.body;
-    const ownerId = req.user._id;
-
-    if (!mongoose.isValidObjectId(bookingId) || !mongoose.isValidObjectId(carId)) {
-      return res.status(400).json({ success: false, message: 'Invalid booking or vehicle ID' });
-    }
-
-    const booking = await Booking.findOne({ _id: bookingId, owner: ownerId });
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
-    }
-
-    const newCar = await Car.findOne({ _id: carId, owner: ownerId });
-    if (!newCar) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found' });
-    }
-    if (newCar.status === 'maintenance' || !newCar.isAvaliable) {
-      return res.status(409).json({ success: false, message: 'Vehicle is unavailable' });
-    }
-
-    const available = await checkAvailability(
-      carId,
-      booking.pickupDate,
-      booking.returnDate,
-      bookingId,
-    );
-    if (!available) {
-      return res.status(409).json({ success: false, message: 'Vehicle is already booked for these dates' });
-    }
-
-    booking.car = carId;
-    await booking.save();
-
-    const populated = await Booking.findById(bookingId).populate('car');
-    res.json({ success: true, message: 'Vehicle assigned', booking: populated });
+    const result = await changeBookingVehicle(req.user._id, bookingId, carId, { actor: req.user });
+    res.json({
+      success: true,
+      message: 'Vehicle updated',
+      booking: result.booking,
+      contract: result.contract,
+      invoice: result.invoice,
+    });
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: 'Failed to assign vehicle' });
+    const status = error.status || 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to change vehicle',
+      code: error.code,
+    });
   }
 };
 

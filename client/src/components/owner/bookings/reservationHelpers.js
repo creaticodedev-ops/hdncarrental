@@ -27,6 +27,12 @@ export const vehicleLabel = (car) => {
   return `${car.brand || ''} ${car.model || ''}`.trim() || '—'
 }
 
+export const vehicleLabelWithPlate = (car) => {
+  const name = vehicleLabel(car)
+  if (name === '—' || !car?.licensePlate) return name
+  return `${name} (${car.licensePlate})`
+}
+
 export const vehicleMeta = (car) => {
   if (!car) return ''
   return [car.transmission, car.fuel_type || car.fuelType, car.licensePlate].filter(Boolean).join(' · ')

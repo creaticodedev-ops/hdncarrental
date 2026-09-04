@@ -9,15 +9,16 @@ const ConfirmDialog = ({
   onConfirm,
   onCancel,
   variant = 'danger',
+  confirmDisabled = false,
 }) => {
   useEffect(() => {
     if (!isOpen) return undefined
     const onKey = (e) => {
-      if (e.key === 'Escape') onCancel?.()
+      if (e.key === 'Escape' && !confirmDisabled) onCancel?.()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isOpen, onCancel])
+  }, [isOpen, onCancel, confirmDisabled])
 
   if (!isOpen) return null
 
@@ -27,7 +28,7 @@ const ConfirmDialog = ({
     <div
       className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[var(--admin-overlay)]"
       role="presentation"
-      onClick={onCancel}
+      onClick={confirmDisabled ? undefined : onCancel}
     >
       <div
         role="dialog"
@@ -41,10 +42,10 @@ const ConfirmDialog = ({
         </h3>
         <p className="mt-2 text-sm text-[var(--admin-muted)] break-words leading-relaxed">{message}</p>
         <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
-          <button type="button" onClick={onCancel} className="admin-btn admin-btn-secondary">
+          <button type="button" onClick={onCancel} className="admin-btn admin-btn-secondary" disabled={confirmDisabled}>
             {cancelText}
           </button>
-          <button type="button" onClick={onConfirm} className={`admin-btn ${confirmClass}`}>
+          <button type="button" onClick={onConfirm} disabled={confirmDisabled} className={`admin-btn ${confirmClass}`}>
             {confirmText}
           </button>
         </div>

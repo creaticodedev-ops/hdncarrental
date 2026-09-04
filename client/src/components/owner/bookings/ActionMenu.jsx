@@ -73,6 +73,12 @@ const ICONS = {
       <path strokeLinecap="round" d="M8 3.5V7M16 3.5V7M3.5 10h17" />
     </svg>
   ),
+  car: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M4 15.5h16M5.2 15.5l1.4-5.1A2 2 0 0 1 8.5 9h7a2 2 0 0 1 1.9 1.4l1.4 5.1" />
+      <path d="M7 12h10M7.8 18.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM16.2 18.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
+    </svg>
+  ),
   refresh: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0112.4-5.7L19 8.5M19.5 12a7.5 7.5 0 01-12.4 5.7L5 15.5M19 4.5v4h-4M5 19.5v-4h4" />

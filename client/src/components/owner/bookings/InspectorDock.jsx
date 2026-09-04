@@ -30,11 +30,13 @@ const InspectorDock = ({
   t,
   hasEmail,
   extendable,
+  canChangeVehicle = true,
   onWhatsApp,
   onEmail,
   onCopyLink,
   onEdit,
   onExtend,
+  onChangeVehicle,
   moreItems,
 }) => (
   <div className="res-tools" role="toolbar" aria-label={t('admin.bookings.quickActions')}>
@@ -63,6 +65,14 @@ const InspectorDock = ({
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L8.25 18.002H5.25v-3L16.862 4.487z" />
       </Ico>
     </Tool>
+    {canChangeVehicle && onChangeVehicle ? (
+      <Tool label={t('admin.bookings.changeVehicle')} onClick={onChangeVehicle}>
+        <Ico>
+          <path d="M4 15.5h16M5.2 15.5l1.4-5.1A2 2 0 0 1 8.5 9h7a2 2 0 0 1 1.9 1.4l1.4 5.1" />
+          <path d="M7 12h10M7.8 18.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM16.2 18.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
+        </Ico>
+      </Tool>
+    ) : null}
     {extendable ? (
       <Tool label={t('admin.bookings.extendShort')} onClick={onExtend}>
         <Ico>

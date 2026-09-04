@@ -19,7 +19,6 @@ import {
   vehicleMeta,
 } from './reservationHelpers'
 import { presentBooking } from '../../../utils/pricing'
-import { VehicleSelect } from '../../../admin/ui'
 
 const PenIcon = () => (
   <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -67,8 +66,6 @@ const ReservationDetail = ({
   language,
   currency,
   booking,
-  compatibleVehicles = [],
-  assigningVehicle,
   uploadingDoc,
   identityType,
   setIdentityType,
@@ -77,9 +74,9 @@ const ReservationDetail = ({
   onRequestSignature,
   onExtend,
   onEdit,
+  onChangeVehicle,
   onChangeStatus,
   onChangePayment,
-  onAssignVehicle,
   onWhatsApp,
   onEmail,
   onCopyLink,
@@ -197,6 +194,9 @@ const ReservationDetail = ({
   }
 
   const mobileMore = [
+    onChangeVehicle && booking.status !== 'cancelled'
+      ? { key: 'change-vehicle-mobile', label: t('admin.bookings.changeVehicle'), icon: 'car', onClick: onChangeVehicle }
+      : null,
     !showSignatureCta && extendable
       ? { key: 'extend', label: t('admin.bookings.extendRental'), icon: 'calendar', onClick: onExtend }
       : null,
@@ -318,11 +318,13 @@ const ReservationDetail = ({
           t={t}
           hasEmail={Boolean(email)}
           extendable={extendable}
+          canChangeVehicle={Boolean(onChangeVehicle) && booking.status !== 'cancelled'}
           onWhatsApp={onWhatsApp}
           onEmail={onEmail}
           onCopyLink={onCopyLink}
           onEdit={onEdit}
           onExtend={onExtend}
+          onChangeVehicle={onChangeVehicle}
           moreItems={moreItems}
         />
       </div>
@@ -364,21 +366,20 @@ const ReservationDetail = ({
           <Line label={t('admin.bookings.dropoffLocation')}>{booking.returnLocation || '—'}</Line>
         </Fold>
 
-        <Fold title={t('admin.bookings.vehicle')}>
+        <Fold title={t('admin.bookings.vehicle')} defaultOpen>
           <Line label={t('admin.bookings.vehicle')}>{vehicleLabel(booking.car)}</Line>
+          {booking.car?.licensePlate ? (
+            <Line label={t('admin.bookings.licensePlate')}>{booking.car.licensePlate}</Line>
+          ) : null}
           {carBits ? <p className="res-muted">{carBits}</p> : null}
-          {compatibleVehicles.length > 0 ? (
-            <div className="mt-1.5">
-              <VehicleSelect
-                cars={compatibleVehicles}
-                value={booking.car?._id || ''}
-                disabled={assigningVehicle}
-                placeholder={t('admin.walkIn.selectVehicle')}
-                searchPlaceholder={t('admin.accounting.searchVehicle')}
-                emptyLabel={t('admin.ui.noResults')}
-                onChange={onAssignVehicle}
-              />
-            </div>
+          {onChangeVehicle && booking.status !== 'cancelled' ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn-secondary res-btn mt-2"
+              onClick={onChangeVehicle}
+            >
+              {t('admin.bookings.changeVehicle')}
+            </button>
           ) : null}
         </Fold>
 

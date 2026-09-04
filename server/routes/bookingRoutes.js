@@ -11,6 +11,7 @@ import {
   getCalendarBookings,
   getOwnerBookings,
   getOwnerBookingById,
+  listBookingAvailableVehicles,
   addOwnerBookingPayment,
   setOwnerBookingPaid,
   quoteBooking,
@@ -50,11 +51,13 @@ bookingRouter.post('/owner/extend', ...bookingsGate, applyExtension);
 bookingRouter.get('/owner/:bookingId/extensions', ...bookingsGate, getExtensionHistory);
 bookingRouter.post('/owner/:bookingId/payments', ...bookingsGate, addOwnerBookingPayment);
 bookingRouter.put('/owner/:bookingId/payments', ...bookingsGate, setOwnerBookingPaid);
+bookingRouter.get('/owner/:bookingId/available-vehicles', ...bookingsGate, listBookingAvailableVehicles);
 bookingRouter.get('/owner/:bookingId', ...bookingsGate, getOwnerBookingById);
 bookingRouter.post('/change-status', ...bookingsGate, changeBookingStatus);
 bookingRouter.post('/change-payment-status', ...bookingsGate, changePaymentStatus);
 bookingRouter.post('/update', ...bookingsGate, updateBooking);
 bookingRouter.post('/assign-vehicle', ...bookingsGate, assignBookingVehicle);
+bookingRouter.post('/change-vehicle', ...bookingsGate, assignBookingVehicle);
 bookingRouter.post('/owner/:bookingId/documents', ...bookingsGate, upload.single('file'), handleMulterError, uploadBookingDocuments);
 bookingRouter.get('/owner/:bookingId/documents/:docType', ...bookingsGate, getBookingDocumentUrl);
 bookingRouter.post('/delete', ...bookingsGate, deleteBooking);
