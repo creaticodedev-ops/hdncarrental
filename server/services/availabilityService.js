@@ -266,6 +266,63 @@ export const isModelAvailableForDates = async ({
 export const publicUnavailablePayload = (periods = []) =>
   mergeUnavailablePeriods(periods).map(({ startDate, endDate }) => ({ startDate, endDate }));
 
+/**
+ * Desk / owner fleet status for a concrete rental window.
+ * offline (maintenance / marked unavailable) always wins; reserved is overlap-only.
+ */
+export const classifyFleetAvailability = ({ offline = false, datesReady = false, busy = false } = {}) => {
+  if (offline) return { availability: 'unavailable', selectable: false };
+  if (!datesReady) return { availability: 'pending', selectable: true };
+  if (busy) return { availability: 'reserved', selectable: false };
+  return { availability: 'available', selectable: true };
+};
+
+const FLEET_LIST_FIELDS = 'brand model year licensePlate category image images pricePerDay status isAvaliable fleetId vin transmission fuel_type securityDeposit mileage locations location';
+
+export const listFleetAvailabilityForPeriod = async (ownerId, pickupDate, returnDate) => {
+  const cars = await Car.find({ owner: ownerId })
+    .select(FLEET_LIST_FIELDS)
+    .sort({ brand: 1, model: 1, licensePlate: 1 })
+    .lean();
+
+  const picked = pickupDate ? new Date(pickupDate) : null;
+  const returned = returnDate ? new Date(returnDate) : null;
+  const datesReady = Boolean(
+    picked
+    && returned
+    && !Number.isNaN(picked.getTime())
+    && !Number.isNaN(returned.getTime())
+    && returned > picked,
+  );
+
+  let busy = new Set();
+  if (datesReady) {
+    const overlaps = await Booking.find({
+      owner: ownerId,
+      status: { $in: ACTIVE_BOOKING_STATUSES },
+      pickupDate: { $lte: returned },
+      returnDate: { $gte: picked },
+    })
+      .select('car')
+      .lean();
+    busy = new Set(overlaps.map((row) => String(row.car)));
+  }
+
+  return {
+    datesReady,
+    pickupDate: datesReady ? picked : null,
+    returnDate: datesReady ? returned : null,
+    cars: cars.map((car) => {
+      const classified = classifyFleetAvailability({
+        offline: car.status === 'maintenance' || car.isAvaliable === false,
+        datesReady,
+        busy: busy.has(String(car._id)),
+      });
+      return { ...car, ...classified };
+    }),
+  };
+};
+
 export default {
   ACTIVE_BOOKING_STATUSES,
   mergeUnavailablePeriods,
@@ -276,4 +333,6 @@ export default {
   getModelUnavailablePeriods,
   isModelAvailableForDates,
   publicUnavailablePayload,
+  classifyFleetAvailability,
+  listFleetAvailabilityForPeriod,
 };

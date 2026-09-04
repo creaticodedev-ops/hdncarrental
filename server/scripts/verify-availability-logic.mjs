@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import {
   mergeUnavailablePeriods,
   rangesOverlap,
+  classifyFleetAvailability,
 } from '../services/availabilityService.js'
 import { assertBookingRules, DEFAULT_BOOKING_SETTINGS } from '../services/bookingSettingsService.js'
 
@@ -163,6 +164,34 @@ check('pickup hours rejected', () => {
   )
   assert.equal(r.ok, false)
   assert.equal(r.code, 'PICKUP_HOURS')
+})
+
+check('fleet: offline always unavailable', () => {
+  assert.deepEqual(
+    classifyFleetAvailability({ offline: true, datesReady: true, busy: false }),
+    { availability: 'unavailable', selectable: false },
+  )
+})
+
+check('fleet: pending until dates are set', () => {
+  assert.deepEqual(
+    classifyFleetAvailability({ offline: false, datesReady: false, busy: false }),
+    { availability: 'pending', selectable: true },
+  )
+})
+
+check('fleet: reserved on overlap', () => {
+  assert.deepEqual(
+    classifyFleetAvailability({ offline: false, datesReady: true, busy: true }),
+    { availability: 'reserved', selectable: false },
+  )
+})
+
+check('fleet: available for this period', () => {
+  assert.deepEqual(
+    classifyFleetAvailability({ offline: false, datesReady: true, busy: false }),
+    { availability: 'available', selectable: true },
+  )
 })
 
 console.log('\nAll availability logic checks passed.')

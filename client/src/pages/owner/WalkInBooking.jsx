@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Title from '../../components/owner/Title'
 import ChannelBadge from '../../components/owner/ChannelBadge'
@@ -58,6 +58,8 @@ const WalkInBooking = () => {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [cars, setCars] = useState([])
+  const [fleetDatesReady, setFleetDatesReady] = useState(false)
+  const conflictKeyRef = useRef('')
   const [form, setForm] = useState(emptyForm)
   const [quote, setQuote] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -75,19 +77,63 @@ const WalkInBooking = () => {
   const [uploadingDoc, setUploadingDoc] = useState('')
 
   useEffect(() => {
-    ;(async () => {
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
       try {
-        const { data } = await axios.get('/api/owner/cars')
+        const params = new URLSearchParams()
+        if (form.pickupDate) params.set('pickupDate', form.pickupDate)
+        if (form.returnDate) params.set('returnDate', form.returnDate)
+        const qs = params.toString()
+        const { data } = await axios.get(`/api/bookings/owner/fleet-availability${qs ? `?${qs}` : ''}`)
+        if (cancelled) return
         if (data.success) {
-          setCars((data.cars || []).filter((c) => c.status !== 'maintenance' && c.isAvaliable !== false))
+          setCars(data.cars || [])
+          setFleetDatesReady(Boolean(data.datesReady))
         }
       } catch (error) {
-        toast.error(getErrorMessage(error))
+        if (!cancelled) toast.error(getErrorMessage(error))
       }
-    })()
-  }, [axios])
+    }, form.pickupDate || form.returnDate ? 220 : 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [axios, form.pickupDate, form.returnDate])
+
+  useEffect(() => {
+    if (!form.car || !cars.length) return
+    const car = cars.find((c) => String(c._id) === String(form.car))
+    if (car && car.selectable !== false) {
+      conflictKeyRef.current = ''
+      return
+    }
+    const key = `${form.car}:${car?.availability || 'missing'}`
+    setForm((f) => (f.car ? { ...f, car: '' } : f))
+    if (conflictKeyRef.current !== key) {
+      conflictKeyRef.current = key
+      toast.error(t('admin.walkIn.vehicleConflict'))
+    }
+  }, [cars]) // eslint-disable-line react-hooks/exhaustive-deps -- clear only when fleet status changes
 
   const selectedCar = useMemo(() => cars.find((c) => c._id === form.car), [cars, form.car])
+
+  const vehicleStatusLabels = useMemo(
+    () => ({
+      available: t('admin.walkIn.vehicleAvailable'),
+      reserved: t('admin.walkIn.vehicleReserved'),
+      unavailable: t('admin.walkIn.vehicleUnavailable'),
+      pending: t('admin.walkIn.vehicleSetDates'),
+    }),
+    [t],
+  )
+
+  const fleetCounts = useMemo(() => {
+    const counts = { available: 0, reserved: 0, unavailable: 0, pending: 0 }
+    for (const car of cars) {
+      if (counts[car.availability] != null) counts[car.availability] += 1
+    }
+    return counts
+  }, [cars])
 
   const bookableLocations = useMemo(() => {
     if (!selectedCar) return pickupLocations
@@ -593,6 +639,14 @@ const WalkInBooking = () => {
           <section className="admin-card p-4 sm:p-5 space-y-4">
           <h2 className="text-sm font-semibold text-[var(--admin-ink)]">{t('admin.walkIn.rental')}</h2>
           <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="admin-label">{t('admin.walkIn.pickup')} *</label>
+              <DateField mode="datetime" className={input} required value={form.pickupDate} onChange={(pickupDate) => setField('pickupDate', pickupDate)} />
+            </div>
+            <div>
+              <label className="admin-label">{t('admin.walkIn.return')} *</label>
+              <DateField mode="datetime" className={input} required value={form.returnDate} onChange={(returnDate) => setField('returnDate', returnDate)} />
+            </div>
             <div className="sm:col-span-2">
               <label className="admin-label">{t('admin.walkIn.vehicle')} *</label>
               <VehicleSelect
@@ -601,11 +655,27 @@ const WalkInBooking = () => {
                 value={form.car}
                 currency={currency}
                 showRate
+                showStatus
+                statusLabels={vehicleStatusLabels}
                 placeholder={t('admin.walkIn.selectVehicle')}
                 searchPlaceholder={t('admin.walkIn.searchVehicle')}
                 emptyLabel={t('admin.ui.noResults')}
+                legend={(
+                  <>
+                    {fleetDatesReady ? (
+                      <>
+                        <span className="is-available"><i />{t('admin.walkIn.vehicleLegendAvailable', { count: fleetCounts.available })}</span>
+                        <span className="is-reserved"><i />{t('admin.walkIn.vehicleLegendReserved', { count: fleetCounts.reserved })}</span>
+                        <span className="is-unavailable"><i />{t('admin.walkIn.vehicleLegendUnavailable', { count: fleetCounts.unavailable })}</span>
+                      </>
+                    ) : (
+                      <span>{t('admin.walkIn.vehicleAvailNeedDates')}</span>
+                    )}
+                  </>
+                )}
                 onChange={(carId) => {
                   const car = cars.find((c) => c._id === carId)
+                  if (car?.selectable === false) return
                   setForm((f) => ({
                     ...f,
                     car: carId,
@@ -614,14 +684,9 @@ const WalkInBooking = () => {
                   }))
                 }}
               />
-            </div>
-            <div>
-              <label className="admin-label">{t('admin.walkIn.pickup')} *</label>
-              <DateField mode="datetime" className={input} required value={form.pickupDate} onChange={(pickupDate) => setField('pickupDate', pickupDate)} />
-            </div>
-            <div>
-              <label className="admin-label">{t('admin.walkIn.return')} *</label>
-              <DateField mode="datetime" className={input} required value={form.returnDate} onChange={(returnDate) => setField('returnDate', returnDate)} />
+              <p className="mt-1.5 text-xs leading-relaxed text-[var(--admin-muted)]">
+                {fleetDatesReady ? t('admin.walkIn.vehicleAvailHint') : t('admin.walkIn.vehicleAvailNeedDates')}
+              </p>
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.pickupLoc')} *</label>

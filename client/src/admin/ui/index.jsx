@@ -245,7 +245,7 @@ export const PercentInput = ({ value, onChange, required, min = '0', max = '100'
 )
 
 const optionSearchText = (option) =>
-  `${option.label || ''} ${option.hint || ''} ${option.meta || ''} ${option.keywords || ''}`.toLowerCase()
+  `${option.label || ''} ${option.hint || ''} ${option.meta || ''} ${option.detail || ''} ${option.badge || ''} ${option.keywords || ''}`.toLowerCase()
 
 const resolveAdminShell = (node) => node?.closest?.('.admin-shell') || null
 
@@ -289,6 +289,33 @@ const IconFuelGauge = ({ eighths = 8 }) => {
   )
 }
 
+const IconAvailCheck = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12.5 9.2 16.5 19 7.5" />
+  </svg>
+)
+
+const IconAvailBusy = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+    <path strokeLinecap="round" d="M8 3.5V7M16 3.5V7M3.5 10h17M9 14.5l6 0M12 11.5v6" />
+  </svg>
+)
+
+const IconAvailOff = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <circle cx="12" cy="12" r="8" />
+    <path strokeLinecap="round" d="M7.2 7.2l9.6 9.6" />
+  </svg>
+)
+
+const IconAvailDates = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+    <path strokeLinecap="round" d="M8 3.5V7M16 3.5V7M3.5 10h17" />
+  </svg>
+)
+
 const ComboMark = ({ mark }) => {
   if (!mark) return null
   if (String(mark).startsWith('status-')) {
@@ -301,10 +328,47 @@ const ComboMark = ({ mark }) => {
       </span>
     )
   }
+  if (String(mark).startsWith('avail-')) {
+    const tone = String(mark).slice(6)
+    const Icon = tone === 'available'
+      ? IconAvailCheck
+      : tone === 'reserved'
+        ? IconAvailBusy
+        : tone === 'unavailable'
+          ? IconAvailOff
+          : IconAvailDates
+    return (
+      <span className={`admin-combobox-mark is-avail is-${tone}`}>
+        <Icon />
+      </span>
+    )
+  }
   const Icon = mark === 'vehicle' ? IconCar : mark === 'airport' ? IconPlane : mark === 'hotel' ? IconHotel : IconPin
   return (
     <span className={`admin-combobox-mark is-${mark}`}>
       <Icon />
+    </span>
+  )
+}
+
+const ComboThumb = ({ src, mark }) => {
+  const [broken, setBroken] = useState(false)
+  if (src && !broken) {
+    return (
+      <span className="admin-combobox-thumb">
+        <img src={src} alt="" onError={() => setBroken(true)} />
+      </span>
+    )
+  }
+  return <ComboMark mark={mark} />
+}
+
+const ComboBadge = ({ tone, children }) => {
+  if (!children) return null
+  return (
+    <span className={`admin-combobox-badge is-${tone || 'pending'}`}>
+      <span className="admin-combobox-badge-dot" aria-hidden />
+      {children}
     </span>
   )
 }
@@ -320,6 +384,8 @@ export const SearchSelect = ({
   required,
   id,
   disabled = false,
+  legend = null,
+  rich = false,
 }) => {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -338,6 +404,19 @@ export const SearchSelect = ({
     [options, query, canSearch],
   )
 
+  const firstEnabled = (list) => list.findIndex((o) => !o.disabled)
+
+  const stepEnabled = (from, delta) => {
+    if (!filtered.length) return from
+    let i = from
+    for (let n = 0; n < filtered.length; n += 1) {
+      i += delta
+      if (i < 0 || i >= filtered.length) return from
+      if (!filtered[i]?.disabled) return i
+    }
+    return from
+  }
+
   const close = () => {
     setOpen(false)
     setQ('')
@@ -345,7 +424,7 @@ export const SearchSelect = ({
   }
 
   const pick = (option) => {
-    if (!option) return
+    if (!option || option.disabled) return
     onChange?.(option.value)
     close()
   }
@@ -357,9 +436,11 @@ export const SearchSelect = ({
     const gutter = 8
     const spaceBelow = window.innerHeight - rect.bottom - gutter
     const spaceAbove = rect.top - gutter
-    const placeAbove = spaceBelow < 200 && spaceAbove > spaceBelow
+    const placeAbove = spaceBelow < 240 && spaceAbove > spaceBelow
     const available = placeAbove ? spaceAbove : spaceBelow
-    const maxH = Math.min(280, Math.max(168, available))
+    const cap = rich ? 420 : 280
+    const floor = rich ? 220 : 168
+    const maxH = Math.min(cap, Math.max(floor, available))
     setCoords({
       top: placeAbove ? undefined : rect.bottom + 4,
       bottom: placeAbove ? window.innerHeight - rect.top + 4 : undefined,
@@ -391,12 +472,13 @@ export const SearchSelect = ({
       window.removeEventListener('resize', onMove)
       window.removeEventListener('scroll', onMove, true)
     }
-  }, [open])
+  }, [open, rich])
 
   useEffect(() => {
     if (!open) return undefined
-    const selectedIdx = filtered.findIndex((o) => String(o.value) === String(value))
-    setActive(selectedIdx >= 0 ? selectedIdx : filtered.length ? 0 : -1)
+    const selectedIdx = filtered.findIndex((o) => String(o.value) === String(value) && !o.disabled)
+    const fallback = firstEnabled(filtered)
+    setActive(selectedIdx >= 0 ? selectedIdx : fallback)
     const frame = requestAnimationFrame(() => (canSearch ? searchRef.current : panelRef.current)?.focus?.())
     return () => cancelAnimationFrame(frame)
   }, [open, canSearch])
@@ -423,19 +505,37 @@ export const SearchSelect = ({
   const onSearchKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActive((i) => Math.min(filtered.length - 1, Math.max(0, i + 1)))
+      setActive((i) => {
+        const start = i < 0 ? firstEnabled(filtered) - 1 : i
+        const next = stepEnabled(start, 1)
+        return next < 0 ? i : next
+      })
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActive((i) => Math.max(0, i < 0 ? filtered.length - 1 : i - 1))
+      setActive((i) => {
+        if (i < 0) {
+          for (let n = filtered.length - 1; n >= 0; n -= 1) {
+            if (!filtered[n]?.disabled) return n
+          }
+          return i
+        }
+        return stepEnabled(i, -1)
+      })
     } else if (e.key === 'Home') {
       e.preventDefault()
-      if (filtered.length) setActive(0)
+      const idx = firstEnabled(filtered)
+      if (idx >= 0) setActive(idx)
     } else if (e.key === 'End') {
       e.preventDefault()
-      if (filtered.length) setActive(filtered.length - 1)
+      for (let n = filtered.length - 1; n >= 0; n -= 1) {
+        if (!filtered[n]?.disabled) {
+          setActive(n)
+          break
+        }
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (active >= 0 && filtered[active]) pick(filtered[active])
+      if (active >= 0 && filtered[active] && !filtered[active].disabled) pick(filtered[active])
     }
   }
 
@@ -447,7 +547,7 @@ export const SearchSelect = ({
     ? createPortal(
         <div
           ref={panelRef}
-          className={`admin-combobox-panel is-ported${canSearch ? '' : ' is-simple'}`}
+          className={`admin-combobox-panel is-ported${canSearch ? '' : ' is-simple'}${rich ? ' is-rich' : ''}`}
           data-theme={theme}
           role="listbox"
           tabIndex={-1}
@@ -474,8 +574,14 @@ export const SearchSelect = ({
                   placeholder={searchPlaceholder || placeholder}
                   value={q}
                   onChange={(e) => {
-                    setQ(e.target.value)
-                    setActive(0)
+                    const next = e.target.value
+                    setQ(next)
+                    const needle = next.trim().toLowerCase()
+                    const list = needle
+                      ? options.filter((o) => optionSearchText(o).includes(needle))
+                      : options
+                    const idx = list.findIndex((o) => !o.disabled)
+                    setActive(idx)
                   }}
                   onKeyDown={onSearchKeyDown}
                   autoComplete="off"
@@ -490,6 +596,7 @@ export const SearchSelect = ({
             <div ref={listRef} className="admin-combobox-list">
               {filtered.map((o, index) => {
                 const isSelected = String(o.value) === String(value)
+                const isOff = Boolean(o.disabled)
                 return (
                   <button
                     key={String(o.value) || index}
@@ -497,19 +604,22 @@ export const SearchSelect = ({
                     role="option"
                     data-combo-index={index}
                     aria-selected={isSelected}
-                    className={`admin-combobox-option${isSelected ? ' is-selected' : ''}${index === active ? ' is-active' : ''}`}
+                    aria-disabled={isOff}
+                    className={`admin-combobox-option${isSelected ? ' is-selected' : ''}${index === active ? ' is-active' : ''}${isOff ? ' is-off' : ''}${rich ? ' is-fleet' : ''}`}
                     onMouseEnter={() => setActive(index)}
                     onClick={() => pick(o)}
                   >
-                    <ComboMark mark={o.mark} />
+                    <ComboThumb src={o.thumb} mark={o.mark} />
                     <span className="admin-combobox-option-body">
                       <span className="admin-combobox-option-label">{o.label}</span>
                       {o.hint ? (
                         <span className={`admin-combobox-option-hint${o.hintKind === 'code' ? ' is-code' : ''}`}>{o.hint}</span>
                       ) : null}
+                      {o.detail ? <span className="admin-combobox-option-detail">{o.detail}</span> : null}
                     </span>
-                    {o.meta ? <span className="admin-combobox-option-meta">{o.meta}</span> : null}
-                    {isSelected ? (
+                    {o.badge ? <ComboBadge tone={o.badgeTone}>{o.badge}</ComboBadge> : null}
+                    {!o.badge && o.meta ? <span className="admin-combobox-option-meta">{o.meta}</span> : null}
+                    {isSelected && !isOff ? (
                       <svg className="admin-combobox-check" viewBox="0 0 20 20" fill="none" aria-hidden>
                         <path d="M4.5 10.5 8 14l7.5-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -519,13 +629,14 @@ export const SearchSelect = ({
               })}
             </div>
           )}
+          {legend ? <div className="admin-combobox-legend">{legend}</div> : null}
         </div>,
         portalHost,
       )
     : null
 
   return (
-    <div className={`admin-combobox${open ? ' is-open' : ''}${disabled ? ' is-disabled' : ''}`} ref={wrapRef}>
+    <div className={`admin-combobox${open ? ' is-open' : ''}${disabled ? ' is-disabled' : ''}${rich ? ' is-rich' : ''}`} ref={wrapRef}>
       <input type="hidden" value={value || ''} required={required} readOnly />
       <button
         id={id}
@@ -547,13 +658,14 @@ export const SearchSelect = ({
       >
         {selected ? (
           <>
-            <ComboMark mark={selected.mark} />
+            <ComboThumb src={selected.thumb} mark={selected.mark} />
             <span className="admin-combobox-trigger-copy">
               <span className="admin-combobox-trigger-label">{selected.label}</span>
               {selected.hint ? (
                 <span className={`admin-combobox-trigger-hint${selected.hintKind === 'code' ? ' is-code' : ''}`}>{selected.hint}</span>
               ) : null}
             </span>
+            {selected.badge ? <ComboBadge tone={selected.badgeTone}>{selected.badge}</ComboBadge> : null}
           </>
         ) : (
           <span className="admin-combobox-trigger-copy">
@@ -569,23 +681,35 @@ export const SearchSelect = ({
   )
 }
 
+const AVAIL_RANK = { available: 0, pending: 1, reserved: 2, unavailable: 3 }
+
 export const toVehicleOption = (car, extras = {}) => {
   if (!car) return null
   const model = String(car.model || '').trim()
   const brand = String(car.brand || '').trim()
   const plate = String(car.licensePlate || '').trim()
   const fleetId = String(car.fleetId || '').trim()
+  const availability = car.availability || extras.availability || ''
+  const showStatus = Boolean(extras.showStatus && availability)
+  const labels = extras.statusLabels || {}
   const rate = extras.showRate && car.pricePerDay != null
     ? `${extras.currency || ''}${car.pricePerDay}`
     : ''
+  const disabled = showStatus && (availability === 'reserved' || availability === 'unavailable' || car.selectable === false)
+  const thumb = car.image || (Array.isArray(car.images) ? car.images[0] : '')
   return {
     value: car._id,
-    label: model || brand || '—',
+    label: [brand, model].filter(Boolean).join(' ') || model || brand || '—',
     hint: plate,
     hintKind: 'code',
-    meta: rate,
-    mark: 'vehicle',
-    keywords: [brand, model, plate, fleetId, car.vin].filter(Boolean).join(' '),
+    detail: showStatus ? rate : '',
+    meta: showStatus ? '' : rate,
+    badge: showStatus ? (labels[availability] || availability) : '',
+    badgeTone: availability || undefined,
+    disabled,
+    thumb: thumb || '',
+    mark: showStatus ? `avail-${availability}` : 'vehicle',
+    keywords: [brand, model, plate, fleetId, car.vin, availability, labels[availability]].filter(Boolean).join(' '),
   }
 }
 
@@ -621,12 +745,24 @@ export const VehicleSelect = ({
   disabled = false,
   currency,
   showRate = false,
+  showStatus = false,
+  statusLabels = {},
+  legend = null,
 }) => {
   const options = useMemo(() => {
-    const list = cars.map((car) => toVehicleOption(car, { currency, showRate })).filter(Boolean)
+    const mapped = cars
+      .map((car) => toVehicleOption(car, { currency, showRate, showStatus, statusLabels }))
+      .filter(Boolean)
+    const list = showStatus
+      ? [...mapped].sort((a, b) => {
+          const rank = (AVAIL_RANK[a.badgeTone] ?? 9) - (AVAIL_RANK[b.badgeTone] ?? 9)
+          if (rank !== 0) return rank
+          return String(a.label).localeCompare(String(b.label))
+        })
+      : mapped
     if (!includeEmpty) return list
     return [{ value: '', label: emptyOptionLabel || 'All', hint: '' }, ...list]
-  }, [cars, includeEmpty, emptyOptionLabel, currency, showRate])
+  }, [cars, includeEmpty, emptyOptionLabel, currency, showRate, showStatus, statusLabels])
 
   return (
     <SearchSelect
@@ -640,6 +776,8 @@ export const VehicleSelect = ({
       searchable
       required={required}
       disabled={disabled}
+      rich={showStatus}
+      legend={legend}
     />
   )
 }

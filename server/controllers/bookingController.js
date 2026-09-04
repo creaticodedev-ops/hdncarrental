@@ -49,6 +49,7 @@ import { sendReservationsExport } from "./xlsxExportController.js";
 import { bookingCrmKey, deskCrmKey, isPlaceholderEmail } from "../utils/customerIdentity.js";
 import {
   isModelAvailableForDates,
+  listFleetAvailabilityForPeriod,
   publicUnavailablePayload,
 } from "../services/availabilityService.js";
 import {
@@ -1681,6 +1682,23 @@ export const updateBooking = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, message: 'Failed to update reservation' });
+  }
+};
+
+export const listFleetAvailability = async (req, res) => {
+  try {
+    const result = await listFleetAvailabilityForPeriod(
+      req.user._id,
+      req.query.pickupDate,
+      req.query.returnDate,
+    );
+    res.json({ success: true, ...result });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to load fleet availability',
+    });
   }
 };
 

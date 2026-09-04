@@ -12,6 +12,7 @@ import {
   getOwnerBookings,
   getOwnerBookingById,
   listBookingAvailableVehicles,
+  listFleetAvailability,
   addOwnerBookingPayment,
   setOwnerBookingPaid,
   quoteBooking,
@@ -45,6 +46,7 @@ bookingRouter.post('/owner/walk-in', ...bookingsGate, createWalkInBooking);
 bookingRouter.get('/owner', ...bookingsGate, getOwnerBookings);
 bookingRouter.get('/owner/export', ...bookingsGate, exportOwnerBookings);
 bookingRouter.get('/owner/calendar', ...calendarGate, getCalendarBookings);
+bookingRouter.get('/owner/fleet-availability', ...bookingsGate, listFleetAvailability);
 bookingRouter.post('/owner/completion/ensure-link', ...bookingsGate, ensureCompletionLink);
 bookingRouter.post('/owner/extend/preview', ...bookingsGate, previewExtension);
 bookingRouter.post('/owner/extend', ...bookingsGate, applyExtension);

@@ -808,6 +808,149 @@
   background: color-mix(in srgb, var(--cb-primary) 12%, var(--cb-surface));
   color: var(--cb-primary);
 }
+.admin-combobox-option.is-selected .admin-combobox-mark.is-avail.is-available {
+  background: color-mix(in srgb, var(--admin-success, #067647) 18%, var(--cb-surface));
+  color: var(--admin-success, #067647);
+}
+.admin-combobox.is-rich .admin-combobox-trigger {
+  min-height: 3.15rem;
+  padding-top: 0.42rem;
+  padding-bottom: 0.42rem;
+}
+.admin-combobox-thumb {
+  display: block;
+  flex-shrink: 0;
+  width: 2.45rem;
+  height: 1.85rem;
+  border-radius: 0.4rem;
+  overflow: hidden;
+  background: var(--admin-surface-2, #f8f6f5);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--admin-border, #e4ddd8) 80%, transparent);
+}
+.admin-combobox-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.admin-combobox-mark.is-avail.is-available {
+  background: color-mix(in srgb, var(--admin-success, #067647) 14%, var(--admin-surface, #fff));
+  color: var(--admin-success, #067647);
+}
+.admin-combobox-mark.is-avail.is-reserved {
+  background: color-mix(in srgb, var(--admin-warn, #b54708) 16%, var(--admin-surface, #fff));
+  color: var(--admin-warn, #b54708);
+}
+.admin-combobox-mark.is-avail.is-unavailable {
+  background: color-mix(in srgb, var(--admin-danger, #b42318) 12%, var(--admin-surface, #fff));
+  color: var(--admin-danger, #b42318);
+}
+.admin-combobox-mark.is-avail.is-pending {
+  background: var(--admin-surface-2, #f8f6f5);
+  color: var(--admin-muted, #6b6560);
+}
+.admin-combobox-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex-shrink: 0;
+  max-width: 7.5rem;
+  padding: 0.18rem 0.45rem 0.18rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+.admin-combobox-badge-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+.admin-combobox-badge.is-available {
+  color: var(--admin-success, #067647);
+  background: color-mix(in srgb, var(--admin-success, #067647) 12%, transparent);
+}
+.admin-combobox-badge.is-reserved {
+  color: var(--admin-warn, #b54708);
+  background: color-mix(in srgb, var(--admin-warn, #b54708) 14%, transparent);
+}
+.admin-combobox-badge.is-unavailable {
+  color: var(--admin-danger, #b42318);
+  background: color-mix(in srgb, var(--admin-danger, #b42318) 12%, transparent);
+}
+.admin-combobox-badge.is-pending {
+  color: var(--admin-muted, #6b6560);
+  background: var(--admin-surface-2, #f8f6f5);
+}
+.admin-combobox-option-detail {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--cb-muted);
+}
+.admin-combobox-option.is-fleet {
+  align-items: flex-start;
+  padding: 0.52rem 0.55rem;
+  gap: 0.7rem;
+}
+.admin-combobox-option.is-fleet .admin-combobox-option-label {
+  font-size: 0.88rem;
+}
+.admin-combobox-option.is-off {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+.admin-combobox-option.is-off:hover,
+.admin-combobox-option.is-off.is-active {
+  background: color-mix(in srgb, var(--cb-hover) 55%, transparent);
+}
+.admin-combobox-option.is-off .admin-combobox-option-label {
+  color: var(--cb-muted);
+}
+.admin-combobox-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  flex-shrink: 0;
+  padding: 0.48rem 0.7rem;
+  border-top: 1px solid var(--cb-border);
+  background: var(--cb-surface-2);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cb-muted);
+}
+.admin-combobox-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+.admin-combobox-legend i {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+.admin-combobox-legend .is-available { color: var(--admin-success, #067647); }
+.admin-combobox-legend .is-reserved { color: var(--admin-warn, #b54708); }
+.admin-combobox-legend .is-unavailable { color: var(--admin-danger, #b42318); }
+.admin-combobox-panel.is-rich .admin-combobox-option .admin-combobox-mark,
+.admin-combobox.is-rich .admin-combobox-trigger .admin-combobox-mark {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 0.5rem;
+}
+.admin-combobox-panel[data-theme='dark'] .admin-combobox-thumb {
+  background: var(--cb-surface-2);
+  box-shadow: inset 0 0 0 1px var(--cb-border);
+}
 
 .admin-modal {
   position: relative;

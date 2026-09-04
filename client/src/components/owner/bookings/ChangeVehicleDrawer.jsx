@@ -38,7 +38,7 @@ const ChangeVehicleDrawer = ({
       .then(({ data }) => {
         if (cancelledFetch) return
         if (!data.success) throw new Error(data.message)
-        setCars(data.cars || [])
+        setCars((data.cars || []).map((car) => ({ ...car, availability: 'available', selectable: true })))
       })
       .catch((error) => {
         if (cancelledFetch) return
@@ -147,6 +147,13 @@ const ChangeVehicleDrawer = ({
                     placeholder={t('admin.walkIn.selectVehicle')}
                     searchPlaceholder={t('admin.walkIn.searchVehicle')}
                     emptyLabel={t('admin.ui.noResults')}
+                    showStatus
+                    statusLabels={{
+                      available: t('admin.walkIn.vehicleAvailable'),
+                      reserved: t('admin.walkIn.vehicleReserved'),
+                      unavailable: t('admin.walkIn.vehicleUnavailable'),
+                      pending: t('admin.walkIn.vehicleSetDates'),
+                    }}
                   />
                 ) : (
                   <p className="text-sm text-[var(--admin-muted)]">{t('admin.bookings.changeVehicleEmpty')}</p>
