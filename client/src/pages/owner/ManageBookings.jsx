@@ -23,7 +23,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { escapeHtml, getErrorMessage } from '../../utils/apiError'
 import PhoneInput, { isPhoneValid } from '../../components/PhoneInput'
-import { buildOwnerCompletionWaUrl, buildWaMeUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp } from '../../utils/whatsapp'
+import { buildSignatureLinkToCustomerWaUrl, buildWaMeUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp, preferCustomerWhatsAppUrl } from '../../utils/whatsapp'
 import { AdminDrawer, DrawerSection, FormField, VehicleSelect } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
@@ -360,7 +360,7 @@ const ManageBookings = () => {
   const ensureCompletionLinkPayload = async (booking) => {
     const bookingId = booking._id
     const tryEnsure = async (url) => {
-      const { data } = await axios.post(url, { bookingId })
+      const { data } = await axios.post(url, { bookingId, lang: language })
       return data
     }
 
@@ -499,30 +499,24 @@ const ManageBookings = () => {
     }
   }
 
-  const openCompletionWaMe = (booking, completionUrl, dial) => {
-    const url = buildOwnerCompletionWaUrl(booking, completionUrl, {
-      currency,
-      dial: dial || whatsappDials.confirmationDial,
-    })
-    window.open(url, '_blank', 'noopener,noreferrer')
-  }
-
   const confirmViaWhatsApp = async (booking) => {
     if (!booking?._id) return
+    if (!booking.customerPhone) {
+      toast.error(t('admin.bookings.whatsappNoPhone'))
+      return
+    }
     setOpeningWhatsApp(true)
     setSignatureBusy(true)
     try {
       const data = await ensureCompletionLinkPayload(booking)
       const completionUrl = data.shareableCompletionUrl || data.completionUrl
-      if (data.whatsappConfirmationUrl) {
-        window.open(data.whatsappConfirmationUrl, '_blank', 'noopener,noreferrer')
-      } else {
-        openCompletionWaMe(
-          booking,
-          completionUrl,
-          data.whatsappConfirmationDial || whatsappDials.confirmationDial,
-        )
+      const built = buildSignatureLinkToCustomerWaUrl(booking, completionUrl, { language })
+      const wa = preferCustomerWhatsAppUrl(data.whatsappUrl || data.whatsappConfirmationUrl, built)
+      if (!wa) {
+        toast.error(t('admin.bookings.whatsappNoPhone'))
+        return
       }
+      window.open(wa, '_blank', 'noopener,noreferrer')
       fetchOwnerBookings()
     } catch (error) {
       toast.error(getErrorMessage(error), { duration: 8000 })

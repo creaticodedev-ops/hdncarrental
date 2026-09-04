@@ -119,6 +119,20 @@ const WalkInBooking = () => {
     [t],
   )
 
+  const fuelOptions = useMemo(
+    () => [
+      { value: '1/1', label: '1/1', hint: t('admin.walkIn.fuelFull'), mark: 'fuel-8' },
+      { value: '7/8', label: '7/8', hint: t('admin.walkIn.fuelAlmostFull'), mark: 'fuel-7' },
+      { value: '3/4', label: '3/4', hint: t('admin.walkIn.fuelThreeQuarters'), mark: 'fuel-6' },
+      { value: '5/8', label: '5/8', hint: t('admin.walkIn.fuelAboveHalf'), mark: 'fuel-5' },
+      { value: '1/2', label: '1/2', hint: t('admin.walkIn.fuelHalf'), mark: 'fuel-4' },
+      { value: '3/8', label: '3/8', hint: t('admin.walkIn.fuelBelowHalf'), mark: 'fuel-3' },
+      { value: '1/4', label: '1/4', hint: t('admin.walkIn.fuelQuarter'), mark: 'fuel-2' },
+      { value: '1/8', label: '1/8', hint: t('admin.walkIn.fuelReserve'), mark: 'fuel-1' },
+    ],
+    [t],
+  )
+
   useEffect(() => {
     const ids = new Set(bookableLocations.map((l) => String(l._id)))
     const preferred = findDefaultLocationId(bookableLocations)
@@ -641,7 +655,13 @@ const WalkInBooking = () => {
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.fuelLevel')}</label>
-              <input className={input} value={form.fuelLevelStart} onChange={(e) => setField('fuelLevelStart', e.target.value)} placeholder="e.g. 1/1" />
+              <SearchSelect
+                value={form.fuelLevelStart}
+                onChange={(fuelLevelStart) => setField('fuelLevelStart', fuelLevelStart)}
+                options={fuelOptions}
+                placeholder={t('admin.walkIn.selectFuel')}
+                searchable={false}
+              />
             </div>
             <div>
               <label className="admin-label">{t('admin.walkIn.kmDepart')}</label>

@@ -3,6 +3,7 @@
 import { BRAND_NAME } from '../constants/brand'
 import { customerEmail } from './customerEmail'
 import { buildSignedContractWhatsAppMessage } from '../../../shared/signedContractWhatsApp.js'
+import { buildSignatureLinkWhatsAppMessage } from '../../../shared/signatureLinkWhatsApp.js'
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116'
 
@@ -55,6 +56,31 @@ export const buildWaMeUrl = (text, dial = getAgencyWhatsAppDial(), { allowEmptyD
   }
   if (!text?.trim()) return `https://wa.me/${to}`
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`
+}
+
+/** Digits after wa.me/ — the conversation recipient, not numbers mentioned in the message. */
+export const whatsappRecipientDial = (url) => {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.toLowerCase()
+    if (host === 'wa.me' || host.endsWith('.wa.me')) {
+      const pathDial = parsed.pathname.replace(/^\//, '').split('/')[0]
+      return /^\d+$/.test(pathDial) ? pathDial : ''
+    }
+    if (host.includes('whatsapp.com')) {
+      return normalizeWhatsAppDial(parsed.searchParams.get('phone') || '')
+    }
+    return ''
+  } catch {
+    return ''
+  }
+}
+
+/** Prefer a server URL only when it already opens a chat with this customer. */
+export const preferCustomerWhatsAppUrl = (serverUrl, built) => {
+  if (!built?.customerDial || !built?.whatsappUrl) return ''
+  if (serverUrl && whatsappRecipientDial(serverUrl) === built.customerDial) return serverUrl
+  return built.whatsappUrl
 }
 
 /**
@@ -138,36 +164,9 @@ export const buildGuestReservationWaUrl = (reservation, { currency = 'MAD', dial
   return buildWaMeUrl(lines.join('\n'), dial || reservation.whatsappDial || getAgencyWhatsAppDial())
 }
 
-/** Owner dashboard — open WhatsApp to agency with message to forward to customer */
-export const buildOwnerCompletionWaUrl = (booking, completionUrl, { currency = 'MAD', dial, signatureOnly } = {}) => {
-  const reservationId = booking.reservationId || `RES-${booking._id?.toString().slice(-8).toUpperCase()}`
-  const vehicle = booking.car
-    ? `${booking.car.brand} ${booking.car.model}${booking.car.licensePlate ? ` (${booking.car.licensePlate})` : ''}`
-    : booking.carName || '—'
-  const signOnly = signatureOnly
-    ?? ['walk_in', 'walk-in', 'walkin'].includes(String(booking.channel || '').toLowerCase())
-  const cta = signOnly
-    ? 'Please review and sign your rental contract here:'
-    : 'Complete your booking securely here:'
-
-  const lines = [
-    `${BRAND_NAME} — booking confirmation (message for customer):`,
-    '',
-    `Hello ${booking.customerName || 'Customer'},`,
-    '',
-    'Your reservation is confirmed.',
-    `Reservation: ${reservationId}`,
-    `Vehicle: ${vehicle}`,
-    `Pickup: ${formatDateTime(booking.pickupDate)} — ${booking.pickupLocation || '—'}`,
-    `Return: ${formatDateTime(booking.returnDate)} — ${booking.returnLocation || '—'}`,
-    `Total: ${currency}${booking.price ?? '—'}`,
-    '',
-    cta,
-    completionUrl,
-    '',
-    `(Customer: ${booking.customerPhone || '—'})`,
-  ]
-  return buildWaMeUrl(lines.join('\n'), dial || getAgencyWhatsAppDial())
+const isDeskChannel = (booking) => {
+  const channel = String(booking?.channel || '').trim().toLowerCase()
+  return channel === 'walk_in' || channel === 'walk-in' || channel === 'walkin'
 }
 
 const vehicleFromBooking = (booking) => {
@@ -178,6 +177,45 @@ const vehicleFromBooking = (booking) => {
   }
   return booking?.carName || booking?.vehicle || '—'
 }
+
+/** Owner dashboard — open WhatsApp to the customer with the signature / completion link. */
+export const buildSignatureLinkToCustomerWaUrl = (
+  booking,
+  completionUrl,
+  { language = 'en', signatureOnly } = {},
+) => {
+  const phone = booking?.customerPhone || booking?.phone
+  const dial = normalizeWhatsAppDial(phone)
+  const signOnly = signatureOnly ?? isDeskChannel(booking)
+  const message = buildSignatureLinkWhatsAppMessage({
+    language,
+    brand: BRAND_NAME,
+    name: booking?.customerName,
+    reservationId: booking?.reservationId || (booking?._id ? `RES-${String(booking._id).slice(-8).toUpperCase()}` : ''),
+    vehicle: vehicleFromBooking(booking),
+    pickup: formatShareDateTime(booking?.pickupDate, language),
+    returnDate: formatShareDateTime(booking?.returnDate, language),
+    link: completionUrl,
+    signatureOnly: signOnly,
+  })
+  if (!dial) {
+    return { ok: false, code: 'NO_PHONE', message, whatsappUrl: '' }
+  }
+  return {
+    ok: true,
+    code: null,
+    message,
+    customerDial: dial,
+    whatsappUrl: buildWaMeUrl(message, dial),
+  }
+}
+
+/** @deprecated use buildSignatureLinkToCustomerWaUrl — always targets the customer phone. */
+export const buildOwnerCompletionWaUrl = (booking, completionUrl, opts = {}) =>
+  buildSignatureLinkToCustomerWaUrl(booking, completionUrl, opts).whatsappUrl
+
+/** @deprecated use buildOwnerCompletionWaUrl */
+export const buildCompletionWhatsAppUrl = buildOwnerCompletionWaUrl
 
 /** Customer (or owner-to-customer) — signed contract copy. */
 export const buildSignedContractWaUrl = (
@@ -214,9 +252,6 @@ export async function openOwnerSignedContractWhatsApp(axios, booking, { language
   return { ...data, opened }
 }
 
-/** @deprecated use buildOwnerCompletionWaUrl */
-export const buildCompletionWhatsAppUrl = buildOwnerCompletionWaUrl
-
 export const buildGuestToAgencyWhatsAppUrlFromDial = (dial, reservation, opts) => {
   if (dial) return buildGuestReservationWaUrl(reservation, opts)
   return buildGuestReservationWaUrl(reservation, opts)
@@ -225,6 +260,7 @@ export const buildGuestToAgencyWhatsAppUrlFromDial = (dial, reservation, opts) =
 export default {
   buildGuestReservationWaUrl,
   buildOwnerCompletionWaUrl,
+  buildSignatureLinkToCustomerWaUrl,
   buildSignedContractWaUrl,
   buildWaMeUrl,
   getAgencyWhatsAppDial,

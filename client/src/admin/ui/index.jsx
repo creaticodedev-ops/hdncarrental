@@ -276,10 +276,30 @@ const IconHotel = () => (
   </svg>
 )
 
+const IconFuelGauge = ({ eighths = 8 }) => {
+  const inner = 11.2
+  const fill = Math.max(0, Math.min(8, Number(eighths) || 0)) * (inner / 8)
+  const y = 17.6 - fill
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="10.4" y="3.1" width="3.2" height="2" rx="0.6" fill="currentColor" stroke="none" />
+      <rect x="8" y="4.6" width="8" height="15.2" rx="2" />
+      {fill > 0.4 ? <rect x="9.7" y={y} width="4.6" height={fill} rx="0.7" fill="currentColor" stroke="none" /> : null}
+    </svg>
+  )
+}
+
 const ComboMark = ({ mark }) => {
   if (!mark) return null
   if (String(mark).startsWith('status-')) {
     return <span className={`admin-combobox-dot is-${String(mark).slice(7)}`} />
+  }
+  if (String(mark).startsWith('fuel-')) {
+    return (
+      <span className="admin-combobox-mark is-fuel">
+        <IconFuelGauge eighths={Number(String(mark).slice(5))} />
+      </span>
+    )
   }
   const Icon = mark === 'vehicle' ? IconCar : mark === 'airport' ? IconPlane : mark === 'hotel' ? IconHotel : IconPin
   return (

@@ -31,7 +31,10 @@ import {
 } from "../middleware/uploadAccess.js";
 import { hydrateContractIfNeeded } from "./contractController.js";
 import { BRAND_NAME } from "../utils/brand.js";
-import { buildSignedContractToCustomerWhatsAppUrl } from "../services/whatsappNotify.js";
+import {
+  buildSignedContractToCustomerWhatsAppUrl,
+  buildSignatureLinkToCustomerWhatsAppUrl,
+} from "../services/whatsappNotify.js";
 import {
   applyCompletionDetailsToBooking,
   validateCompletionDetails,
@@ -574,35 +577,33 @@ export const ensureCompletionLink = async (req, res) => {
     }
 
     const result = await ensureBookingCompletionLink(bookingId, { refresh: Boolean(refresh) });
+    const lang = req.body?.lang;
 
     let whatsappConfirmationUrl = null;
-    let whatsappConfirmationDial = null;
+    let customerDial = null;
+    let whatsappCode = null;
     try {
-      const { resolveWhatsAppDials } = await import('../services/agencySettingsService.js');
-      const { buildCompletionToAgencyWhatsAppUrl } = await import('../services/whatsappNotify.js');
-      const dials = await resolveWhatsAppDials(booking.owner);
-      whatsappConfirmationDial = dials.confirmationDial;
-      const populated = await Booking.findById(bookingId).populate('car', 'brand model licensePlate').lean();
-      const car = populated?.car;
-      const vehicle = car
-        ? `${car.brand} ${car.model}${car.licensePlate ? ` (${car.licensePlate})` : ''}`
-        : '—';
-      whatsappConfirmationUrl = buildCompletionToAgencyWhatsAppUrl({
-        reservationId: populated?.reservationId || booking.reservationId,
+      const populated = await Booking.findById(bookingId).populate("car", "brand model licensePlate").lean();
+      const share = buildSignatureLinkToCustomerWhatsAppUrl({
+        language: lang,
+        brand: BRAND_NAME,
         customerName: populated?.customerName || booking.customerName,
         customerPhone: populated?.customerPhone || booking.customerPhone,
-        vehicle,
-        pickupLocation: populated?.pickupLocation || booking.pickupLocation,
-        returnLocation: populated?.returnLocation || booking.returnLocation,
+        reservationId: populated?.reservationId || booking.reservationId,
+        car: populated?.car,
         pickupDate: populated?.pickupDate || booking.pickupDate,
         returnDate: populated?.returnDate || booking.returnDate,
-        price: populated?.price ?? booking.price,
-        currency: process.env.CURRENCY || 'MAD',
         completionUrl: result.completionUrl,
-        dial: whatsappConfirmationDial,
+        signatureOnly: resolveCompletionMode(populated || booking) === "signature_only",
       });
+      if (share.ok) {
+        whatsappConfirmationUrl = share.whatsappUrl;
+        customerDial = share.customerDial;
+      } else {
+        whatsappCode = share.code;
+      }
     } catch (waError) {
-      console.error('[ensureCompletionLink] WhatsApp URL', waError.message);
+      console.error("[ensureCompletionLink] WhatsApp URL", waError.message);
     }
 
     res.status(200).json({
@@ -613,8 +614,9 @@ export const ensureCompletionLink = async (req, res) => {
       status: result.booking.status,
       requestStatus: result.requestStatus || getSignatureRequestSummary(result.booking).requestStatus,
       signatureRequest: getSignatureRequestSummary(result.booking),
-      ...(whatsappConfirmationUrl ? { whatsappConfirmationUrl } : {}),
-      ...(whatsappConfirmationDial ? { whatsappConfirmationDial } : {}),
+      ...(whatsappConfirmationUrl ? { whatsappConfirmationUrl, whatsappUrl: whatsappConfirmationUrl } : {}),
+      ...(customerDial ? { customerDial } : {}),
+      ...(whatsappCode ? { whatsappCode } : {}),
     });
   } catch (error) {
     console.error(error.message);

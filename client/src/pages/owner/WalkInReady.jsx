@@ -10,7 +10,7 @@ import { useAppContext } from '../../context/AppContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
-import { buildOwnerCompletionWaUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp } from '../../utils/whatsapp'
+import { buildSignatureLinkToCustomerWaUrl, createExternalTabOpener, openOwnerSignedContractWhatsApp, preferCustomerWhatsAppUrl } from '../../utils/whatsapp'
 import WhatsAppGlyph from '../../components/WhatsAppGlyph'
 import { customerEmail } from '../../utils/customerEmail'
 import DateField from '../../components/calendar/DateField'
@@ -100,7 +100,6 @@ const WalkInReady = () => {
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewOpen, setPreviewOpen] = useState(false)
   const [confirm, setConfirm] = useState(null)
-  const [whatsappDials, setWhatsappDials] = useState({ confirmationDial: '' })
   const [payFormOpen, setPayFormOpen] = useState(false)
   const [payForm, setPayForm] = useState({ amount: '', method: 'cash', paidAt: '', note: '' })
   const [paidInput, setPaidInput] = useState('')
@@ -190,17 +189,6 @@ const WalkInReady = () => {
   }, [bookingId]) // eslint-disable-line react-hooks/exhaustive-deps -- run once per reservation
 
   useEffect(() => {
-    axios
-      .get('/api/owner/settings')
-      .then(({ data }) => {
-        if (data.success) {
-          setWhatsappDials({ confirmationDial: data.settings?.effective?.confirmationDial || '' })
-        }
-      })
-      .catch(() => {})
-  }, [axios])
-
-  useEffect(() => {
     if (!booking || signed) return undefined
     const timer = window.setInterval(() => {
       if (paidFieldRef.current && document.activeElement === paidFieldRef.current) return
@@ -222,18 +210,29 @@ const WalkInReady = () => {
   }
 
   const shareWhatsApp = async () => {
+    if (!booking?.customerPhone) {
+      toast.error(t('admin.bookings.whatsappNoPhone'))
+      return
+    }
     setBusy('whatsapp')
     const opener = createExternalTabOpener()
     try {
-      const { data } = await axios.post('/api/booking-completion/owner/ensure-link', { bookingId })
+      const { data } = await axios.post('/api/booking-completion/owner/ensure-link', {
+        bookingId,
+        lang: language,
+      })
       const url = data.shareableCompletionUrl || data.completionUrl || linkUrl
       if (!url) throw new Error(t('admin.bookings.noCompletionLink'))
-      const wa = data.whatsappConfirmationUrl
-        || buildOwnerCompletionWaUrl(booking, url, {
-          currency,
-          dial: data.whatsappConfirmationDial || whatsappDials.confirmationDial,
-          signatureOnly: true,
-        })
+      const built = buildSignatureLinkToCustomerWaUrl(booking, url, {
+        language,
+        signatureOnly: true,
+      })
+      const wa = preferCustomerWhatsAppUrl(data.whatsappUrl || data.whatsappConfirmationUrl, built)
+      if (!wa) {
+        opener.close()
+        toast.error(t('admin.bookings.whatsappNoPhone'))
+        return
+      }
       opener.navigate(wa)
       await loadBooking()
     } catch (err) {

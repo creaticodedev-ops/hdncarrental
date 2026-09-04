@@ -6,6 +6,7 @@ import assert from 'assert';
 import {
   buildGuestToAgencyWhatsAppUrl,
   buildCompletionToAgencyWhatsAppUrl,
+  buildSignatureLinkToCustomerWhatsAppUrl,
   normalizeWhatsAppDial,
   DEFAULT_AGENCY_WHATSAPP,
 } from '../services/whatsappNotify.js';
@@ -48,6 +49,20 @@ const confirmationUrl = buildCompletionToAgencyWhatsAppUrl({
 });
 assert.ok(confirmationUrl.startsWith(`https://wa.me/${confirmationDial}?text=`));
 assert.ok(confirmationUrl.includes(encodeURIComponent('https://example.com/complete-booking/token')));
+
+const customerShare = buildSignatureLinkToCustomerWhatsAppUrl({
+  customerName: 'Test',
+  customerPhone: '+212600000000',
+  reservationId: 'RES-TEST',
+  completionUrl: 'https://example.com/complete-booking/token',
+  signatureOnly: true,
+});
+assert.equal(customerShare.ok, true);
+assert.equal(customerShare.customerDial, '212600000000');
+assert.ok(customerShare.whatsappUrl.startsWith('https://wa.me/212600000000?text='));
+assert.ok(!customerShare.whatsappUrl.includes(reservationDial));
+assert.ok(!customerShare.whatsappUrl.includes(confirmationDial));
+assert.ok(!customerShare.whatsappUrl.includes(`wa.me/${DEFAULT_AGENCY_WHATSAPP}`));
 
 const fallbackUrl = buildGuestToAgencyWhatsAppUrl({ reservationId: 'X' });
 assert.ok(fallbackUrl.startsWith(`https://wa.me/${DEFAULT_AGENCY_WHATSAPP}?text=`) || fallbackUrl.includes('wa.me/'));

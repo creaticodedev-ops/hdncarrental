@@ -4,6 +4,7 @@
  */
 import { BRAND_NAME } from '../utils/brand.js';
 import { buildSignedContractWhatsAppMessage } from '../../shared/signedContractWhatsApp.js';
+import { buildSignatureLinkWhatsAppMessage } from '../../shared/signatureLinkWhatsApp.js';
 
 export const DEFAULT_AGENCY_WHATSAPP = '212665330116';
 
@@ -83,7 +84,10 @@ export const buildGuestToAgencyWhatsAppUrl = (reservation = {}, dial) => {
   return buildWaMeUrl(body, dial || getAgencyWhatsAppDial());
 };
 
-/** Owner: message to agency with customer + completion link (review & send in WhatsApp) */
+/**
+ * Legacy: guest completion confirmation → agency WhatsApp (not owner-to-customer share).
+ * Owner signature-link share must use buildSignatureLinkToCustomerWhatsAppUrl.
+ */
 export const buildCompletionToAgencyWhatsAppUrl = ({
   reservationId,
   customerName,
@@ -116,6 +120,44 @@ export const buildCompletionToAgencyWhatsAppUrl = ({
     `Customer phone: ${customerPhone || '—'}`,
   ];
   return buildWaMeUrl(lines.join('\n'), dial || getAgencyWhatsAppDial());
+};
+
+/** Owner → customer: signature / completion link (wa.me to the customer phone). */
+export const buildSignatureLinkToCustomerWhatsAppUrl = ({
+  language = 'en',
+  brand = BRAND_NAME,
+  customerName,
+  customerPhone,
+  reservationId,
+  vehicle,
+  car,
+  pickupDate,
+  returnDate,
+  completionUrl,
+  signatureOnly = false,
+} = {}) => {
+  const dial = normalizeWhatsAppDial(customerPhone);
+  const message = buildSignatureLinkWhatsAppMessage({
+    language,
+    brand,
+    name: customerName,
+    reservationId,
+    vehicle: vehicle || vehicleLabel(car),
+    pickup: formatShareDateTime(pickupDate, language),
+    returnDate: formatShareDateTime(returnDate, language),
+    link: completionUrl,
+    signatureOnly,
+  });
+  if (!dial) {
+    return { ok: false, code: 'NO_PHONE', message, whatsappUrl: '' };
+  }
+  return {
+    ok: true,
+    code: null,
+    message,
+    customerDial: dial,
+    whatsappUrl: buildWaMeUrl(message, dial),
+  };
 };
 
 const AGENCY_TZ = 'Africa/Casablanca';
