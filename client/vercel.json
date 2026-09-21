@@ -65,11 +65,32 @@
           "value": "noindex, nofollow"
         }
       ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
-      "source": "/((?!robots\\.txt$|sitemap\\.xml$).*)",
+      "source": "/api/:path*",
+      "destination": "https://hdncarrental-api.onrender.com/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://hdncarrental-api.onrender.com/uploads/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://hdncarrental-api.onrender.com/health"
+    },
+    {
+      "source": "/((?!robots\\.txt$|sitemap\\.xml$|api/|uploads/).*)",
       "destination": "/"
     }
   ],
