@@ -22,6 +22,7 @@
     "test:contract-e2e": "node scripts/e2e-contract-field-audit.mjs",
     "test:booking-routes": "node scripts/audit-booking-workflow-routes.mjs && node scripts/test-ensure-link-route.mjs",
     "test:signature-only": "node scripts/verify-signature-only-link.mjs && node scripts/verify-signature-only-i18n.mjs",
+    "check:api-tls": "node scripts/check-api-tls.mjs",
     "test:xlsx": "node scripts/test-xlsx-export.mjs",
     "test:rental-duration": "node scripts/verify-rental-duration.mjs",
     "test:signed-contract-wa": "node scripts/verify-signed-contract-whatsapp.mjs",

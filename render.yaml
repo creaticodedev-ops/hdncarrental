@@ -1,5 +1,15 @@
 # Render Blueprint — HDN Car API
 # Docs: https://render.com/docs/blueprint-spec
+#
+# Custom domain api.hdncar.com (Cloudflare DNS → this service):
+# 1. Render → Custom Domains → api.hdncar.com (certificate via Google Trust Services).
+# 2. Cloudflare DNS: CNAME api → <this-service>.onrender.com
+#    Keep DNS-only (grey cloud) until Render shows the certificate as issued.
+# 3. After the cert is Issued, Proxy status may be Proxied (orange cloud).
+# 4. Cloudflare SSL/TLS mode must be Full or Full (strict) — never Flexible.
+#    Flexible (HTTP to origin) causes redirect loops and mixed TLS.
+# 5. Do not install a Cloudflare Origin CA on Render. Browsers do not trust it
+#    unless Cloudflare is proxying. Render already terminates HTTPS.
 services:
   - type: web
     name: americonfort-api
