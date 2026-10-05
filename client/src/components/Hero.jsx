@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppContext } from '../context/AppContext'
-import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import DateRangePicker from './DateRangePicker'
 import CitySelect from './CitySelect'
 import HeroCarStage from './hero/HeroCarStage'
-import HeroLiveBadge from './hero/HeroLiveBadge'
 import HeroWorld from './hero/HeroWorld'
 import { useHeroCamera } from './hero/useHeroCamera'
 import { BRAND_NAME } from '../constants/brand'
@@ -14,7 +12,6 @@ import toast from 'react-hot-toast'
 import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
 import { haptic } from '../utils/haptics'
-import PremiumVehicleShowcase from './PremiumVehicleShowcase'
 import './hero/heroStage.css'
 
 const Hero = () => {
@@ -22,19 +19,7 @@ const Hero = () => {
   const { t } = useI18n()
   const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate, pickupLocations } = useAppContext()
   const heroRef = useRef(null)
-  const camera = useHeroCamera(heroRef)
-  const {
-    annotateOpacity,
-    cameraScale,
-    cameraY,
-    compact,
-    coverOpacity,
-    perkOpacity,
-    reduceMotion,
-    tracking,
-    uiOpacity,
-    uiY,
-  } = camera
+  useHeroCamera(heroRef)
 
   const cities = useMemo(() => {
     return [...new Set(pickupLocations.map((location) => location.city))].sort()
@@ -76,168 +61,57 @@ const Hero = () => {
     }).toString()}`)
   }
 
-  const pullStyle = reduceMotion
-    ? undefined
-    : {
-        scale: cameraScale,
-        y: cameraY,
-      }
-
-  const copyExit = reduceMotion ? undefined : { opacity: uiOpacity, y: uiY }
-  const formMotion = reduceMotion || compact ? undefined : copyExit
-
   return (
-    <section ref={heroRef} className="hero-showroom relative min-h-0 overflow-x-clip overflow-y-visible bg-light md:min-h-[100svh] md:overflow-hidden">
-      <HeroWorld camera={camera} reduceMotion={reduceMotion} />
+    <section ref={heroRef} className="hero-2030">
+      <HeroWorld />
 
-      <Motion.aside
-        className="hero-aside hidden xl:flex"
-        style={reduceMotion ? undefined : { opacity: annotateOpacity }}
-        aria-label={t('hero.callout')}
-      >
-        {[t('hero.asideInsured'), t('hero.asideRating'), t('hero.asideSupport')].map((label) => (
-          <span key={label}>{label}</span>
-        ))}
-      </Motion.aside>
+      <div className="hero-frame page-pad page-shell">
+        <p className="hero-geo" aria-hidden="true">{t('hero.region')}</p>
 
-      <Motion.div
-        className="hero-camera relative z-10 page-pad page-shell flex flex-col items-center pb-3 pt-[max(4.85rem,calc(env(safe-area-inset-top)+3.85rem))] sm:pb-6 sm:pt-28 md:pb-8 md:pt-32"
-        style={pullStyle}
-      >
-        <HeroLiveBadge />
+        <header className="hero-mast">
+          <p className="hero-kicker">{t('hero.badge')}</p>
+          <p className="hero-brand">{BRAND_NAME}</p>
+          <h1 className="hero-title">{t('hero.title')}</h1>
+          <p className="hero-lead">{t('hero.lead')}</p>
+        </header>
 
-        <Motion.div className="hero-copy w-full max-w-3xl text-center" style={copyExit}>
-          <Motion.div
-            className="mb-4 hidden justify-center sm:mb-5 sm:flex md:mb-6"
-            style={reduceMotion ? undefined : { opacity: coverOpacity }}
-          >
-            <div
-              className="inline-flex max-w-[min(100%,22rem)] items-center gap-2 rounded-full border border-borderColor/70 bg-white/80 px-3 py-1.5 shadow-[0_1px_2px_rgba(22,18,16,0.05)] backdrop-blur-md sm:max-w-none sm:gap-2.5 sm:px-3.5 sm:py-[0.4rem]"
-              role="status"
-            >
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted/70"
-                aria-hidden="true"
+        <HeroCarStage />
+
+        <form onSubmit={handleSearch} className="hero-console">
+          <p className="hero-console-kicker">{t('hero.bookingLabel')}</p>
+          <div className="hero-booking">
+            <div className="hero-booking-city">
+              <CitySelect
+                value={pickupLocation}
+                onChange={setPickupLocation}
+                options={cities}
+                label={t('hero.pickupLocation')}
+                placeholder={t('hero.selectLocation')}
               />
-              <span className="min-w-0 truncate text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-ink sm:text-[11px] sm:tracking-[0.09em]">
-                {t('hero.badge')}
-              </span>
-              <span
-                className="inline-flex shrink-0 translate-y-[0.5px] items-center text-[11px] leading-none sm:text-[12px]"
-                role="img"
-                aria-label="Morocco"
-              >
-                🇲🇦
-              </span>
             </div>
-          </Motion.div>
-
-          <Motion.p
-            className="font-display text-[2.15rem] font-medium leading-none tracking-tight text-primary sm:text-6xl md:text-7xl"
-            style={reduceMotion ? undefined : { letterSpacing: tracking }}
-          >
-            {BRAND_NAME}
-          </Motion.p>
-          <Motion.h1
-            className="mt-1.5 font-display text-[1.5rem] font-medium leading-tight text-ink sm:mt-4 sm:text-4xl md:text-5xl"
-            style={reduceMotion ? undefined : { opacity: coverOpacity }}
-          >
-            {t('hero.title')}
-          </Motion.h1>
-          <Motion.p
-            className="mx-auto mt-3 hidden max-w-xl text-sm font-light leading-relaxed text-muted sm:mt-4 sm:block sm:text-base md:text-lg"
-            style={reduceMotion ? undefined : { opacity: coverOpacity }}
-          >
-            {t('hero.subtitle')}
-          </Motion.p>
-        </Motion.div>
-
-        <Motion.form
-          onSubmit={handleSearch}
-          className="hero-booking-wrap relative z-20 mt-3 w-full max-w-4xl sm:mt-10 md:mt-11"
-          style={formMotion}
-        >
-          <div className="hero-booking overflow-visible rounded-[1.25rem] border border-white/80 bg-white/92 shadow-[0_18px_50px_-34px_rgba(22,18,16,0.38)] backdrop-blur-md md:rounded-[1.6rem]">
-            <div className="flex flex-col md:flex-row md:items-stretch">
-              <div className="min-w-0 border-b border-borderColor/80 md:flex-[1.05] md:border-b-0 md:border-r">
-                <CitySelect
-                  value={pickupLocation}
-                  onChange={setPickupLocation}
-                  options={cities}
-                  label={t('hero.pickupLocation')}
-                  placeholder={t('hero.selectLocation')}
-                />
-              </div>
-
-              <div className="min-w-0 border-b border-borderColor/80 md:flex-[1.55] md:border-b-0 md:border-r">
-                <DateRangePicker
-                  startDate={startISO}
-                  endDate={endISO}
-                  onChange={({ startDate, endDate }) => {
-                    setPickupDate(startDate)
-                    setReturnDate(endDate)
-                  }}
-                />
-              </div>
-
-              <div className="flex items-stretch p-3 md:p-2.5 md:pl-2">
-                <button
-                  type="submit"
-                  className={`${booking.btnPrimary} booking-tap w-full md:w-[9.75rem]`}
-                >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M20 20l-3.5-3.5" />
-                  </svg>
-                  {t('hero.search')}
-                </button>
-              </div>
+            <div className="hero-booking-dates">
+              <DateRangePicker
+                startDate={startISO}
+                endDate={endISO}
+                onChange={({ startDate, endDate }) => {
+                  setPickupDate(startDate)
+                  setReturnDate(endDate)
+                }}
+              />
+            </div>
+            <div className="hero-booking-cta">
+              <button type="submit" className={`${booking.btnPrimary} booking-tap hero-search-btn`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
+                {t('hero.search')}
+              </button>
             </div>
           </div>
-
-          <p className="mt-2.5 hidden px-2 text-center text-xs leading-relaxed tracking-wide text-muted sm:mt-3.5 sm:block sm:text-sm">
-            {t('hero.trustLine')}
-          </p>
-        </Motion.form>
-
-        <HeroCarStage camera={camera} reduceMotion={reduceMotion} />
-
-        <PremiumVehicleShowcase />
-
-        <Motion.ul
-          className="hero-perks-mobile"
-          style={reduceMotion ? undefined : { opacity: perkOpacity }}
-        >
-          {[
-            ['perkBooking', 'perkBookingHint'],
-            ['perkFlexible', 'perkFlexibleHint'],
-            ['perkNationwide', 'perkNationwideHint'],
-          ].map(([title, hint]) => (
-            <li key={title}>
-              <p>{t(`hero.${title}`)}</p>
-              <span>{t(`hero.${hint}`)}</span>
-            </li>
-          ))}
-        </Motion.ul>
-
-        <Motion.ul
-          className="hero-perks hidden md:grid"
-          style={reduceMotion ? undefined : { opacity: perkOpacity }}
-        >
-          {[
-            ['perkVehicles', 'perkVehiclesHint'],
-            ['perkPricing', 'perkPricingHint'],
-            ['perkBooking', 'perkBookingHint'],
-            ['perkFlexible', 'perkFlexibleHint'],
-            ['perkNationwide', 'perkNationwideHint'],
-          ].map(([title, hint]) => (
-            <li key={title}>
-              <p>{t(`hero.${title}`)}</p>
-              <span>{t(`hero.${hint}`)}</span>
-            </li>
-          ))}
-        </Motion.ul>
-      </Motion.div>
+          <p className="hero-trust">{t('hero.trustLine')}</p>
+        </form>
+      </div>
     </section>
   )
 }
