@@ -1,666 +1,709 @@
-/* HDN 2030 instrument-horizon hero. GPU: transform/opacity only. */
+/*
+  HDN hero — showroom configurator.
+  Mobile: full-screen poster (copy → vehicle on wordmark → booking dock).
+  Desktop: editorial column with booking controls, vehicle owns the stage.
+  Motion: transform-only; the LCP image is never hidden.
+*/
 
-.hero-2030 {
+.hx {
   --hx: 0;
   --hy: 0;
   --sy: 0;
+  --hx-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --hx-red: var(--color-primary);
   position: relative;
   isolation: isolate;
-  min-height: 100svh;
-  overflow-x: clip;
-  overflow-y: visible;
+  overflow: clip;
   background: var(--color-light);
   color: var(--color-ink);
 }
 
-.hero-world {
+/* ---------- Atmosphere ---------- */
+
+.hx-backdrop {
   position: absolute;
   inset: 0;
-  overflow: hidden;
-  pointer-events: none;
   z-index: 0;
+  pointer-events: none;
 }
 
-.hero-canvas {
+.hx-glow {
   position: absolute;
-  inset: 0;
+  inset: -10% -10% 20%;
   background:
-    radial-gradient(ellipse 90% 55% at 78% 8%, rgba(143, 31, 31, 0.11), transparent 58%),
-    radial-gradient(ellipse 60% 40% at 12% 0%, rgba(255, 255, 255, 0.72), transparent 54%),
-    var(--color-light);
+    radial-gradient(42% 46% at 68% 52%, rgba(143, 31, 31, 0.15), transparent 72%),
+    radial-gradient(38% 34% at 16% 14%, rgba(255, 255, 255, 0.95), transparent 70%),
+    radial-gradient(60% 50% at 86% 6%, rgba(237, 232, 228, 0.9), transparent 70%);
+  transform: translate3d(calc(var(--hx) * 22px), calc(var(--hy) * 14px), 0);
+  transition: transform 0.9s var(--hx-ease);
 }
 
-.hero-blush {
-  position: absolute;
-  inset: auto 8% 28% 38%;
-  height: 42%;
-  background: radial-gradient(ellipse at 50% 40%, rgba(143, 31, 31, 0.09), transparent 68%);
-  filter: blur(8px);
-}
-
-.hero-well {
-  position: absolute;
-  left: 18%;
-  right: 6%;
-  bottom: 18%;
-  height: 44%;
-  background: radial-gradient(ellipse 70% 55% at 58% 70%, rgba(22, 18, 16, 0.06), transparent 70%);
-}
-
-.hero-floor {
+.hx-floor {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 38%;
-  background: linear-gradient(to top, rgba(237, 232, 228, 0.98), rgba(237, 232, 228, 0.2) 58%, transparent);
+  height: 40%;
+  background: linear-gradient(to top, #ebe3de 0%, rgba(235, 227, 222, 0.55) 45%, rgba(235, 227, 222, 0));
 }
 
-.hero-keylight {
+.hx-floor::before {
+  content: '';
   position: absolute;
-  width: min(56vw, 40rem);
-  height: min(56vw, 40rem);
-  left: calc(62% + (var(--hx) * 9%));
-  top: calc(30% + (var(--hy) * 7%));
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(
-    circle,
-    rgba(255, 248, 238, 0.55) 0%,
-    rgba(143, 31, 31, 0.06) 46%,
-    transparent 72%
-  );
-  filter: blur(30px);
-  mix-blend-mode: soft-light;
-}
-
-.hero-datum {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  bottom: 27%;
+  inset-inline: 0;
+  top: 18%;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(143, 31, 31, 0.18) 18%,
-    rgba(22, 18, 16, 0.1) 50%,
-    rgba(143, 31, 31, 0.12) 82%,
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(22, 18, 16, 0.08) 30%, rgba(143, 31, 31, 0.14) 60%, transparent);
 }
 
-.hero-frame {
+/* ---------- Layout ---------- */
+
+.hx-inner {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: grid;
-  grid-template-areas:
-    'mast'
-    'stage'
-    'console';
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'copy'
+    'stage'
+    'book';
   min-height: 100svh;
-  padding-top: max(4.7rem, calc(env(safe-area-inset-top) + 3.5rem));
-  padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+  padding-top: calc(env(safe-area-inset-top) + 4.6rem);
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
-.hero-geo {
-  display: none;
-}
+/* ---------- Copy ---------- */
 
-.hero-mast {
-  grid-area: mast;
+.hx-copy {
+  grid-area: copy;
   position: relative;
-  z-index: 4;
-  max-width: 22rem;
+  z-index: 3;
 }
 
-.hero-kicker {
+.hx-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
 
-.hero-kicker::before {
-  content: '';
-  display: inline-block;
-  width: 1.35rem;
+.hx-kicker-rule {
+  width: 1.6rem;
   height: 1px;
-  margin-right: 0.55rem;
-  margin-bottom: 0.18rem;
-  vertical-align: middle;
-  background: var(--color-primary);
+  background: var(--hx-red);
 }
 
-.hero-brand {
-  margin: 0.7rem 0 0;
+.hx-title {
+  margin: 0.85rem 0 0;
   font-family: var(--font-display);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-}
-
-.hero-title {
-  margin: 0.35rem 0 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.85rem, 8.4vw, 2.35rem);
+  font-size: clamp(2.5rem, 11.6vw, 3.4rem);
   font-weight: 500;
-  line-height: 1.05;
-  letter-spacing: -0.028em;
+  line-height: 0.94;
+  letter-spacing: -0.035em;
   color: var(--color-ink);
 }
 
-.hero-lead {
-  margin: 0.65rem 0 0;
-  max-width: 18rem;
-  font-size: 0.9rem;
+.hx-title-lead,
+.hx-title-accent {
+  display: block;
+}
+
+.hx-title-accent {
+  font-style: italic;
+  color: var(--hx-red);
+  letter-spacing: -0.02em;
+}
+
+.hx-lead {
+  margin: 0.85rem 0 0;
+  max-width: 19rem;
+  font-size: 0.92rem;
   font-weight: 300;
   line-height: 1.5;
   color: var(--color-muted);
 }
 
-.hero-stage {
+/* ---------- Vehicle stage ---------- */
+
+.hx-stage {
   grid-area: stage;
   position: relative;
-  z-index: 3;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  min-height: 0;
-  perspective: 1800px;
+  z-index: 2;
+  display: grid;
+  place-items: end center;
+  min-height: 11.5rem;
   pointer-events: none;
 }
 
-.hero-stage-rig {
-  position: relative;
-  width: 100%;
-  max-width: 82rem;
-  transform-origin: 58% 78%;
-  transform:
-    translate3d(calc(var(--hx) * 10px), calc(var(--sy) * 22px), 0)
-    rotateY(calc(var(--hx) * -4.5deg))
-    rotateX(calc(var(--hy) * 1.8deg));
-  will-change: transform;
-}
-
-.hero-pool {
+.hx-word {
   position: absolute;
-  left: 12%;
-  right: 8%;
-  bottom: 7%;
-  height: 22%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse 68% 70% at 50% 50%, rgba(22, 18, 16, 0.14), transparent 72%);
-  filter: blur(6px);
-}
-
-.hero-car-photo {
-  position: relative;
-  z-index: 2;
-  display: block;
-  width: 100%;
-  max-height: min(42vh, 16.5rem);
-  margin: 0 auto;
-  object-fit: contain;
-  object-position: center 68%;
+  left: 50%;
+  top: 46%;
+  z-index: 0;
+  font-family: var(--font-display);
+  font-size: clamp(9rem, 54vw, 15rem);
+  font-weight: 600;
+  line-height: 0.8;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+  color: transparent;
+  background: linear-gradient(180deg, rgba(143, 31, 31, 0.2) 0%, rgba(143, 31, 31, 0.07) 55%, rgba(143, 31, 31, 0) 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  transform: translate3d(calc(-50% - var(--sy) * 6%), -50%, 0);
   user-select: none;
 }
 
-.hero-sheen {
+.hx-car {
+  position: relative;
+  z-index: 1;
+  width: 132%;
+  max-width: none;
+  margin-bottom: -0.9rem;
+  transform: translate3d(calc(var(--hx) * -10px), calc(var(--sy) * 40px), 0);
+  transition: transform 0.5s var(--hx-ease);
+}
+
+.hx-car picture {
+  display: block;
+}
+
+.hx-car-img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.hx-shadow {
   position: absolute;
-  inset: 2% 0 10%;
-  z-index: 3;
+  left: 9%;
+  right: 7%;
+  bottom: 4%;
+  z-index: 0;
+  height: 18%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(22, 18, 16, 0.34), rgba(22, 18, 16, 0) 70%);
+  filter: blur(10px);
+}
+
+.hx-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   overflow: hidden;
   pointer-events: none;
-  -webkit-mask-image: url('/images/main_car.webp');
-  mask-image: url('/images/main_car.webp');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center 68%;
-  mask-position: center 68%;
+  -webkit-mask: url('/images/main_car.webp') center / 100% 100% no-repeat;
+  mask: url('/images/main_car.webp') center / 100% 100% no-repeat;
 }
 
-.hero-sheen::after {
+.hx-sheen::after {
   content: '';
   position: absolute;
-  top: -24%;
-  bottom: -24%;
-  left: -28%;
-  width: 30%;
-  background: linear-gradient(
-    108deg,
-    transparent 24%,
-    rgba(255, 255, 255, 0.1) 44%,
-    rgba(255, 255, 255, 0.42) 50%,
-    rgba(255, 248, 240, 0.12) 56%,
-    transparent 76%
-  );
-  transform: translateX(calc(var(--hx) * 18%)) skewX(-22deg);
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 26%;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.5) 50%, transparent 80%);
+  transform: translateX(-120%) skewX(-18deg);
   mix-blend-mode: screen;
+  opacity: 0;
 }
 
-.hero-mark {
+/* ---------- Booking dock ---------- */
+
+.hx-book {
+  grid-area: book;
+  position: relative;
+  z-index: 4;
+}
+
+.hx-book-label {
   display: none;
 }
 
-.hero-console {
-  grid-area: console;
-  position: relative;
-  z-index: 6;
-  width: 100%;
-  max-width: 54rem;
-  margin-inline: auto;
-}
-
-.hero-console-kicker {
-  margin: 0 0 0.45rem;
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-.hero-booking {
+.hx-book-shell {
   display: grid;
-  grid-template-columns: 1fr;
-  overflow: visible;
-  border-radius: 1.05rem;
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  background: rgba(255, 255, 255, 0.72);
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 1.3rem;
+  background: rgba(255, 255, 255, 0.86);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 22px 48px -30px rgba(22, 18, 16, 0.45);
-  backdrop-filter: blur(18px) saturate(1.12);
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    inset 0 1px 0 #fff,
+    0 1px 2px rgba(22, 18, 16, 0.05),
+    0 28px 60px -34px rgba(22, 18, 16, 0.5);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  transition: box-shadow 0.4s var(--hx-ease);
 }
 
-.hero-booking-city,
-.hero-booking-dates {
+.hx-book-shell:focus-within {
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 4px rgba(143, 31, 31, 0.07),
+    0 32px 70px -36px rgba(22, 18, 16, 0.55);
+}
+
+.hx-field {
+  position: relative;
   min-width: 0;
-}
-
-.hero-booking-city {
   border-bottom: 1px solid rgba(22, 18, 16, 0.07);
 }
 
-.hero-booking-dates {
-  border-bottom: 1px solid rgba(22, 18, 16, 0.07);
+.hx-field-city > div > button,
+.hx-field-dates .booking-tap {
+  height: 3.55rem;
+  border-radius: 0;
 }
 
-.hero-booking-cta {
+.hx-field-dates .booking-tap {
+  gap: 0.6rem;
+  padding-inline: 0.9rem;
+}
+
+.hx-cta {
+  position: relative;
   display: flex;
-  padding: 0.65rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 3.3rem;
+  margin: 0.5rem;
+  padding: 0 1.15rem 0 1.3rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.95rem;
+  background: linear-gradient(180deg, #9d2626 0%, #7c1a1a 100%);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 16px 30px -18px rgba(143, 31, 31, 0.85);
+  transition: transform 0.25s var(--hx-ease), box-shadow 0.3s ease, filter 0.3s ease;
 }
 
-.hero-search-btn {
-  width: 100%;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.28, 1), box-shadow 0.22s ease, background-color 0.2s ease;
+.hx-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+  transform: translateX(-110%);
+  transition: transform 0.7s var(--hx-ease);
 }
 
-.hero-search-btn:hover {
-  transform: translateY(-1px);
+.hx-cta-arrow {
+  position: relative;
+  flex-shrink: 0;
+  transition: transform 0.35s var(--hx-ease);
 }
 
-.hero-search-btn:focus-visible {
-  outline: 2px solid var(--color-primary);
+.hx-cta:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 20px 36px -18px rgba(143, 31, 31, 0.9);
+}
+
+.hx-cta:hover::before {
+  transform: translateX(110%);
+}
+
+.hx-cta:hover .hx-cta-arrow {
+  transform: translateX(4px);
+}
+
+.hx-cta:active {
+  transform: scale(0.985);
+}
+
+.hx-cta:focus-visible {
+  outline: 2px solid var(--hx-red);
   outline-offset: 3px;
 }
 
-.hero-trust {
-  margin: 0.55rem 0 0;
+.hx-trust {
+  margin: 0.65rem 0 0;
+  text-align: center;
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  line-height: 1.45;
+  letter-spacing: 0.04em;
   color: var(--color-muted);
 }
 
+/* ---------- Motion ---------- */
+
 @media (prefers-reduced-motion: no-preference) {
-  .hero-mast {
-    animation: hero-rise 0.8s cubic-bezier(0.16, 1, 0.28, 1) 0.06s both;
+  .hx-kicker {
+    animation: hx-rise 0.8s var(--hx-ease) 0.05s both;
   }
 
-  .hero-console {
-    animation: hero-rise 0.85s cubic-bezier(0.16, 1, 0.28, 1) 0.22s both;
+  .hx-title-lead {
+    animation: hx-rise 0.9s var(--hx-ease) 0.12s both;
   }
 
-  .hero-geo {
-    animation: hero-fade 1.1s ease 0.4s both;
+  .hx-title-accent {
+    animation: hx-rise 0.9s var(--hx-ease) 0.22s both;
   }
 
-  .hero-sheen::after {
-    animation: hero-sheen 1.15s cubic-bezier(0.16, 1, 0.28, 1) 0.35s both;
+  .hx-lead {
+    animation: hx-rise 0.9s var(--hx-ease) 0.32s both;
   }
 
-  .hero-mark {
-    animation: hero-fade 0.9s ease 0.55s both;
+  .hx-word {
+    animation: hx-word 1.6s var(--hx-ease) 0.1s both;
+  }
+
+  /* `translate` composes with the scroll/pointer `transform` — the image stays painted from frame one. */
+  .hx-car {
+    animation: hx-drive 1.4s var(--hx-ease) both;
+  }
+
+  .hx-shadow {
+    animation: hx-shadow 1.4s var(--hx-ease) both;
+  }
+
+  .hx-sheen::after {
+    animation: hx-sheen 1.3s var(--hx-ease) 0.9s both;
+  }
+
+  .hx-book {
+    animation: hx-settle 0.9s var(--hx-ease) 0.35s both;
   }
 }
 
-@keyframes hero-rise {
+@keyframes hx-rise {
   from {
     opacity: 0;
-    transform: translate3d(0, 14px, 0);
+    translate: 0 14px;
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    translate: 0 0;
   }
 }
 
-@keyframes hero-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes hero-sheen {
+@keyframes hx-settle {
   from {
-    transform: translateX(-36%) skewX(-22deg);
     opacity: 0;
+    translate: 0 22px;
   }
-  22% { opacity: 1; }
   to {
-    transform: translateX(280%) skewX(-22deg);
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes hx-word {
+  from {
     opacity: 0;
+    letter-spacing: 0.04em;
+  }
+  to {
+    opacity: 1;
+    letter-spacing: -0.05em;
   }
 }
 
-/* 390–479 */
-@media (min-width: 390px) {
-  .hero-title {
-    font-size: clamp(2rem, 8vw, 2.5rem);
+@keyframes hx-drive {
+  from {
+    translate: 9% 0;
   }
-
-  .hero-car-photo {
-    max-height: min(44vh, 18rem);
+  to {
+    translate: 0 0;
   }
 }
 
-/* 480–767 */
-@media (min-width: 480px) {
-  .hero-mast {
-    max-width: 26rem;
+@keyframes hx-shadow {
+  from {
+    opacity: 0.2;
+    scale: 0.7 1;
   }
-
-  .hero-lead {
-    max-width: 22rem;
-  }
-
-  .hero-car-photo {
-    max-height: min(46vh, 20rem);
+  to {
+    opacity: 1;
+    scale: 1 1;
   }
 }
 
-/* Tablet */
-@media (min-width: 768px) {
-  .hero-frame {
-    padding-top: max(5.4rem, calc(env(safe-area-inset-top) + 4.1rem));
-    padding-bottom: 1.35rem;
+@keyframes hx-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-120%) skewX(-18deg);
   }
-
-  .hero-mast {
-    max-width: 32rem;
+  20% {
+    opacity: 1;
   }
-
-  .hero-title {
-    font-size: clamp(2.4rem, 5vw, 3.1rem);
-  }
-
-  .hero-lead {
-    font-size: 1rem;
-    max-width: 26rem;
-  }
-
-  .hero-car-photo {
-    max-height: min(46vh, 26rem);
-  }
-
-  .hero-console {
-    margin-top: -0.35rem;
-  }
-
-  .hero-booking {
-    grid-template-columns: minmax(9.5rem, 1.05fr) minmax(15rem, 1.7fr) auto;
-    align-items: stretch;
-    border-radius: 1.25rem;
-  }
-
-  .hero-booking-city,
-  .hero-booking-dates {
-    border-bottom: 0;
-    border-right: 1px solid rgba(22, 18, 16, 0.07);
-  }
-
-  .hero-booking-cta {
-    padding: 0.42rem 0.48rem 0.42rem 0.32rem;
-  }
-
-  .hero-search-btn {
-    width: 9.4rem;
-  }
-
-  .hero-trust {
-    text-align: center;
-  }
-
-  .hero-console-kicker {
-    text-align: center;
-  }
-
-  .hero-mark {
-    display: flex;
-    position: absolute;
-    top: 10%;
-    right: 4%;
-    z-index: 4;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--color-ink);
-  }
-
-  .hero-mark::before {
-    content: '';
-    width: 2.4rem;
-    height: 1px;
-    background: linear-gradient(90deg, rgba(143, 31, 31, 0.65), rgba(143, 31, 31, 0.05));
+  100% {
+    opacity: 0;
+    transform: translateX(420%) skewX(-18deg);
   }
 }
 
-/* Laptop */
-@media (min-width: 1024px) {
-  .hero-frame {
-    grid-template-areas:
-      'mast stage'
-      'console console';
-    grid-template-columns: minmax(16rem, 28%) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    align-items: stretch;
-    column-gap: 0.5rem;
+/* ---------- Small phones ---------- */
+
+@media (max-width: 379px) {
+  .hx-title {
+    font-size: clamp(2.2rem, 11.2vw, 2.6rem);
   }
 
-  .hero-mast {
-    align-self: center;
-    max-width: 22rem;
-    padding-bottom: 7rem;
+  .hx-lead {
+    font-size: 0.85rem;
   }
 
-  .hero-title {
-    font-size: clamp(2.55rem, 3.3vw, 3.35rem);
+  .hx-field-dates .booking-tap {
+    padding-inline: 0.7rem;
+    gap: 0.45rem;
   }
 
-  .hero-stage {
-    align-items: center;
-    padding-top: 1.25rem;
-    padding-right: 0.5rem;
-    margin-right: 0;
-  }
-
-  .hero-car-photo {
-    max-height: min(56vh, 30rem);
-    width: 100%;
-    margin-left: 0;
-    object-position: center 70%;
-  }
-
-  .hero-datum {
-    bottom: 22%;
-  }
-
-  .hero-console {
-    max-width: 52rem;
-    margin-top: -1.85rem;
-  }
-
-  .hero-geo {
-    display: block;
-    position: absolute;
-    top: 46%;
-    right: 0.15rem;
-    z-index: 4;
-    margin: 0;
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.42em;
-    text-transform: uppercase;
-    color: rgba(22, 18, 16, 0.28);
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    pointer-events: none;
+  .hx-field-dates .hdn-cal-type {
+    font-size: 0.86rem;
   }
 }
 
-/* 1280 */
-@media (min-width: 1280px) {
-  .hero-mast {
-    max-width: 24rem;
-    padding-bottom: 8rem;
+@media (max-width: 767px) and (max-height: 700px) {
+  .hx-lead {
+    display: none;
   }
 
-  .hero-title {
-    font-size: clamp(2.8rem, 3.2vw, 3.55rem);
+  .hx-title {
+    font-size: clamp(2.1rem, 10vw, 2.6rem);
   }
 
-  .hero-car-photo {
-    max-height: min(60vh, 34rem);
-    width: 100%;
-  }
-
-  .hero-console {
-    max-width: 54rem;
-    margin-top: -2.4rem;
-  }
-
-  .hero-mark {
-    right: 8%;
-    top: 14%;
-  }
-}
-
-/* 1440+ cinematic */
-@media (min-width: 1440px) {
-  .hero-frame {
-    grid-template-columns: minmax(18rem, 26%) minmax(0, 1fr);
-  }
-
-  .hero-mast {
-    max-width: 26rem;
-  }
-
-  .hero-lead {
-    font-size: 1.05rem;
-    max-width: 22rem;
-  }
-
-  .hero-car-photo {
-    max-height: min(64vh, 38rem);
-    width: 102%;
-    margin-left: 0;
-  }
-
-  .hero-console {
-    max-width: 56rem;
-    margin-top: -2.85rem;
-  }
-
-  .hero-datum {
-    left: 8%;
-    right: 4%;
-  }
-}
-
-@media (max-width: 767px) {
-  .hero-frame {
-    grid-template-rows: auto auto 1fr;
-    min-height: 100svh;
-  }
-
-  .hero-stage {
-    align-items: flex-start;
-    padding-top: 0.15rem;
-  }
-
-  .hero-console {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    margin-top: 0.35rem;
-  }
-
-  .hero-datum {
-    bottom: 34%;
-    opacity: 0.55;
-  }
-
-  .hero-console-kicker {
+  .hx-trust {
     display: none;
   }
 }
 
-@media (pointer: coarse) {
-  .hero-keylight {
-    left: 62%;
-    top: 32%;
+/* ---------- Large phones / small tablets ---------- */
+
+@media (min-width: 560px) {
+  .hx-car {
+    width: 112%;
   }
 
-  .hero-stage-rig {
+  .hx-word {
+    font-size: clamp(12rem, 40vw, 19rem);
+  }
+
+  .hx-lead {
+    max-width: 24rem;
+  }
+}
+
+/* ---------- Tablet: poster + horizontal console ---------- */
+
+@media (min-width: 768px) {
+  .hx-inner {
+    padding-top: calc(env(safe-area-inset-top) + 6rem);
+    padding-bottom: 1.6rem;
+  }
+
+  .hx-copy {
+    max-width: 36rem;
+  }
+
+  .hx-title {
+    font-size: clamp(3.6rem, 7.6vw, 4.6rem);
+  }
+
+  .hx-lead {
+    font-size: 1rem;
+  }
+
+  .hx-car {
+    width: 100%;
+    margin-bottom: -1.4rem;
+  }
+
+  .hx-word {
+    font-size: clamp(16rem, 36vw, 22rem);
+  }
+
+  .hx-book-label {
+    display: block;
+    margin: 0 0 0.6rem 0.2rem;
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .hx-book-shell {
+    grid-template-columns: minmax(10rem, 1fr) minmax(19rem, 1.75fr) auto;
+    align-items: stretch;
+    border-radius: 1.4rem;
+  }
+
+  .hx-field {
+    border-bottom: 0;
+    border-right: 1px solid rgba(22, 18, 16, 0.07);
+  }
+
+  .hx-field-city > div > button,
+  .hx-field-dates .booking-tap {
+    height: 3.9rem;
+  }
+
+  .hx-cta {
+    height: auto;
+    margin: 0.5rem;
+    padding-inline: 1.4rem 1.2rem;
+  }
+
+  .hx-trust {
+    text-align: left;
+    margin-left: 0.2rem;
+  }
+}
+
+/* ---------- Laptop / desktop: configurator ---------- */
+
+@media (min-width: 1024px) {
+  .hx-inner {
+    grid-template-columns: minmax(20rem, 0.8fr) minmax(0, 1.5fr);
+    grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr);
+    grid-template-areas:
+      '.    stage'
+      'copy stage'
+      'book stage'
+      '.    stage';
+    column-gap: clamp(1.5rem, 3vw, 3.5rem);
+    padding-top: calc(env(safe-area-inset-top) + 5.5rem);
+    padding-bottom: 2rem;
+  }
+
+  .hx-copy {
+    max-width: 30rem;
+  }
+
+  .hx-title {
+    font-size: clamp(3.4rem, 5vw, 5.6rem);
+  }
+
+  .hx-lead {
+    margin-top: 1.1rem;
+    font-size: 1.02rem;
+  }
+
+  .hx-stage {
+    place-items: center start;
+    min-height: 0;
+  }
+
+  .hx-car {
+    width: 118%;
+    margin: 4rem 0 0 -2%;
+  }
+
+  .hx-word {
+    left: 56%;
+    top: 44%;
+    font-size: min(27vw, 26rem);
+  }
+
+  .hx-book {
+    margin-top: 2.2rem;
+    max-width: 27rem;
+  }
+
+  .hx-book-shell {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 1.35rem;
+  }
+
+  .hx-field {
+    border-right: 0;
+    border-bottom: 1px solid rgba(22, 18, 16, 0.07);
+  }
+
+  .hx-field-city > div > button,
+  .hx-field-dates .booking-tap {
+    height: 3.75rem;
+  }
+
+  .hx-cta {
+    height: 3.4rem;
+    margin: 0.55rem;
+  }
+
+  .hx-glow {
+    background:
+      radial-gradient(34% 44% at 66% 50%, rgba(143, 31, 31, 0.16), transparent 72%),
+      radial-gradient(30% 40% at 12% 24%, rgba(255, 255, 255, 0.95), transparent 70%),
+      radial-gradient(50% 40% at 92% 4%, rgba(237, 232, 228, 0.9), transparent 70%);
+  }
+
+  .hx-floor {
+    height: 34%;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 760px) {
+  .hx-title {
+    font-size: clamp(3rem, 4.2vw, 4.2rem);
+  }
+
+  .hx-lead {
+    display: none;
+  }
+
+  .hx-book {
+    margin-top: 1.5rem;
+  }
+
+  .hx-field-city > div > button,
+  .hx-field-dates .booking-tap {
+    height: 3.4rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .hx-car {
+    width: 116%;
+  }
+
+  .hx-book {
+    max-width: 28.5rem;
+  }
+}
+
+/* ---------- Pointer / reduced motion ---------- */
+
+@media (pointer: coarse) {
+  .hx-glow {
     transform: none;
   }
 }
 
-.hero-2030.is-still .hero-stage-rig {
-  transform: none !important;
-}
-
-.hero-2030.is-still .hero-keylight {
-  left: 62%;
-  top: 32%;
+.hx.is-still .hx-glow,
+.hx.is-still .hx-car {
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-mast,
-  .hero-console,
-  .hero-geo,
-  .hero-mark,
-  .hero-sheen::after {
-    animation: none !important;
+  .hx-glow,
+  .hx-car {
+    transform: none;
+    transition: none;
   }
 
-  .hero-stage-rig {
-    transform: none !important;
+  .hx-word {
+    transform: translate3d(-50%, -50%, 0);
   }
 
-  .hero-sheen::after {
-    opacity: 0;
+  .hx-cta,
+  .hx-cta::before,
+  .hx-cta-arrow {
+    transition: none;
   }
 }

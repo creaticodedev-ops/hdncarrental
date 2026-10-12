@@ -176,6 +176,8 @@ const DateRangePicker = ({
   hint = '',
   /** `joined` = hero search bar. `split` = two independent reservation fields. */
   variant = 'joined',
+  /** Joined only: `auto` stacks below md, `row` keeps pickup and return side by side. */
+  layout = 'auto',
 }) => {
   const { t, language } = useI18n()
   const [open, setOpen] = useState(false)
@@ -642,7 +644,13 @@ const DateRangePicker = ({
           {renderRangeField('end', returnLabel || t('hero.returnDate'), false)}
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-borderColor/80 md:flex-row md:items-stretch md:divide-x md:divide-y-0">
+        <div
+          className={
+            layout === 'row'
+              ? 'flex flex-row items-stretch divide-x divide-borderColor/80'
+              : 'flex flex-col divide-y divide-borderColor/80 md:flex-row md:items-stretch md:divide-x md:divide-y-0'
+          }
+        >
           {renderRangeField('start', pickupLabel || t('hero.pickupDate'), true)}
           {renderRangeField('end', returnLabel || t('hero.returnDate'), true)}
         </div>

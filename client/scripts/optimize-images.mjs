@@ -68,6 +68,19 @@ for (const job of jobs) {
       webpKB: Math.round(fs.statSync(publicWebp).size / 1024),
       avifKB: Math.round(fs.statSync(publicAvif).size / 1024),
     })
+
+    // Hero srcset widths — keep in sync with HERO_IMAGE in src/assets/assets.js
+    for (const width of [640, 1200, 1800]) {
+      const webp = path.join(publicImages, `main_car-${width}.webp`)
+      const avif = path.join(publicImages, `main_car-${width}.avif`)
+      await sharp(input).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: 76, effort: 6 }).toFile(webp)
+      await sharp(input).rotate().resize({ width, withoutEnlargement: true }).avif({ quality: 52, effort: 6 }).toFile(avif)
+      report.push({
+        file: `public/images/main_car-${width}`,
+        webpKB: Math.round(fs.statSync(webp).size / 1024),
+        avifKB: Math.round(fs.statSync(avif).size / 1024),
+      })
+    }
   }
 }
 

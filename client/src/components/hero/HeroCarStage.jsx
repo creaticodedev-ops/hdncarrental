@@ -1,31 +1,27 @@
 import { HERO_IMAGE } from '../../assets/assets'
 import { BRAND_NAME } from '../../constants/brand'
-import { useI18n } from '../../i18n/I18nContext'
 
 export default function HeroCarStage() {
-  const { t } = useI18n()
-
   return (
-    <div className="hero-stage">
-      <div className="hero-stage-rig">
-        <div className="hero-pool" aria-hidden="true" />
+    <div className="hx-stage">
+      <span className="hx-word" aria-hidden="true">HDN</span>
+      <div className="hx-car">
+        <span className="hx-shadow" aria-hidden="true" />
         <picture>
-          <source srcSet="/images/main_car.avif" type="image/avif" />
-          <source srcSet={HERO_IMAGE.webp} type="image/webp" />
+          <source type="image/avif" srcSet={HERO_IMAGE.avifSet} sizes={HERO_IMAGE.sizes} />
+          <source type="image/webp" srcSet={HERO_IMAGE.webpSet} sizes={HERO_IMAGE.sizes} />
           <img
             src={HERO_IMAGE.webp}
             alt={`${BRAND_NAME} premium rental`}
-            width={1200}
-            height={675}
+            width={HERO_IMAGE.width}
+            height={HERO_IMAGE.height}
             decoding="async"
             draggable={false}
             fetchPriority="high"
-            sizes="(max-width: 767px) 100vw, (max-width: 1279px) 90vw, 1100px"
-            className="hero-car-photo"
+            className="hx-car-img"
           />
         </picture>
-        <span className="hero-sheen" aria-hidden="true" />
-        <p className="hero-mark">{t('hero.callout')}</p>
+        <span className="hx-sheen" aria-hidden="true" />
       </div>
     </div>
   )

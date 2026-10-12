@@ -40,6 +40,12 @@ import car_image4 from "./car_image4.webp"
 /** Stable public URL for LCP preload (unhashed). Prefer over bundled assets on hero. */
 export const HERO_IMAGE = {
   webp: '/images/main_car.webp',
+  width: 1800,
+  height: 717,
+  avifSet: '/images/main_car-640.avif 640w, /images/main_car-1200.avif 1200w, /images/main_car-1800.avif 1800w',
+  webpSet: '/images/main_car-640.webp 640w, /images/main_car-1200.webp 1200w, /images/main_car-1800.webp 1800w',
+  /** Must match the rendered width of `.hx-car` in heroStage.css */
+  sizes: '(max-width: 767px) 132vw, (max-width: 1023px) 100vw, min(66vw, 1080px)',
 }
 
 export const assets = {

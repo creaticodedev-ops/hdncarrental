@@ -4,15 +4,20 @@ import { useI18n } from '../i18n/I18nContext'
 import DateRangePicker from './DateRangePicker'
 import CitySelect from './CitySelect'
 import HeroCarStage from './hero/HeroCarStage'
-import HeroWorld from './hero/HeroWorld'
 import { useHeroCamera } from './hero/useHeroCamera'
-import { BRAND_NAME } from '../constants/brand'
 import { findDefaultCityName } from '../utils/defaultLocation'
 import toast from 'react-hot-toast'
-import { booking } from './ui/bookingUi'
 import { trackSearch } from '../analytics/ga4'
 import { haptic } from '../utils/haptics'
 import './hero/heroStage.css'
+
+/** "Roulez avec distinction" → ["Roulez avec", "distinction"] for the italic accent word. */
+const splitTitle = (title) => {
+  const value = String(title || '').trim()
+  const cut = value.lastIndexOf(' ')
+  if (cut <= 0) return [value, '']
+  return [value.slice(0, cut), value.slice(cut + 1)]
+}
 
 const Hero = () => {
   const [pickupLocation, setPickupLocation] = useState('')
@@ -61,26 +66,34 @@ const Hero = () => {
     }).toString()}`)
   }
 
+  const [titleLead, titleAccent] = splitTitle(t('hero.title'))
+
   return (
-    <section ref={heroRef} className="hero-2030">
-      <HeroWorld />
+    <section ref={heroRef} className="hx" aria-labelledby="hero-title">
+      <div className="hx-backdrop" aria-hidden="true">
+        <span className="hx-glow" />
+        <span className="hx-floor" />
+      </div>
 
-      <div className="hero-frame page-pad page-shell">
-        <p className="hero-geo" aria-hidden="true">{t('hero.region')}</p>
-
-        <header className="hero-mast">
-          <p className="hero-kicker">{t('hero.badge')}</p>
-          <p className="hero-brand">{BRAND_NAME}</p>
-          <h1 className="hero-title">{t('hero.title')}</h1>
-          <p className="hero-lead">{t('hero.lead')}</p>
+      <div className="hx-inner page-pad page-shell">
+        <header className="hx-copy">
+          <p className="hx-kicker">
+            <span className="hx-kicker-rule" aria-hidden="true" />
+            {t('hero.badge')}
+          </p>
+          <h1 id="hero-title" className="hx-title">
+            <span className="hx-title-lead">{titleLead}</span>{' '}
+            {titleAccent ? <em className="hx-title-accent">{titleAccent}</em> : null}
+          </h1>
+          <p className="hx-lead">{t('hero.lead')}</p>
         </header>
 
         <HeroCarStage />
 
-        <form onSubmit={handleSearch} className="hero-console">
-          <p className="hero-console-kicker">{t('hero.bookingLabel')}</p>
-          <div className="hero-booking">
-            <div className="hero-booking-city">
+        <form onSubmit={handleSearch} className="hx-book" aria-label={t('hero.bookingLabel')}>
+          <p className="hx-book-label">{t('hero.bookingLabel')}</p>
+          <div className="hx-book-shell">
+            <div className="hx-field hx-field-city">
               <CitySelect
                 value={pickupLocation}
                 onChange={setPickupLocation}
@@ -89,8 +102,9 @@ const Hero = () => {
                 placeholder={t('hero.selectLocation')}
               />
             </div>
-            <div className="hero-booking-dates">
+            <div className="hx-field hx-field-dates">
               <DateRangePicker
+                layout="row"
                 startDate={startISO}
                 endDate={endISO}
                 onChange={({ startDate, endDate }) => {
@@ -99,17 +113,15 @@ const Hero = () => {
                 }}
               />
             </div>
-            <div className="hero-booking-cta">
-              <button type="submit" className={`${booking.btnPrimary} booking-tap hero-search-btn`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M20 20l-3.5-3.5" />
-                </svg>
-                {t('hero.search')}
-              </button>
-            </div>
+            <button type="submit" className="hx-cta booking-tap">
+              <span>{t('hero.search')}</span>
+              <svg className="hx-cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 12h14" />
+                <path d="M13 6l6 6-6 6" />
+              </svg>
+            </button>
           </div>
-          <p className="hero-trust">{t('hero.trustLine')}</p>
+          <p className="hx-trust">{t('hero.trustLine')}</p>
         </form>
       </div>
     </section>
