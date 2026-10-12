@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion as Motion, useReducedMotion } from 'framer-motion'
 import { useI18n } from '../../i18n/I18nContext'
 import PromotionBadge from '../PromotionBadge'
 
@@ -23,56 +22,51 @@ const resolveGalleryImages = (car, fallback) => {
 }
 
 const Chevron = ({ back = false }) => (
-  <svg
-    className={`h-4 w-4 ${back ? 'rotate-180' : ''}`}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth="2"
-    aria-hidden
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {back ? <path d="M15 18l-6-6 6-6" /> : <path d="M9 18l6-6-6-6" />}
   </svg>
 )
 
 /**
- * Vehicle photo viewer: arrows, position counter, thumbnail rail, swipe and
+ * Vehicle photo stage: crossfading frames, counter, arrows, filmstrip, swipe and
  * arrow-key navigation. Falls back to a single frame when the car has one photo.
  */
 export default function VehicleGallery({ car, fallbackImage, currency, alt }) {
   const { t } = useI18n()
-  const reduceMotion = useReducedMotion()
   const images = useMemo(() => resolveGalleryImages(car, fallbackImage), [car, fallbackImage])
   const [index, setIndex] = useState(0)
+  const [prev, setPrev] = useState(null)
   const [direction, setDirection] = useState(1)
   const [failed, setFailed] = useState(() => new Set())
   const swipeStart = useRef(null)
+  const stripRef = useRef(null)
 
   const count = images.length
   const multiple = count > 1
 
-  // A new vehicle (or a shorter image list) must not leave the index dangling.
   useEffect(() => {
     setIndex(0)
+    setPrev(null)
     setDirection(1)
     setFailed(new Set())
   }, [car?._id])
 
-  const go = useCallback(
-    (delta) => {
-      if (count < 2) return
-      setDirection(delta > 0 ? 1 : -1)
-      setIndex((prev) => (prev + delta + count) % count)
-    },
-    [count],
-  )
-
-  const jumpTo = useCallback(
-    (next) => {
-      setDirection(next > index ? 1 : -1)
+  const show = useCallback(
+    (next, dir) => {
+      if (next === index) return
+      setDirection(dir)
+      setPrev(index)
       setIndex(next)
     },
     [index],
+  )
+
+  const go = useCallback(
+    (delta) => {
+      if (count < 2) return
+      show((index + delta + count) % count, delta > 0 ? 1 : -1)
+    },
+    [count, index, show],
   )
 
   const srcFor = useCallback(
@@ -81,7 +75,7 @@ export default function VehicleGallery({ car, fallbackImage, currency, alt }) {
   )
 
   const markFailed = useCallback((url) => {
-    setFailed((prev) => (prev.has(url) ? prev : new Set(prev).add(url)))
+    setFailed((p) => (p.has(url) ? p : new Set(p).add(url)))
   }, [])
 
   // Warm the neighbouring frames so arrow clicks feel instant.
@@ -92,6 +86,14 @@ export default function VehicleGallery({ car, fallbackImage, currency, alt }) {
       img.src = srcFor(images[(index + offset + count) % count])
     }
   }, [images, index, count, multiple, srcFor])
+
+  useEffect(() => {
+    const strip = stripRef.current
+    const thumb = strip?.children[index]
+    if (!strip || !thumb) return
+    const left = thumb.offsetLeft - (strip.clientWidth - thumb.clientWidth) / 2
+    strip.scrollTo({ left, behavior: 'smooth' })
+  }, [index])
 
   const onKeyDown = (event) => {
     if (!multiple) return
@@ -120,18 +122,11 @@ export default function VehicleGallery({ car, fallbackImage, currency, alt }) {
   }
 
   const current = images[index]
-  const slide = reduceMotion
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-    : {
-        initial: { opacity: 0, x: direction * 36 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: direction * -36 },
-      }
 
   return (
-    <div>
+    <div className="cd-gallery">
       <div
-        className="group relative overflow-hidden bg-gradient-to-b from-light to-sand/50 select-none"
+        className="cd-stage"
         role={multiple ? 'group' : undefined}
         aria-roledescription={multiple ? 'carousel' : undefined}
         aria-label={multiple ? alt : undefined}
@@ -139,88 +134,68 @@ export default function VehicleGallery({ car, fallbackImage, currency, alt }) {
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
-        style={{ touchAction: 'pan-y' }}
+        style={{ '--cd-dir': direction }}
       >
-        <div className="relative aspect-[16/10] w-full sm:aspect-[16/9] lg:aspect-[16/10]">
-          <AnimatePresence initial={false} mode="popLayout">
-            <Motion.img
-              key={`${current}-${index}`}
-              src={srcFor(current)}
-              onError={() => markFailed(current)}
-              alt={count > 1 ? `${alt} — ${index + 1}/${count}` : alt}
-              width={1280}
-              height={720}
-              fetchPriority={index === 0 ? 'high' : 'auto'}
-              loading={index === 0 ? 'eager' : 'lazy'}
-              decoding="async"
-              draggable={false}
-              initial={slide.initial}
-              animate={slide.animate}
-              exit={slide.exit}
-              transition={{ duration: reduceMotion ? 0.15 : 0.42, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.02]"
-            />
-          </AnimatePresence>
-
-          {/* Keeps the counter legible over bright bodywork. */}
-          {multiple ? (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-ink/35 to-transparent"
-              aria-hidden
-            />
-          ) : null}
-        </div>
+        {prev != null && prev !== index ? (
+          <img
+            key={`prev-${prev}`}
+            src={srcFor(images[prev])}
+            alt=""
+            aria-hidden="true"
+            className="cd-stage-img is-under"
+            draggable={false}
+          />
+        ) : null}
+        <img
+          key={`${current}-${index}`}
+          src={srcFor(current)}
+          onError={() => markFailed(current)}
+          alt={multiple ? `${alt} — ${index + 1}/${count}` : alt}
+          width={1280}
+          height={800}
+          fetchPriority={index === 0 ? 'high' : 'auto'}
+          loading={index === 0 ? 'eager' : 'lazy'}
+          decoding="async"
+          draggable={false}
+          className={`cd-stage-img${prev != null ? ' is-swap' : ''}`}
+          onAnimationEnd={() => setPrev(null)}
+        />
 
         {car?.displayPromotion ? (
           <PromotionBadge promotion={car.displayPromotion} currency={currency} />
         ) : null}
 
         {multiple ? (
-          <>
-            <button
-              type="button"
-              onClick={() => go(-1)}
-              aria-label={t('carDetails.galleryPrev')}
-              className="booking-tap absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-ink shadow-[0_10px_30px_-12px_rgba(22,18,16,0.45)] ring-1 ring-black/5 backdrop-blur-md transition duration-200 hover:bg-white hover:text-primary active:scale-95 cursor-pointer sm:left-5"
-            >
-              <Chevron back />
-            </button>
-            <button
-              type="button"
-              onClick={() => go(1)}
-              aria-label={t('carDetails.galleryNext')}
-              className="booking-tap absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-ink shadow-[0_10px_30px_-12px_rgba(22,18,16,0.45)] ring-1 ring-black/5 backdrop-blur-md transition duration-200 hover:bg-white hover:text-primary active:scale-95 cursor-pointer sm:right-5"
-            >
-              <Chevron />
-            </button>
-
-            <div
-              className="absolute inset-x-0 bottom-3.5 flex justify-center sm:bottom-4"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              <span className="rounded-full bg-ink/70 px-3 py-1 text-[11px] font-semibold tabular-nums tracking-[0.08em] text-white backdrop-blur-md">
-                {pad(index + 1)} <span className="text-white/55">/</span> {pad(count)}
-              </span>
+          <div className="cd-stage-bar">
+            <p className="cd-stage-count" aria-live="polite" aria-atomic="true">
+              {pad(index + 1)}
+              <span> / {pad(count)}</span>
+            </p>
+            <div className="cd-stage-nav">
+              <button type="button" onClick={() => go(-1)} aria-label={t('carDetails.galleryPrev')} className="cd-round booking-tap">
+                <Chevron back />
+              </button>
+              <button type="button" onClick={() => go(1)} aria-label={t('carDetails.galleryNext')} className="cd-round booking-tap">
+                <Chevron />
+              </button>
             </div>
-          </>
+            <span className="cd-stage-progress" aria-hidden="true">
+              <span style={{ width: `${((index + 1) / count) * 100}%` }} />
+            </span>
+          </div>
         ) : null}
       </div>
 
       {multiple ? (
-        <ul className="flex gap-2 overflow-x-auto px-4 pt-3.5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-6 [&::-webkit-scrollbar]:hidden">
+        <ul ref={stripRef} className="cd-strip">
           {images.map((url, i) => (
-            <li key={`${url}-${i}`} className="shrink-0">
+            <li key={`${url}-${i}`}>
               <button
                 type="button"
-                onClick={() => jumpTo(i)}
+                onClick={() => show(i, i > index ? 1 : -1)}
                 aria-label={t('carDetails.galleryGoTo', { index: i + 1 })}
                 aria-current={i === index ? 'true' : undefined}
-                className={`relative block h-14 w-20 overflow-hidden rounded-xl ring-1 transition duration-200 cursor-pointer sm:h-16 sm:w-24 ${
-                  i === index
-                    ? 'ring-2 ring-primary'
-                    : 'ring-borderColor/70 opacity-65 hover:opacity-100 hover:ring-ink/25'
-                }`}
+                className={`cd-thumb booking-tap${i === index ? ' is-active' : ''}`}
               >
                 <img
                   src={srcFor(url)}
@@ -229,7 +204,6 @@ export default function VehicleGallery({ car, fallbackImage, currency, alt }) {
                   loading="lazy"
                   decoding="async"
                   draggable={false}
-                  className="h-full w-full object-cover"
                 />
               </button>
             </li>

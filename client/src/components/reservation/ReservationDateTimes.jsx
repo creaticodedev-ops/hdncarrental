@@ -160,21 +160,22 @@ export default function ReservationDateTimes({
         </p>
       ) : null}
       {spanReady ? (
-        <DateRangePicker
-          startDate={startISO}
-          endDate={endISO}
-          onChange={handleRangeChange}
-          minDate={minDate}
-          maxDate={maxDate}
-          minSpanDays={minDays}
-          maxSpanDays={maxDays || 0}
-          unavailablePeriods={unavailablePeriods}
-          pickupLabel={t('carDetails.pickupDate')}
-          returnLabel={t('carDetails.returnDate')}
-          className="w-full"
-          hint={minDays > 1 ? t('carDetails.minRentalGuide', { days: minDays }) : ''}
-          variant="split"
-        />
+        <div className={`cd-dates${dateError ? ' is-invalid' : ''}`}>
+          <DateRangePicker
+            startDate={startISO}
+            endDate={endISO}
+            onChange={handleRangeChange}
+            minDate={minDate}
+            maxDate={maxDate}
+            minSpanDays={minDays}
+            maxSpanDays={maxDays || 0}
+            unavailablePeriods={unavailablePeriods}
+            pickupLabel={t('carDetails.pickupDate')}
+            returnLabel={t('carDetails.returnDate')}
+            className="w-full"
+            hint={minDays > 1 ? t('carDetails.minRentalGuide', { days: minDays }) : ''}
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-3" aria-busy="true">
           <div className={`${booking.fieldShell} text-sm text-muted`}>{t('carDetails.rulesLoading')}</div>

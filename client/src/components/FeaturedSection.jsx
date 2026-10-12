@@ -6,13 +6,13 @@ import { assets } from '../assets/assets'
 import { groupCarsByCategory } from '../utils/vehicleCategories'
 import { formatLocationsDisplay } from '../utils/carLocations'
 import { getDisplayDailyPrices, getPromotionBadgeLabel } from '../utils/promotionDisplay'
+import { carDisplayName } from '../utils/carDisplay'
 import './featuredShowroom.css'
 
 const RAIL_LIMIT = 10
 
 const carImage = (car) => car?.image || car?.images?.[0] || assets.car_image1
-const cleanBrand = (brand) => String(brand || '').replace(/\s*[-–—]+\s*$/, '')
-const carName = (car) => `${cleanBrand(car?.brand)} ${car?.model || ''}`.trim()
+const carName = carDisplayName
 const pad2 = (n) => String(n).padStart(2, '0')
 
 const priceOf = (car) => {

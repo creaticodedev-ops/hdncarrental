@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { assets } from '../assets/assets'
 import Loader from '../components/Loader'
 import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
-import { motion as Motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext'
 import { getErrorMessage } from '../utils/apiError'
 import { formatLocationsDisplay, getCarLocations } from '../utils/carLocations'
@@ -35,6 +34,9 @@ import { uniqueCarSlug } from '../seo/slugify'
 import { vehicleProductJsonLd } from '../seo/jsonLd'
 import { SITE_NAME } from '../seo/constants'
 import PromotionBadge from '../components/PromotionBadge'
+import { getDisplayDailyPrices } from '../utils/promotionDisplay'
+import { carDisplayName } from '../utils/carDisplay'
+import './carDetails.css'
 
 const stroke = {
   className: 'h-4 w-4',
@@ -62,12 +64,6 @@ const SpecIcons = {
   seat: (
     <svg {...stroke}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75h4.5a2.25 2.25 0 012.25 2.25v7.5H9.75A2.25 2.25 0 017.5 11.25v-7.5zM14.25 13.5h3a2.25 2.25 0 012.25 2.25v1.5a2.25 2.25 0 01-2.25 2.25H9a4.5 4.5 0 01-4.5-4.5V9" />
-    </svg>
-  ),
-  body: (
-    <svg {...stroke}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 14.25h18m-18 0l1.8-5.4A2.25 2.25 0 016.93 7.5h10.14a2.25 2.25 0 012.13 1.35l1.8 5.4m-18 0V18a.75.75 0 00.75.75H5.25A.75.75 0 006 18v-.75h12V18a.75.75 0 00.75.75h1.5A.75.75 0 0021 18v-3.75" />
-      <path strokeLinecap="round" d="M6.75 17.25h.008v.008H6.75zM17.25 17.25h.008v.008h-.008z" />
     </svg>
   ),
   calendar: (
@@ -716,6 +712,19 @@ const CarDetails = () => {
 
   const minDate = useMemo(() => new Date(), [])
 
+  const bookingRef = useRef(null)
+  const [showDock, setShowDock] = useState(false)
+
+  useEffect(() => {
+    const node = bookingRef.current
+    if (!node || !('IntersectionObserver' in window)) return undefined
+    const io = new IntersectionObserver(([entry]) => {
+      setShowDock(!entry.isIntersecting)
+    })
+    io.observe(node)
+    return () => io.disconnect()
+  }, [car?._id])
+
   if (notFound) {
     return (
       <div className="page-pad page-shell mt-10 sm:mt-16 text-center pb-16">
@@ -751,7 +760,6 @@ const CarDetails = () => {
     { key: 'specFuel', value: car.fuel_type, icon: SpecIcons.fuel },
     { key: 'specTransmission', value: car.transmission, icon: SpecIcons.gear },
     { key: 'specSeats', value: car.seating_capacity, icon: SpecIcons.seat },
-    { key: 'specCategory', value: car.category, icon: SpecIcons.body },
     { key: 'specYear', value: car.year, icon: SpecIcons.calendar },
     { key: 'specCities', value: formatLocationsDisplay(car), icon: SpecIcons.pin },
   ].filter((spec) => spec.value !== '' && spec.value != null)
@@ -759,9 +767,31 @@ const CarDetails = () => {
   const seoSlug = uniqueCarSlug(car, cars)
   const seoPath = seoSlug ? `/cars/${seoSlug}` : `/car-details/${car._id}`
   const carName = `${car.brand || ''} ${car.model || ''}`.trim()
+  const displayName = carDisplayName(car)
+  const promoPrices = car.displayPromotion ? getDisplayDailyPrices(car) : null
+  const dailyPrice = promoPrices?.showStrike ? promoPrices.final : car.pricePerDay
+
+  const dayCount = (days) =>
+    Number(days) === 1 ? t('carDetails.condDay') : t('carDetails.condDays', { days })
+  const conditions = bookingRules
+    ? [
+        { key: 'condMin', value: dayCount(minRentalDays) },
+        { key: 'condMax', value: dayCount(maxRentalDays) },
+        { key: 'condPickup', value: `${pickupHoursStart} – ${pickupHoursEnd}` },
+        { key: 'condReturn', value: `${returnHoursStart} – ${returnHoursEnd}` },
+        { key: 'condAdvance', value: t('carDetails.condAhead', { days: advanceBookingDays }) },
+      ]
+    : []
+
+  const scrollToBooking = () => {
+    const node = document.getElementById('reserve')
+    if (!node) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    node.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' })
+  }
 
   return (
-    <div className={`page-pad page-shell mt-5 overflow-x-clip sm:mt-8 md:mt-10 ${booking.pageBottom}`}>
+    <div className={`cd page-pad page-shell ${booking.pageBottom}`}>
       <SeoHead
         title={`Location ${carName} Maroc`}
         description={`Louez ${carName} avec ${SITE_NAME}. Réservation en ligne.`}
@@ -769,111 +799,129 @@ const CarDetails = () => {
         image={car.image || undefined}
         jsonLd={[vehicleProductJsonLd(car, seoPath)]}
       />
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="booking-tap mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted transition duration-200 hover:text-ink cursor-pointer sm:mb-8"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-        {t('carDetails.back')}
-      </button>
 
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10 xl:gap-12">
-        <div className="order-2 min-w-0 lg:order-1 lg:col-span-7 xl:col-span-8">
-          <Motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-            <div className={`${booking.card} overflow-hidden`}>
-              <VehicleGallery
-                car={car}
-                fallbackImage={fallbackImage}
-                currency={currency}
-                alt={`${car.brand} ${car.model}`}
-              />
+      <nav className="cd-crumbs" aria-label={t('carDetails.back')}>
+        <button type="button" onClick={() => navigate(-1)} className="cd-back booking-tap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 12H5" />
+            <path d="M11 18l-6-6 6-6" />
+          </svg>
+          {t('carDetails.back')}
+        </button>
+        {car.category ? (
+          <button
+            type="button"
+            onClick={() => {
+              navigate(`/cars?category=${encodeURIComponent(car.category)}`)
+              window.scrollTo(0, 0)
+            }}
+            className="cd-crumb booking-tap"
+          >
+            {car.category}
+          </button>
+        ) : null}
+      </nav>
 
-              <div className="px-5 pb-7 pt-6 sm:px-8 sm:pb-9 sm:pt-8">
-                {car.category ? <span className={booking.pill}>{car.category}</span> : null}
+      <div className="cd-layout">
+        <header className="cd-head">
+          <p className="cd-kicker">
+            <span className="cd-kicker-rule" aria-hidden="true" />
+            {[car.category, car.year].filter(Boolean).join(' · ')}
+          </p>
+          <h1 className="cd-title">{displayName}</h1>
+          <div className="cd-head-meta">
+            <p className="cd-price">
+              <span className="cd-price-label">{t('carDetails.startingFrom')}</span>
+              <span className="cd-price-row">
+                {promoPrices?.showStrike ? (
+                  <span className="cd-price-was">{currency}{promoPrices.original}</span>
+                ) : null}
+                <span className="cd-price-now">
+                  <span className="cd-price-cur">{currency.trim()}</span>
+                  {dailyPrice}
+                </span>
+                <span className="cd-price-unit">{t('carDetails.perDay')}</span>
+              </span>
+            </p>
+            {car.isAvaliable ? <span className="cd-live">{t('carCard.available')}</span> : null}
+          </div>
+        </header>
 
-                <h1 className="mt-3 font-sans text-[1.65rem] font-semibold leading-[1.12] tracking-tight text-ink sm:text-[2.15rem] lg:text-[2.35rem]">
-                  {car.brand} {car.model} {car.year}
-                </h1>
+        <section className="cd-media">
+          <VehicleGallery
+            car={car}
+            fallbackImage={fallbackImage}
+            currency={currency}
+            alt={displayName}
+          />
+        </section>
 
-                <p className="mt-2 text-sm text-muted sm:text-[15px]">
-                  {[car.category, car.transmission, car.seating_capacity ? t('carDetails.seats', { count: car.seating_capacity }) : null]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </p>
+        {specs.length ? (
+          <section className="cd-specs" aria-label={t('carDetails.specsTitle')}>
+            <ul>
+              {specs.map(({ key, value, icon }) => (
+                <li key={key} className={key === 'specCities' ? 'is-wide' : undefined}>
+                  <span className="cd-spec-label">
+                    {icon}
+                    {t(`carDetails.${key}`)}
+                  </span>
+                  <span className="cd-spec-value" title={String(value)}>{value}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
-                {car.displayPromotion ? (
-                  <div className="mt-5 max-w-lg">
-                    <PromotionBadge
-                      promotion={car.displayPromotion}
-                      currency={currency}
-                      variant="detail"
-                      showPrice
-                    />
+        <div className="cd-details">
+          {car.displayPromotion ? (
+            <PromotionBadge
+              promotion={car.displayPromotion}
+              currency={currency}
+              variant="detail"
+              showPrice
+              className="cd-promo"
+            />
+          ) : null}
+
+          {car.description ? (
+            <section className="cd-block">
+              <h2 className="cd-block-title">{t('carDetails.description')}</h2>
+              <p className="cd-desc">{car.description}</p>
+            </section>
+          ) : null}
+
+          {car.features?.length ? (
+            <section className="cd-block">
+              <h2 className="cd-block-title">{t('carDetails.features')}</h2>
+              <ul className="cd-features">
+                {car.features.map((item) => (
+                  <li key={item}>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {conditions.length ? (
+            <section className="cd-block">
+              <h2 className="cd-block-title">{t('carDetails.conditionsTitle')}</h2>
+              <dl className="cd-conditions">
+                {conditions.map(({ key, value }) => (
+                  <div key={key}>
+                    <dt>{t(`carDetails.${key}`)}</dt>
+                    <dd>{value}</dd>
                   </div>
-                ) : null}
-
-                {specs.length ? (
-                  <ul className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-                    {specs.map(({ key, value, icon }) => (
-                      <li key={key} className={booking.specTile}>
-                        <span className={booking.iconWrap}>{icon}</span>
-                        <span className="min-w-0">
-                          <span className="block text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted">
-                            {t(`carDetails.${key}`)}
-                          </span>
-                          <span className="mt-0.5 block truncate text-[13px] font-semibold text-ink" title={String(value)}>
-                            {value}
-                          </span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                <div className="mt-8 flex flex-col gap-6 border-t border-borderColor/60 pt-7 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
-                  {car.description ? (
-                    <section className="min-w-0 flex-1">
-                      <h2 className={booking.label}>{t('carDetails.description')}</h2>
-                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink/75">{car.description}</p>
-                    </section>
-                  ) : null}
-                  <div className="shrink-0 sm:text-right">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-                      {t('carDetails.startingFrom')}
-                    </p>
-                    <p className="mt-1.5 flex items-baseline gap-1.5 sm:justify-end">
-                      <span className="font-sans text-[1.85rem] font-semibold leading-none tracking-tight tabular-nums text-primary sm:text-[2.1rem]">
-                        {currency}{car.pricePerDay}
-                      </span>
-                      <span className="text-sm text-muted">{t('carDetails.perDay')}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {car.features?.length ? (
-                  <section className="mt-8">
-                    <h2 className={booking.label}>{t('carDetails.features')}</h2>
-                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                      {car.features.map((item) => (
-                        <li key={item} className="flex items-center gap-2.5 text-sm text-ink/75">
-                          <svg className="h-4 w-4 shrink-0 text-primary" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                          </svg>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-              </div>
-            </div>
-          </Motion.div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
         </div>
 
-        <div className="order-1 lg:order-2 lg:col-span-5 xl:col-span-4 min-w-0">
+        <aside id="reserve" ref={bookingRef} className="cd-book">
           <ReservationPanel
             car={car}
             form={form}
@@ -905,7 +953,19 @@ const CarDetails = () => {
             promoError={promoError}
             quoting={quoting}
           />
-        </div>
+        </aside>
+      </div>
+
+      <div className={`cd-dock${showDock ? ' is-on' : ''}`} aria-hidden={!showDock}>
+        <p className="cd-dock-price">
+          <span className="cd-dock-name">{displayName}</span>
+          <span>
+            <strong>{currency}{dailyPrice}</strong> {t('carDetails.perDay')}
+          </span>
+        </p>
+        <button type="button" onClick={scrollToBooking} className="cd-dock-cta booking-tap" tabIndex={showDock ? 0 : -1}>
+          {t('carDetails.bookingHeadline')}
+        </button>
       </div>
     </div>
   )

@@ -4,6 +4,7 @@
 */
 
 .fs {
+  font-variant-numeric: lining-nums;
   --fs-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --fs-line: rgba(22, 18, 16, 0.08);
   --fs-bleed: 1rem;
@@ -103,7 +104,7 @@
 
 .fs-tab-count {
   font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   letter-spacing: 0.06em;
   opacity: 0.55;
 }
@@ -178,11 +179,12 @@
   font-weight: 500;
   line-height: 1;
   color: #fff;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   text-shadow: 0 2px 14px rgba(22, 18, 16, 0.35);
 }
 
 .fs-spot-index span {
+  font-family: inherit;
   font-size: 0.5em;
   opacity: 0.75;
 }
@@ -263,7 +265,7 @@
   font-weight: 500;
   line-height: 1;
   color: var(--color-ink);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .fs-price-cur {
@@ -287,7 +289,7 @@
   color: var(--color-muted);
   text-decoration: line-through;
   text-decoration-color: rgba(22, 18, 16, 0.35);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .fs-price-tag {
@@ -548,7 +550,7 @@
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -583,7 +585,7 @@
 .fs-card-price {
   font-size: 0.86rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   white-space: nowrap;
 }
 

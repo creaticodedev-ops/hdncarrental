@@ -345,19 +345,19 @@ export default function ReservationPanel({
       animate="show"
       className="lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.25rem)] lg:overflow-y-auto lg:overscroll-contain lg:pb-2"
     >
-      <div ref={cardRef} className={`${booking.card} overflow-hidden`}>
+      <div ref={cardRef} className="cd-panel">
         {/* Header */}
-        <div className="relative overflow-hidden border-b border-borderColor/60 px-5 pb-5 pt-6 sm:px-7 sm:pb-6 sm:pt-7">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/[0.04] to-transparent" aria-hidden />
+        <div className="cd-panel-head">
           <Motion.div variants={fade} custom={0} className="relative">
-            <p className={booking.eyebrow}>{t('carDetails.bookingTitle')}</p>
-            <h2 className="mt-2 font-display text-[1.75rem] font-medium leading-[1.12] tracking-tight text-ink sm:text-[2rem]">
-              {t('carDetails.bookingHeadline')}
-            </h2>
-            <p className="mt-2.5 max-w-[22rem] text-sm leading-relaxed text-muted">{t('carDetails.bookingSubtitle')}</p>
+            <p className="cd-panel-eyebrow">
+              <span aria-hidden="true" />
+              {t('carDetails.bookingTitle')}
+            </p>
+            <h2 className="cd-panel-title">{t('carDetails.bookingHeadline')}</h2>
+            <p className="mt-2 max-w-[22rem] text-[13px] leading-relaxed text-muted">{t('carDetails.bookingSubtitle')}</p>
           </Motion.div>
 
-          <Motion.ul variants={fade} custom={1} className="relative mt-5 flex flex-wrap gap-x-4 gap-y-2">
+          <Motion.ul variants={fade} custom={1} className="relative mt-4 flex flex-wrap gap-x-4 gap-y-2">
             {[t('carDetails.trustNoCard'), t('carDetails.trustInstant'), t('carDetails.trustBestPrice')].map((item) => (
               <li
                 key={item}
@@ -371,12 +371,12 @@ export default function ReservationPanel({
             ))}
           </Motion.ul>
 
-          <Motion.div variants={fade} custom={2} className="relative mt-6">
+          <Motion.div variants={fade} custom={2} className="relative mt-5">
             <BookingStepper steps={steps} current={step} furthest={furthest} onStepSelect={goTo} />
           </Motion.div>
         </div>
 
-        <form onSubmit={onFormSubmit} className="px-5 py-6 sm:px-7 sm:py-8">
+        <form onSubmit={onFormSubmit} className="px-5 py-5 sm:px-7 sm:py-6">
           <div className="relative">
             <AnimatePresence initial={false} mode="wait">
               <Motion.div
@@ -566,7 +566,7 @@ export default function ReservationPanel({
           ) : null}
 
           {/* Actions — sticky on mobile for thumb reach */}
-          <div className="sticky bottom-0 z-10 -mx-5 mt-7 border-t border-borderColor/70 bg-surface/95 px-5 pt-4 backdrop-blur-md booking-safe-bottom sm:static sm:mx-0 sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+          <div className="sticky bottom-0 z-10 -mx-5 mt-6 border-t border-borderColor/70 bg-white/95 px-5 pt-4 backdrop-blur-md booking-safe-bottom sm:static sm:mx-0 sm:mt-7 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
             {step < lastStep && ready ? (
               <div className="mb-3 flex items-baseline justify-between gap-3 rounded-2xl bg-light/70 px-3.5 py-2.5">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
@@ -597,9 +597,7 @@ export default function ReservationPanel({
                   type="button"
                   onClick={goNext}
                   aria-disabled={Boolean(currentIssue)}
-                  className={`${booking.btnPrimary} booking-tap w-full cursor-pointer ${
-                    currentIssue ? 'opacity-60' : ''
-                  }`}
+                  className={`cd-cta booking-tap${currentIssue ? ' is-pending' : ''}`}
                 >
                   {t('carDetails.continue')}
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
