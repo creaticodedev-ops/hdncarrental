@@ -19,6 +19,9 @@ export const MOROCCO_AIRPORTS = [
 
 export const DEFAULT_AIRPORT = 'CMN'
 
+/** ONDA (Office National des Aéroports) — official arrivals/departures for every Moroccan airport. */
+export const OFFICIAL_FLIGHT_INFO_URL = 'https://www.onda.ma/'
+
 const fold = (value) =>
   String(value || '')
     .normalize('NFD')

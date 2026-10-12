@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const MIN_REFRESH_MS = 60_000
 const ERROR_RETRY_MS = 2 * 60_000
-const NOT_CONFIGURED_RETRY_MS = 30 * 60_000
 
 /**
  * Fetches /api/flights/:iata while `active` (board on screen and tab visible), refreshing on the
@@ -26,7 +25,7 @@ export const useFlightBoard = (axios, iata, active) => {
       setErrors((prev) => ({ ...prev, [code]: null }))
     } catch (error) {
       const errorCode = error?.response?.data?.code || error?.code || 'FLIGHTS_NETWORK'
-      dueAt.current.set(code, Date.now() + (errorCode === 'FLIGHTS_NOT_CONFIGURED' ? NOT_CONFIGURED_RETRY_MS : ERROR_RETRY_MS))
+      dueAt.current.set(code, Date.now() + ERROR_RETRY_MS)
       setErrors((prev) => ({ ...prev, [code]: { code: errorCode, at: Date.now() } }))
     } finally {
       if (id === requestId.current) setPending(null)

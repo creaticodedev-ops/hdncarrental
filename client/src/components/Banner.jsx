@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { useI18n } from '../i18n/I18nContext'
-import { DEFAULT_AIRPORT, MOROCCO_AIRPORTS, pickupCityForAirport } from '../data/moroccoAirports'
+import { DEFAULT_AIRPORT, MOROCCO_AIRPORTS, OFFICIAL_FLIGHT_INFO_URL, pickupCityForAirport } from '../data/moroccoAirports'
 import { requestBookingPrefill } from '../utils/bookingPrefill'
 import { useFlightBoard } from './flights/useFlightBoard'
 import './flights/flightBoard.css'
@@ -48,12 +48,21 @@ const usePageVisible = () => {
   return visible
 }
 
+/** Observed (ADS-B) rows have no schedule — only the time the aircraft was last seen. */
+const flightTime = (f) => f.estimated || f.scheduled || f.observedAt
+
 /** Flights still worth showing: upcoming, plus recent arrivals/departures for a short grace period. */
 const relevantFlights = (list, now, direction) => {
   const graceMs = (direction === 'arrivals' ? 45 : 30) * 60_000
-  const current = list.filter((f) => Date.parse(f.estimated || f.scheduled) >= now - graceMs)
+  const current = list.filter((f) => Date.parse(flightTime(f)) >= now - graceMs)
   return (current.length ? current : list).slice(0, MAX_FLIGHTS)
 }
+
+const OfficialLink = ({ children, className = 'fb-official' }) => (
+  <a className={className} href={OFFICIAL_FLIGHT_INFO_URL} target="_blank" rel="noopener noreferrer">
+    {children}
+  </a>
+)
 
 const formatPlace = (value, prefix) => {
   if (!value) return null
@@ -129,8 +138,10 @@ const Banner = () => {
     const locale = LOCALES[language] || 'en-GB'
     const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: MOROCCO_TZ })
     const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: MOROCCO_TZ })
+    const number = new Intl.NumberFormat(locale)
     return {
       time: (iso) => (iso ? time.format(new Date(iso)) : '—'),
+      number: (value) => number.format(value),
       stamp: (iso, nowMs) => {
         const date = new Date(iso)
         return nowMs - date.getTime() > 12 * 3600_000 ? `${day.format(date)} ${time.format(date)}` : time.format(date)
@@ -192,6 +203,9 @@ const Banner = () => {
   const statusLabel = (f) => (f.statusKey === 'other' ? f.status : t(`flights.status.${f.statusKey}`))
 
   const revisedLabel = (f) => {
+    if (!f.scheduled && f.distanceNm != null) {
+      return t('flights.observed', { distance: fmt.number(f.distanceNm), altitude: fmt.number(f.altitudeFt) })
+    }
     if (!f.estimated || f.statusKey === 'canceled') return null
     if (COMPLETED.has(f.statusKey)) return t('flights.actual', { time: fmt.time(f.estimated) })
     if (Math.abs(f.delayMinutes || 0) < 1) return null
@@ -241,8 +255,8 @@ const Banner = () => {
             {tickerItems.map((f) => (
               <span className="fb-tick" key={`${copy}-${f.id}`}>
                 <b>{f.number}</b>
-                <span>{f.airport.city || f.airport.iata}</span>
-                <span className="fb-tick-time">{fmt.time(f.estimated || f.scheduled)}</span>
+                <span>{f.airport.city || f.airport.iata || f.airline.name}</span>
+                <span className="fb-tick-time">{fmt.time(flightTime(f))}</span>
                 <span className={`fb-tick-status tone-${TONES[f.statusKey] || 'neutral'}`}>{statusLabel(f)}</span>
               </span>
             ))}
@@ -258,7 +272,8 @@ const Banner = () => {
         <div className="fb-message" role="status">
           <p className="fb-message-title">{t('flights.unavailable')}</p>
           <p className="fb-message-text">{t('flights.unavailableHint')}</p>
-          {error.code !== 'FLIGHTS_NOT_CONFIGURED' ? (
+          <OfficialLink>{t('flights.officialLink')}</OfficialLink>
+          {error.code !== 'FLIGHTS_NO_COVERAGE' ? (
             <button type="button" className="fb-retry" onClick={retry} disabled={loading}>{t('flights.retry')}</button>
           ) : null}
         </div>
@@ -277,6 +292,7 @@ const Banner = () => {
       return (
         <div className="fb-message" role="status">
           <p className="fb-message-title">{t(direction === 'arrivals' ? 'flights.emptyArrivals' : 'flights.emptyDepartures')}</p>
+          <OfficialLink>{t('flights.officialLink')}</OfficialLink>
         </div>
       )
     }
@@ -293,11 +309,13 @@ const Banner = () => {
           {pageFlights.map((f, index) => {
             const revised = revisedLabel(f)
             const late = !COMPLETED.has(f.statusKey) && (f.delayMinutes || 0) >= 15
+            const observed = !f.scheduled && Boolean(f.observedAt)
             return (
               <li className={`fb-row tone-${TONES[f.statusKey] || 'neutral'}`} key={f.id} style={{ '--fb-i': index }}>
                 <span className="fb-c-time">
-                  <span className="sr-only">{t('flights.time')}: </span>
-                  <time dateTime={f.scheduled} className={revised && !COMPLETED.has(f.statusKey) ? 'is-revised' : ''}>{fmt.time(f.scheduled)}</time>
+                  <span className="sr-only">{observed ? t('flights.seen') : t('flights.time')}: </span>
+                  <time dateTime={f.scheduled || f.observedAt} className={f.scheduled && revised && !COMPLETED.has(f.statusKey) ? 'is-revised' : ''}>{fmt.time(f.scheduled || f.observedAt)}</time>
+                  {observed ? <span className="fb-time-note" aria-hidden="true">{t('flights.seen')}</span> : null}
                 </span>
                 <span className="fb-c-flight">
                   <AirlineMark airline={f.airline} />
@@ -435,8 +453,11 @@ const Banner = () => {
                 {t('flights.staleNotice', { time: fmt.stamp(board.fetchedAt, now) })}
               </p>
             ) : null}
-            {board && !isStale && !board.hasLiveData && flights.length ? (
-              <p className="fb-notice">{t('flights.scheduleNotice')}</p>
+            {board && board.dataKind === 'observed' && flights.length ? (
+              <p className="fb-notice">
+                {t('flights.observedNotice')}{' '}
+                <OfficialLink className="fb-notice-link">{t('flights.officialLink')}</OfficialLink>
+              </p>
             ) : null}
             {renderBody()}
           </div>
@@ -450,7 +471,7 @@ const Banner = () => {
                 <span key={`${iata}-${direction}-${safePage}-${cycle}`} className="fb-progress-bar" style={{ animationDuration: `${ROTATE_MS}ms` }} />
               ) : null}
             </span>
-            <span className="fb-source">{t('flights.source')}</span>
+            <a className="fb-source" href="https://adsb.lol" target="_blank" rel="noopener noreferrer">{t('flights.source')}</a>
           </div>
         </div>
       </div>

@@ -1,55 +1,66 @@
-import { findMoroccoAirport } from '../utils/moroccoAirports.js';
+import { MOROCCO_AIRPORTS, findMoroccoAirport } from '../utils/moroccoAirports.js';
 
 /**
- * Live airport arrivals/departures (FIDS) from AeroDataBox.
- * One upstream call (direction=Both, Tier 2 = 2 API units) feeds both boards for an airport,
- * and is shared by every visitor through the in-memory cache below.
+ * Live movements around Moroccan airports from adsb.lol — a free, keyless community ADS-B network
+ * (data under ODbL 1.0: attribution required, commercial use allowed).
+ * It reports aircraft positions, not airline schedules: a flight appears only while a volunteer receiver
+ * hears it, so an empty result means "no live coverage", never "no flights". Nothing is ever inferred
+ * beyond what was observed — no scheduled times, gates or origins.
  */
 
-const GATEWAYS = {
-  direct: {
-    baseUrl: 'https://api.aerodatabox.com',
-    headers: (key) => ({ 'X-Api-Key': key }),
-  },
-  rapidapi: {
-    baseUrl: 'https://aerodatabox.p.rapidapi.com',
-    headers: (key) => ({ 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com' }),
-  },
-  apimarket: {
-    baseUrl: 'https://prod.api.market/api/v1/aedbx/aerodatabox',
-    headers: (key) => ({ 'x-api-market-key': key }),
-  },
-};
+export const PROVIDER = { name: 'adsb.lol', url: 'https://adsb.lol', license: 'ODbL-1.0' };
+export const OFFICIAL_FLIGHT_INFO_URL = 'https://www.onda.ma/';
 
+const ADSB_API_URL = 'https://api.adsb.lol';
+const DEFAULT_CONTACT = 'haddanecar@gmail.com';
 const DEFAULT_LOGO_TEMPLATE = 'https://pics.avs.io/120/40/{iata}.png';
-const WINDOW_OFFSET_MINUTES = -90;
-const WINDOW_DURATION_MINUTES = 480;
-const UPSTREAM_TIMEOUT_MS = 9_000;
-const STALE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const SEARCH_RADIUS_NM = 40;
+const UPSTREAM_TIMEOUT_MS = 8_000;
+const UPSTREAM_MIN_GAP_MS = 1_500;
+const UPSTREAM_MAX_WAIT_MS = 6_000;
+const STALE_MAX_AGE_MS = 10 * 60_000;
 const FAILURE_RETRY_MS = 60_000;
-const RATE_LIMIT_COOLDOWN_MS = 2 * 60 * 1000;
-const AUTH_COOLDOWN_MS = 15 * 60 * 1000;
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
+const BLOCKED_COOLDOWN_MS = 30 * 60_000;
+const MAX_POSITION_AGE_S = 60;
+const MAX_ALTITUDE_FT = 12_000;
+const DEPARTURE_MAX_DISTANCE_NM = 25;
+const EARTH_RADIUS_NM = 3440.065;
 
-export const FLIGHT_STATUS_KEYS = {
-  Unknown: 'unknown',
-  Expected: 'expected',
-  EnRoute: 'enRoute',
-  CheckIn: 'checkIn',
-  Boarding: 'boarding',
-  GateClosed: 'gateClosed',
-  Departed: 'departed',
-  Delayed: 'delayed',
-  Approaching: 'approaching',
-  Arrived: 'arrived',
-  Canceled: 'canceled',
-  CanceledUncertain: 'canceledUncertain',
-  Diverted: 'diverted',
-};
-
-/** Provider status → stable UI key. Unrecognised provider values stay visible as `other`. */
-export const mapFlightStatus = (status) => {
-  if (!status) return 'unknown';
-  return FLIGHT_STATUS_KEYS[status] || 'other';
+/** ICAO callsign prefix → [IATA code, name] for airlines commonly seen at Moroccan airports. */
+const AIRLINES = {
+  RAM: ['AT', 'Royal Air Maroc'],
+  MAC: ['3O', 'Air Arabia Maroc'],
+  AFR: ['AF', 'Air France'],
+  TVF: ['TO', 'Transavia France'],
+  TRA: ['HV', 'Transavia'],
+  RYR: ['FR', 'Ryanair'],
+  EZY: ['U2', 'easyJet'],
+  EJU: ['EC', 'easyJet Europe'],
+  IBE: ['IB', 'Iberia'],
+  IBS: ['I2', 'Iberia Express'],
+  ANE: ['YW', 'Air Nostrum'],
+  VLG: ['VY', 'Vueling'],
+  AEA: ['UX', 'Air Europa'],
+  IBB: ['NT', 'Binter Canarias'],
+  VOE: ['V7', 'Volotea'],
+  TAP: ['TP', 'TAP Air Portugal'],
+  DLH: ['LH', 'Lufthansa'],
+  EWG: ['EW', 'Eurowings'],
+  CFG: ['DE', 'Condor'],
+  BEL: ['SN', 'Brussels Airlines'],
+  JAF: ['TB', 'TUI fly Belgium'],
+  KLM: ['KL', 'KLM'],
+  BAW: ['BA', 'British Airways'],
+  EXS: ['LS', 'Jet2'],
+  ITY: ['AZ', 'ITA Airways'],
+  WZZ: ['W6', 'Wizz Air'],
+  TAR: ['TU', 'Tunisair'],
+  MSR: ['MS', 'EgyptAir'],
+  THY: ['TK', 'Turkish Airlines'],
+  UAE: ['EK', 'Emirates'],
+  QTR: ['QR', 'Qatar Airways'],
+  SVA: ['SV', 'Saudia'],
 };
 
 export class FlightBoardError extends Error {
@@ -67,28 +78,92 @@ const readInt = (value, fallback, min) => {
 };
 
 export const readFlightConfig = (env = process.env) => {
-  const gatewayName = String(env.AERODATABOX_GATEWAY || 'direct').trim().toLowerCase();
   const logo = env.FLIGHTS_AIRLINE_LOGO_URL;
+  const contact = String(env.FLIGHTS_CONTACT || '').trim() || DEFAULT_CONTACT;
   return {
-    apiKey: String(env.AERODATABOX_API_KEY || '').trim(),
-    gatewayName: GATEWAYS[gatewayName] ? gatewayName : 'direct',
-    ttlMs: readInt(env.FLIGHTS_CACHE_TTL_SECONDS, 600, 120) * 1000,
-    dailyCallLimit: readInt(env.FLIGHTS_DAILY_CALL_LIMIT, 400, 0),
+    ttlMs: readInt(env.FLIGHTS_CACHE_TTL_SECONDS, 90, 60) * 1000,
+    minGapMs: readInt(env.FLIGHTS_UPSTREAM_GAP_MS, UPSTREAM_MIN_GAP_MS, 0),
+    // adsb.lol rejects generic clients with 403 "include valid contact info".
+    userAgent: `HDNCarFlightBoard/1.0 (+https://hdncar.com; ${contact})`,
     logoTemplate: logo === undefined ? DEFAULT_LOGO_TEMPLATE : String(logo).trim().toLowerCase() === 'off' ? '' : String(logo).trim(),
   };
 };
 
-/** AeroDataBox times look like "2026-10-12 13:30Z"; return ISO-8601 UTC or null. */
-const toIsoUtc = (dateTime) => {
-  const raw = dateTime?.utc;
-  if (!raw) return null;
-  const parsed = new Date(String(raw).trim().replace(' ', 'T'));
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+const toRad = (deg) => (deg * Math.PI) / 180;
+
+export const distanceNm = (lat1, lon1, lat2, lon2) => {
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_NM * Math.asin(Math.min(1, Math.sqrt(a)));
 };
 
-const cleanText = (value) => {
-  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
-  return text || null;
+const bearingDeg = (lat1, lon1, lat2, lon2) => {
+  const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1));
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+};
+
+const angleBetween = (a, b) => {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+};
+
+const nearestAirport = (lat, lon, airports) => {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const airport of airports) {
+    const d = distanceNm(lat, lon, airport.lat, airport.lon);
+    if (d < bestDistance) {
+      best = airport;
+      bestDistance = d;
+    }
+  }
+  return best;
+};
+
+/**
+ * Classify one ADS-B position as an arrival or departure at `airport` from geometry alone:
+ * low, within range, nearest to this airport, and either heading in while level/descending
+ * or climbing away. Overflights, aircraft on the ground and old positions are dropped.
+ */
+export const classifyAircraft = (ac, airport, referenceMs = Date.now(), { neighbours = MOROCCO_AIRPORTS } = {}) => {
+  const callsign = String(ac?.flight || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{3,8}$/.test(callsign)) return null;
+  if (/^[BC]/.test(String(ac.category || ''))) return null;
+
+  const lat = Number(ac.lat);
+  const lon = Number(ac.lon);
+  const track = Number(ac.track);
+  const altitude = ac.alt_baro;
+  const positionAge = Number(ac.seen_pos ?? ac.seen);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(track)) return null;
+  if (typeof altitude !== 'number' || altitude > MAX_ALTITUDE_FT) return null;
+  if (!Number.isFinite(positionAge) || positionAge > MAX_POSITION_AGE_S) return null;
+
+  const distance = distanceNm(lat, lon, airport.lat, airport.lon);
+  if (distance > SEARCH_RADIUS_NM || nearestAirport(lat, lon, neighbours)?.iata !== airport.iata) return null;
+
+  const verticalRate = Number(ac.baro_rate ?? ac.geom_rate ?? 0) || 0;
+  const offCourse = angleBetween(track, bearingDeg(lat, lon, airport.lat, airport.lon));
+
+  let direction = null;
+  if (offCourse <= 40 && verticalRate <= 300 && altitude <= 3000 + 450 * distance) {
+    direction = 'arrival';
+  } else if (offCourse >= 120 && verticalRate >= 300 && distance <= DEPARTURE_MAX_DISTANCE_NM && altitude <= 2000 + 700 * distance) {
+    direction = 'departure';
+  }
+  if (!direction) return null;
+
+  return {
+    direction,
+    callsign,
+    hex: String(ac.hex || '').trim() || null,
+    distance,
+    altitude,
+    aircraftType: String(ac.t || '').trim() || null,
+    observedAt: new Date(referenceMs - positionAge * 1000).toISOString(),
+  };
 };
 
 const airlineLogoUrl = (template, iata) => {
@@ -96,71 +171,57 @@ const airlineLogoUrl = (template, iata) => {
   return template.replace('{iata}', iata);
 };
 
-/**
- * Normalise one FIDS item. `direction` is 'arrival' | 'departure' relative to the requested airport.
- * Without `withLeg`, `movement` holds this airport's times while `movement.airport` is the other end.
- */
-export const normalizeFlight = (item, direction, { logoTemplate = '' } = {}) => {
-  if (!item || typeof item !== 'object') return null;
-  const isArrival = direction === 'arrival';
-  const here = item.movement || (isArrival ? item.arrival : item.departure) || {};
-  const there = item.movement?.airport || (isArrival ? item.departure?.airport : item.arrival?.airport) || {};
-
-  const number = cleanText(item.number);
-  const scheduled = toIsoUtc(here.scheduledTime);
-  if (!number || !scheduled) return null;
-
-  const estimated = toIsoUtc(here.revisedTime);
-  const runway = toIsoUtc(here.runwayTime);
-  const quality = Array.isArray(here.quality) ? here.quality : [];
-  const airlineIata = cleanText(item.airline?.iata)?.toUpperCase() || null;
-  const status = cleanText(item.status) || 'Unknown';
-  const delayMinutes = estimated ? Math.round((Date.parse(estimated) - Date.parse(scheduled)) / 60_000) : null;
-
+/** Same flight shape the board has always used; schedule-only fields stay null because ADS-B can't know them. */
+const toFlight = (obs, { logoTemplate = '' } = {}) => {
+  const isArrival = obs.direction === 'arrival';
+  const airlineIcao = /^[A-Z]{3}\d/.test(obs.callsign) ? obs.callsign.slice(0, 3) : null;
+  const [airlineIata = null, airlineName = null] = AIRLINES[airlineIcao] || [];
   return {
-    id: `${number}|${scheduled}|${direction}`,
-    number,
+    id: `${obs.hex || obs.callsign}|${obs.direction}`,
+    number: obs.callsign,
     airline: {
-      name: cleanText(item.airline?.name),
+      name: airlineName,
       iata: airlineIata,
-      icao: cleanText(item.airline?.icao)?.toUpperCase() || null,
+      icao: airlineIcao,
       logoUrl: airlineLogoUrl(logoTemplate, airlineIata),
     },
-    airport: {
-      iata: cleanText(there.iata)?.toUpperCase() || null,
-      icao: cleanText(there.icao)?.toUpperCase() || null,
-      name: cleanText(there.name),
-      city: cleanText(there.municipalityName) || cleanText(there.shortName) || cleanText(there.name),
-    },
-    scheduled,
-    estimated,
-    runway,
-    delayMinutes,
-    terminal: cleanText(here.terminal),
-    gate: cleanText(here.gate),
-    baggageBelt: isArrival ? cleanText(here.baggageBelt) : null,
-    status,
-    statusKey: mapFlightStatus(status),
-    live: quality.includes('Live'),
+    airport: { iata: null, icao: null, name: null, city: null },
+    scheduled: null,
+    estimated: null,
+    runway: null,
+    delayMinutes: null,
+    terminal: null,
+    gate: null,
+    baggageBelt: null,
+    status: isArrival ? 'Approaching' : 'Departed',
+    statusKey: isArrival ? 'approaching' : 'departed',
+    live: true,
+    observedAt: obs.observedAt,
+    distanceNm: Math.round(obs.distance * 10) / 10,
+    altitudeFt: Math.round(obs.altitude / 100) * 100,
+    aircraftType: obs.aircraftType,
   };
 };
 
-export const normalizeBoard = (payload, options = {}) => {
-  const build = (list, direction) => {
-    const seen = new Set();
-    return (Array.isArray(list) ? list : [])
-      .filter((item) => !item?.isCargo && item?.codeshareStatus !== 'IsCodeshared')
-      .map((item) => normalizeFlight(item, direction, options))
-      .filter((flight) => {
-        if (!flight || seen.has(flight.id)) return false;
-        seen.add(flight.id);
-        return true;
-      })
-      .sort((a, b) => a.scheduled.localeCompare(b.scheduled));
-  };
+export const normalizeBoard = (payload, airport, options = {}) => {
+  const referenceMs = Number(payload?.now) || Date.now();
+  const aircraft = Array.isArray(payload?.ac) ? payload.ac : [];
+  const seen = new Set();
+  const arrivals = [];
+  const departures = [];
+  for (const ac of aircraft) {
+    const obs = classifyAircraft(ac, airport, referenceMs, options);
+    if (!obs) continue;
+    const key = obs.hex || obs.callsign;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    (obs.direction === 'arrival' ? arrivals : departures).push(toFlight(obs, options));
+  }
+  const byDistance = (a, b) => a.distanceNm - b.distanceNm;
   return {
-    arrivals: build(payload?.arrivals, 'arrival'),
-    departures: build(payload?.departures, 'departure'),
+    arrivals: arrivals.sort(byDistance),
+    departures: departures.sort(byDistance),
+    aircraftInRange: aircraft.length,
   };
 };
 
@@ -168,69 +229,69 @@ const cache = new Map();
 const inflight = new Map();
 const retryAt = new Map();
 const cooldown = { until: 0, reason: null };
-const usage = { day: '', calls: 0 };
+let nextSlotAt = 0;
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
-const quotaExhausted = (limit) => {
-  if (!limit) return false;
-  if (usage.day !== todayKey()) {
-    usage.day = todayKey();
-    usage.calls = 0;
+/** adsb.lol throttles bursts, so upstream calls are spaced out across all airports. */
+const reserveUpstreamSlot = async (minGapMs) => {
+  const now = Date.now();
+  const at = Math.max(now, nextSlotAt);
+  if (at - now > UPSTREAM_MAX_WAIT_MS) {
+    throw new FlightBoardError(503, 'FLIGHTS_TEMPORARILY_UNAVAILABLE', 'Flight data source busy');
   }
-  return usage.calls >= limit;
+  nextSlotAt = at + minGapMs;
+  if (at > now) await new Promise((resolve) => setTimeout(resolve, at - now));
 };
 
-const fetchUpstream = async (airport, config, fetchImpl) => {
-  const gateway = GATEWAYS[config.gatewayName];
-  const params = new URLSearchParams({
-    offsetMinutes: String(WINDOW_OFFSET_MINUTES),
-    durationMinutes: String(WINDOW_DURATION_MINUTES),
-    direction: 'Both',
-    withLeg: 'false',
-    withCancelled: 'true',
-    withCodeshared: 'false',
-    withCargo: 'false',
-    withPrivate: 'false',
-    withLocation: 'false',
-  });
-  const url = `${gateway.baseUrl}/flights/airports/iata/${airport.iata}?${params}`;
-
-  usage.calls += 1;
+export const fetchUpstream = async (airport, config, fetchImpl = fetch) => {
+  await reserveUpstreamSlot(config.minGapMs);
+  const url = `${ADSB_API_URL}/v2/point/${airport.lat}/${airport.lon}/${SEARCH_RADIUS_NM}`;
   const response = await fetchImpl(url, {
-    headers: { Accept: 'application/json', ...gateway.headers(config.apiKey) },
+    headers: { Accept: 'application/json', 'User-Agent': config.userAgent },
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
 
-  if (response.status === 204) return { arrivals: [], departures: [] };
-  if (response.status === 401 || response.status === 403) {
-    cooldown.until = Date.now() + AUTH_COOLDOWN_MS;
-    cooldown.reason = 'auth';
-    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_AUTH', `AeroDataBox rejected the API key (${response.status})`);
-  }
   if (response.status === 429) {
     cooldown.until = Date.now() + RATE_LIMIT_COOLDOWN_MS;
     cooldown.reason = 'rate_limited';
-    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_RATE_LIMITED', 'AeroDataBox rate limit reached');
+    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_RATE_LIMITED', 'adsb.lol rate limit reached');
+  }
+  if (response.status === 401 || response.status === 403) {
+    cooldown.until = Date.now() + BLOCKED_COOLDOWN_MS;
+    cooldown.reason = 'blocked';
+    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_BLOCKED', `adsb.lol refused the request (${response.status})`);
   }
   if (!response.ok) {
-    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_ERROR', `AeroDataBox responded ${response.status}`);
+    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_ERROR', `adsb.lol responded ${response.status}`);
   }
-  return response.json();
+  const payload = await response.json();
+  if (!payload || !Array.isArray(payload.ac)) {
+    throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_ERROR', 'adsb.lol returned an unexpected payload');
+  }
+  return payload;
 };
 
+const hasFlights = (entry) => Boolean(entry?.board.arrivals.length || entry?.board.departures.length);
+
 const present = (airport, entry, config, { stale, staleReason = null }) => {
+  if (!hasFlights(entry)) {
+    throw new FlightBoardError(503, 'FLIGHTS_NO_COVERAGE', 'No live flight data is available near this airport');
+  }
   const ageMs = Date.now() - entry.fetchedAt;
   const refreshInMs = stale ? FAILURE_RETRY_MS : Math.max(60_000, config.ttlMs - ageMs);
   return {
     airport: { iata: airport.iata, icao: airport.icao, name: airport.name, city: airport.city },
-    provider: 'AeroDataBox',
+    provider: PROVIDER.name,
+    providerUrl: PROVIDER.url,
+    license: PROVIDER.license,
+    dataKind: 'observed',
+    officialUrl: OFFICIAL_FLIGHT_INFO_URL,
     timeZone: 'Africa/Casablanca',
     fetchedAt: new Date(entry.fetchedAt).toISOString(),
     stale,
     staleReason,
     refreshAfterSeconds: Math.round(refreshInMs / 1000),
-    hasLiveData: entry.board.arrivals.some((f) => f.live) || entry.board.departures.some((f) => f.live),
+    hasLiveData: true,
+    coverage: { radiusNm: SEARCH_RADIUS_NM, aircraftInRange: entry.board.aircraftInRange },
     arrivals: entry.board.arrivals,
     departures: entry.board.departures,
   };
@@ -241,8 +302,6 @@ export const getFlightBoard = async (code, { env = process.env, fetchImpl = fetc
   if (!airport) throw new FlightBoardError(404, 'AIRPORT_UNSUPPORTED', 'Airport not supported');
 
   const config = readFlightConfig(env);
-  if (!config.apiKey) throw new FlightBoardError(503, 'FLIGHTS_NOT_CONFIGURED', 'Flight data provider is not configured');
-
   const now = Date.now();
   let entry = cache.get(airport.iata);
   if (entry && now - entry.fetchedAt > STALE_MAX_AGE_MS) {
@@ -256,17 +315,16 @@ export const getFlightBoard = async (code, { env = process.env, fetchImpl = fetc
   const blockedReason =
     now < cooldown.until ? cooldown.reason
       : now < (retryAt.get(airport.iata) || 0) ? 'upstream'
-        : quotaExhausted(config.dailyCallLimit) ? 'quota'
-          : null;
+        : null;
   if (blockedReason) {
-    if (entry) return present(airport, entry, config, { stale: true, staleReason: blockedReason });
+    if (hasFlights(entry)) return present(airport, entry, config, { stale: true, staleReason: blockedReason });
     throw new FlightBoardError(503, 'FLIGHTS_TEMPORARILY_UNAVAILABLE', 'Flight data temporarily unavailable');
   }
 
   if (!inflight.has(airport.iata)) {
     const job = fetchUpstream(airport, config, fetchImpl)
       .then((payload) => {
-        const fresh = { fetchedAt: Date.now(), board: normalizeBoard(payload, { logoTemplate: config.logoTemplate }) };
+        const fresh = { fetchedAt: Date.now(), board: normalizeBoard(payload, airport, { logoTemplate: config.logoTemplate }) };
         cache.set(airport.iata, fresh);
         retryAt.delete(airport.iata);
         return fresh;
@@ -275,25 +333,25 @@ export const getFlightBoard = async (code, { env = process.env, fetchImpl = fetc
     inflight.set(airport.iata, job);
   }
 
+  let fresh;
   try {
-    const fresh = await inflight.get(airport.iata);
-    return present(airport, fresh, config, { stale: false });
+    fresh = await inflight.get(airport.iata);
   } catch (error) {
     retryAt.set(airport.iata, Date.now() + FAILURE_RETRY_MS);
     console.warn(`[flights] ${airport.iata}: ${error?.message || error}`);
-    if (entry) return present(airport, entry, config, { stale: true, staleReason: 'upstream' });
+    if (hasFlights(entry)) return present(airport, entry, config, { stale: true, staleReason: 'upstream' });
     if (error instanceof FlightBoardError) throw error;
     throw new FlightBoardError(502, 'FLIGHTS_UPSTREAM_ERROR', 'Flight data provider unavailable');
   }
+  return present(airport, fresh, config, { stale: false });
 };
 
-/** Test hook: clears caches, cooldowns and quota counters. */
+/** Test hook: clears caches, cooldowns and upstream pacing. */
 export const resetFlightBoardState = () => {
   cache.clear();
   inflight.clear();
   retryAt.clear();
   cooldown.until = 0;
   cooldown.reason = null;
-  usage.day = '';
-  usage.calls = 0;
+  nextSlotAt = 0;
 };

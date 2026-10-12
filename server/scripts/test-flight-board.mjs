@@ -1,80 +1,72 @@
 /**
- * Flight board service checks with a mocked upstream (shape per AeroDataBox OpenAPI
- * `AirportFidsContract`). Run: node scripts/test-flight-board.mjs
- * Optional live smoke test: AERODATABOX_API_KEY=... node scripts/test-flight-board.mjs --live CMN
+ * Flight board service checks with a mocked upstream (adsb.lol /v2/point payload shape).
+ * Run: node scripts/test-flight-board.mjs
+ * Live smoke test (real adsb.lol, no key):  node scripts/test-flight-board.mjs --live CMN
+ * Classifier on real traffic elsewhere:     node scripts/test-flight-board.mjs --live-at 40.4719,-3.5626,MAD
  */
 import assert from 'node:assert/strict';
 import {
-  FLIGHT_STATUS_KEYS,
+  OFFICIAL_FLIGHT_INFO_URL,
+  classifyAircraft,
+  fetchUpstream,
   getFlightBoard,
-  mapFlightStatus,
   normalizeBoard,
+  readFlightConfig,
   resetFlightBoardState,
 } from '../services/flightBoardService.js';
+import { findMoroccoAirport } from '../utils/moroccoAirports.js';
+
+const CMN = findMoroccoAirport('CMN');
+const NOW = Date.parse('2026-10-12T12:00:00Z');
+
+const aircraft = (overrides) => ({
+  hex: '020123',
+  type: 'adsb_icao',
+  flight: 'RAM973  ',
+  t: 'B738',
+  category: 'A3',
+  alt_baro: 4000,
+  baro_rate: -800,
+  gs: 190,
+  track: 225,
+  lat: 33.5089,
+  lon: -7.4206,
+  seen_pos: 1.5,
+  seen: 0.4,
+  ...overrides,
+});
 
 const fixture = {
-  arrivals: [
-    {
-      number: 'AT  801',
-      status: 'Arrived',
-      codeshareStatus: 'IsOperator',
-      isCargo: false,
-      airline: { name: 'Royal Air Maroc', iata: 'AT', icao: 'RAM' },
-      movement: {
-        airport: { icao: 'LFPG', iata: 'CDG', name: 'Paris Charles de Gaulle', municipalityName: 'Paris', timeZone: 'Europe/Paris' },
-        scheduledTime: { utc: '2026-10-12 12:40Z', local: '2026-10-12 13:40+01:00' },
-        revisedTime: { utc: '2026-10-12 13:05Z', local: '2026-10-12 14:05+01:00' },
-        terminal: '1',
-        baggageBelt: '4',
-        quality: ['Basic', 'Live'],
-      },
-    },
-    {
-      number: 'AF 1396',
-      status: 'Expected',
-      codeshareStatus: 'IsCodeshared',
-      isCargo: false,
-      airline: { name: 'Air France', iata: 'AF', icao: 'AFR' },
-      movement: {
-        airport: { iata: 'CDG', name: 'Paris Charles de Gaulle' },
-        scheduledTime: { utc: '2026-10-12 12:40Z' },
-        quality: ['Basic'],
-      },
-    },
-    {
-      number: 'QY 100',
-      status: 'Expected',
-      isCargo: true,
-      airline: { name: 'DHL', iata: 'QY' },
-      movement: { airport: { iata: 'LEJ' }, scheduledTime: { utc: '2026-10-12 11:00Z' }, quality: ['Basic'] },
-    },
-  ],
-  departures: [
-    {
-      number: 'FR 4412',
-      status: 'Boarding',
-      codeshareStatus: 'IsOperator',
-      isCargo: false,
-      airline: { name: 'Ryanair', iata: 'FR', icao: 'RYR' },
-      movement: {
-        airport: { iata: 'MAD', name: 'Madrid Barajas', municipalityName: 'Madrid' },
-        scheduledTime: { utc: '2026-10-12 14:10Z' },
-        terminal: '2',
-        gate: 'B12',
-        quality: ['Basic', 'Live'],
-      },
-    },
-    {
-      number: '3O 211',
-      status: 'Canceled',
-      codeshareStatus: 'IsOperator',
-      isCargo: false,
-      airline: { name: 'Air Arabia Maroc', iata: '3O' },
-      movement: { airport: { iata: 'BCN', shortName: 'Barcelona' }, scheduledTime: { utc: '2026-10-12 13:20Z' }, quality: ['Basic'] },
-    },
-    { number: 'XX 1', status: 'Expected', movement: { airport: {}, quality: [] } },
+  now: NOW,
+  total: 11,
+  ac: [
+    // 12 NM north-east, tracking straight at CMN, descending → arrival
+    aircraft({}),
+    // same airframe reported twice → counted once
+    aircraft({ seen_pos: 3 }),
+    // 25 NM north, descending towards CMN → arrival, listed after the closer one
+    aircraft({ hex: '4ca8e1', flight: 'EZY85EC', t: 'A320', alt_baro: 9000, baro_rate: -1200, track: 180, lat: 33.7842, lon: -7.59 }),
+    // 8 NM south-west, climbing away → departure
+    aircraft({ hex: '4ca123', flight: 'RYR4412', alt_baro: 5000, baro_rate: 1800, track: 225, lat: 33.2732, lon: -7.7029 }),
+    // cruise overflight
+    aircraft({ hex: '495001', flight: 'TAP109', alt_baro: 36000, baro_rate: 0, track: 200 }),
+    // on the ground: arrival or departure can't be told apart
+    aircraft({ hex: '020200', flight: 'RAM200', alt_baro: 'ground', lat: 33.37, lon: -7.585 }),
+    // airport vehicle
+    aircraft({ hex: '020300', flight: 'FOLLOW1', category: 'C1', alt_baro: 'ground' }),
+    // position too old
+    aircraft({ hex: '020400', flight: 'RAM401', seen_pos: 120 }),
+    // closer to Rabat than to Casablanca
+    aircraft({ hex: '020500', flight: 'MAC500', lat: 33.75, lon: -7.15, track: 48, alt_baro: 3000 }),
+    // pointing at CMN but climbing → neither approaching nor departing
+    aircraft({ hex: '020600', flight: 'RAM600', baro_rate: 1500 }),
+    // no callsign
+    aircraft({ hex: '020700', flight: undefined }),
   ],
 };
+
+const emptySky = { now: NOW, total: 0, ac: [] };
+const overflightsOnly = { now: NOW, total: 1, ac: [fixture.ac[4]] };
 
 const jsonResponse = (status, body) => ({
   status,
@@ -90,78 +82,102 @@ const test = async (name, fn) => {
   console.log(`  ok  ${name}`);
 };
 
-const env = { AERODATABOX_API_KEY: 'test-key', AERODATABOX_GATEWAY: 'direct', FLIGHTS_CACHE_TTL_SECONDS: '600' };
+const env = { FLIGHTS_CACHE_TTL_SECONDS: '90', FLIGHTS_UPSTREAM_GAP_MS: '0' };
+
+const printBoard = (label, board) => {
+  console.log(`[${label}] in range=${board.aircraftInRange ?? board.coverage?.aircraftInRange} arrivals=${board.arrivals.length} departures=${board.departures.length}`);
+  for (const f of [...board.arrivals, ...board.departures].slice(0, 12)) {
+    console.log(`  ${f.number.padEnd(8)} ${f.statusKey.padEnd(12)} ${String(f.distanceNm).padStart(5)} NM ${String(f.altitudeFt).padStart(6)} ft  ${f.airline.name || ''}`);
+  }
+};
 
 if (process.argv.includes('--live')) {
   const code = process.argv[process.argv.indexOf('--live') + 1] || 'CMN';
-  const board = await getFlightBoard(code);
-  console.log(`[live] ${board.airport.iata} fetchedAt=${board.fetchedAt} live=${board.hasLiveData} arrivals=${board.arrivals.length} departures=${board.departures.length}`);
-  for (const f of [...board.arrivals.slice(0, 5), ...board.departures.slice(0, 5)]) {
-    console.log(`  ${f.number.padEnd(8)} ${String(f.airport.city || f.airport.iata).padEnd(18)} ${f.scheduled} ${f.status}`);
+  try {
+    printBoard(`live ${code}`, await getFlightBoard(code));
+  } catch (error) {
+    console.log(`[live ${code}] ${error.status} ${error.code} — ${error.message}`);
   }
   process.exit(0);
 }
 
-console.log('flight board service');
+if (process.argv.includes('--live-at')) {
+  const [lat, lon, iata = 'TEST'] = String(process.argv[process.argv.indexOf('--live-at') + 1] || '').split(',');
+  const airport = { iata, lat: Number(lat), lon: Number(lon) };
+  const payload = await fetchUpstream(airport, readFlightConfig({ FLIGHTS_UPSTREAM_GAP_MS: '0' }));
+  printBoard(`live-at ${iata}`, normalizeBoard(payload, airport, { neighbours: [airport] }));
+  process.exit(0);
+}
 
-await test('status mapping covers every provider enum value', () => {
-  for (const [raw, key] of Object.entries(FLIGHT_STATUS_KEYS)) assert.equal(mapFlightStatus(raw), key);
-  assert.equal(mapFlightStatus('SomethingNew'), 'other');
-  assert.equal(mapFlightStatus(undefined), 'unknown');
+console.log('flight board service (adsb.lol)');
+
+await test('classifies only clear arrivals/departures and keeps the board shape', () => {
+  const board = normalizeBoard(fixture, CMN, { logoTemplate: 'https://logo.test/{iata}.png' });
+  assert.equal(board.aircraftInRange, fixture.ac.length);
+  assert.deepEqual(board.arrivals.map((f) => f.number), ['RAM973', 'EZY85EC']);
+  assert.deepEqual(board.departures.map((f) => f.number), ['RYR4412']);
+
+  const ram = board.arrivals[0];
+  assert.equal(ram.status, 'Approaching');
+  assert.equal(ram.statusKey, 'approaching');
+  assert.equal(ram.live, true);
+  assert.deepEqual(ram.airline, { name: 'Royal Air Maroc', iata: 'AT', icao: 'RAM', logoUrl: 'https://logo.test/AT.png' });
+  assert.equal(ram.observedAt, new Date(NOW - 1500).toISOString());
+  assert.ok(ram.distanceNm > 11 && ram.distanceNm < 13);
+  assert.equal(ram.altitudeFt, 4000);
+  assert.equal(ram.aircraftType, 'B738');
+  for (const field of ['scheduled', 'estimated', 'runway', 'delayMinutes', 'terminal', 'gate', 'baggageBelt']) {
+    assert.equal(ram[field], null, `${field} must never be invented`);
+  }
+  assert.deepEqual(ram.airport, { iata: null, icao: null, name: null, city: null });
+
+  const ryr = board.departures[0];
+  assert.equal(ryr.statusKey, 'departed');
+  assert.equal(ryr.airline.iata, 'FR');
 });
 
-await test('normalises FIDS items, drops cargo/codeshares/incomplete rows, sorts by time', () => {
-  const board = normalizeBoard(fixture, { logoTemplate: 'https://logo.test/{iata}.png' });
-  assert.equal(board.arrivals.length, 1);
-  const at = board.arrivals[0];
-  assert.equal(at.number, 'AT 801');
-  assert.equal(at.airline.name, 'Royal Air Maroc');
-  assert.equal(at.airline.logoUrl, 'https://logo.test/AT.png');
-  assert.equal(at.airport.iata, 'CDG');
-  assert.equal(at.airport.city, 'Paris');
-  assert.equal(at.scheduled, '2026-10-12T12:40:00.000Z');
-  assert.equal(at.estimated, '2026-10-12T13:05:00.000Z');
-  assert.equal(at.delayMinutes, 25);
-  assert.equal(at.baggageBelt, '4');
-  assert.equal(at.status, 'Arrived');
-  assert.equal(at.statusKey, 'arrived');
-  assert.equal(at.live, true);
-
-  assert.deepEqual(board.departures.map((f) => f.number), ['3O 211', 'FR 4412']);
-  assert.equal(board.departures[0].statusKey, 'canceled');
-  assert.equal(board.departures[0].airport.city, 'Barcelona');
-  assert.equal(board.departures[0].live, false);
-  assert.equal(board.departures[1].gate, 'B12');
-  assert.equal(board.departures[1].baggageBelt, null);
+await test('unknown callsign prefixes stay unbranded', () => {
+  const obs = classifyAircraft(aircraft({ flight: 'CNXYZ' }), CMN, NOW);
+  assert.equal(obs.callsign, 'CNXYZ');
+  const board = normalizeBoard({ now: NOW, ac: [aircraft({ flight: 'XXX123' })] }, CMN);
+  assert.deepEqual(board.arrivals[0].airline, { name: null, iata: null, icao: 'XXX', logoUrl: null });
 });
 
-await test('not configured → 503 without calling upstream', async () => {
+await test('unsupported airport → 404 without calling upstream', async () => {
   let calls = 0;
   await assert.rejects(
-    getFlightBoard('CMN', { env: {}, fetchImpl: async () => { calls += 1; } }),
-    (err) => err.status === 503 && err.code === 'FLIGHTS_NOT_CONFIGURED',
+    getFlightBoard('CDG', { env, fetchImpl: async () => { calls += 1; } }),
+    (err) => err.status === 404 && err.code === 'AIRPORT_UNSUPPORTED',
   );
   assert.equal(calls, 0);
 });
 
-await test('unsupported airport → 404', async () => {
-  await assert.rejects(getFlightBoard('CDG', { env }), (err) => err.status === 404 && err.code === 'AIRPORT_UNSUPPORTED');
+await test('no API key needed; calls adsb.lol point endpoint with a contact User-Agent', async () => {
+  const seen = [];
+  const fetchImpl = async (url, init) => { seen.push({ url, init }); return jsonResponse(200, fixture); };
+  await getFlightBoard('cmn', { env: {}, fetchImpl });
+  await getFlightBoard('RAK', { env: { FLIGHTS_CONTACT: 'ops@example.com', FLIGHTS_UPSTREAM_GAP_MS: '0' }, fetchImpl }).catch(() => {});
+  assert.equal(seen[0].url, 'https://api.adsb.lol/v2/point/33.3675/-7.59/40');
+  assert.match(seen[0].init.headers['User-Agent'], /^HDNCarFlightBoard\/1\.0 \(\+https:\/\/hdncar\.com; haddanecar@gmail\.com\)$/);
+  assert.ok(seen[0].init.signal instanceof AbortSignal);
+  assert.match(seen[1].url, /\/v2\/point\/31\.6069\/-8\.0363\/40$/);
+  assert.match(seen[1].init.headers['User-Agent'], /ops@example\.com/);
 });
 
-await test('uses the right gateway URL and auth headers', async () => {
-  const seen = [];
-  const fetchImpl = async (url, init) => { seen.push({ url, headers: init.headers }); return jsonResponse(200, fixture); };
-  await getFlightBoard('rak', { env, fetchImpl });
-  await getFlightBoard('CMN', { env: { ...env, AERODATABOX_GATEWAY: 'rapidapi' }, fetchImpl });
-  await getFlightBoard('AGA', { env: { ...env, AERODATABOX_GATEWAY: 'apimarket' }, fetchImpl });
-  assert.match(seen[0].url, /^https:\/\/api\.aerodatabox\.com\/flights\/airports\/iata\/RAK\?/);
-  assert.match(seen[0].url, /direction=Both/);
-  assert.match(seen[0].url, /withCodeshared=false/);
-  assert.equal(seen[0].headers['X-Api-Key'], 'test-key');
-  assert.match(seen[1].url, /^https:\/\/aerodatabox\.p\.rapidapi\.com\//);
-  assert.equal(seen[1].headers['X-RapidAPI-Host'], 'aerodatabox.p.rapidapi.com');
-  assert.match(seen[2].url, /^https:\/\/prod\.api\.market\/api\/v1\/aedbx\/aerodatabox\//);
-  assert.equal(seen[2].headers['x-api-market-key'], 'test-key');
+await test('empty sky → 503 FLIGHTS_NO_COVERAGE (never "no flights"), cached for the TTL', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls += 1; return jsonResponse(200, emptySky); };
+  for (let i = 0; i < 3; i += 1) {
+    await assert.rejects(getFlightBoard('CMN', { env, fetchImpl }), (err) => err.status === 503 && err.code === 'FLIGHTS_NO_COVERAGE');
+  }
+  assert.equal(calls, 1);
+});
+
+await test('only overflights in range → still FLIGHTS_NO_COVERAGE', async () => {
+  await assert.rejects(
+    getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(200, overflightsOnly) }),
+    (err) => err.code === 'FLIGHTS_NO_COVERAGE',
+  );
 });
 
 await test('caches per airport and dedupes concurrent requests', async () => {
@@ -172,32 +188,51 @@ await test('caches per airport and dedupes concurrent requests', async () => {
   assert.equal(calls, 1);
   assert.equal(a.fetchedAt, b.fetchedAt);
   assert.equal(c.stale, false);
+  assert.equal(c.provider, 'adsb.lol');
+  assert.equal(c.license, 'ODbL-1.0');
+  assert.equal(c.dataKind, 'observed');
+  assert.equal(c.officialUrl, OFFICIAL_FLIGHT_INFO_URL);
   assert.equal(c.hasLiveData, true);
-  assert.ok(c.refreshAfterSeconds > 0 && c.refreshAfterSeconds <= 600);
+  assert.deepEqual(c.coverage, { radiusNm: 40, aircraftInRange: fixture.ac.length });
+  assert.ok(c.refreshAfterSeconds >= 60 && c.refreshAfterSeconds <= 90);
 });
 
-await test('204 No Content → empty boards, not an error', async () => {
-  const board = await getFlightBoard('ESU', { env, fetchImpl: async () => jsonResponse(204) });
-  assert.deepEqual([board.arrivals.length, board.departures.length, board.stale], [0, 0, false]);
+await test('upstream calls are spaced out across airports', async () => {
+  const starts = [];
+  const fetchImpl = async () => { starts.push(Date.now()); return jsonResponse(200, fixture); };
+  const paced = { ...env, FLIGHTS_UPSTREAM_GAP_MS: '200' };
+  await Promise.all([getFlightBoard('CMN', { env: paced, fetchImpl }), getFlightBoard('RAK', { env: paced, fetchImpl }).catch(() => {})]);
+  assert.equal(starts.length, 2);
+  assert.ok(starts[1] - starts[0] >= 180, `gap was ${starts[1] - starts[0]}ms`);
 });
 
-await test('upstream failure with cached data → last valid board flagged stale with original timestamp', async () => {
-  const shortTtl = { ...env, FLIGHTS_CACHE_TTL_SECONDS: '120' };
-  const first = await getFlightBoard('CMN', { env: shortTtl, fetchImpl: async () => jsonResponse(200, fixture) });
+await test('refresh failure with cached flights → last board flagged stale with original timestamp', async () => {
+  const first = await getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(200, fixture) });
   const realNow = Date.now;
-  Date.now = () => realNow() + 125_000;
+  Date.now = () => realNow() + 95_000;
   try {
-    const second = await getFlightBoard('CMN', { env: shortTtl, fetchImpl: async () => jsonResponse(500, {}) });
+    const second = await getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(500, {}) });
     assert.equal(second.stale, true);
     assert.equal(second.staleReason, 'upstream');
     assert.equal(second.fetchedAt, first.fetchedAt);
-    assert.equal(second.arrivals.length, 1);
+    assert.equal(second.arrivals.length, 2);
   } finally {
     Date.now = realNow;
   }
 });
 
-await test('upstream failure without cache → 502, then backs off instead of hammering', async () => {
+await test('stale observations expire after 10 minutes', async () => {
+  await getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(200, fixture) });
+  const realNow = Date.now;
+  Date.now = () => realNow() + 11 * 60_000;
+  try {
+    await assert.rejects(getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(500, {}) }), (err) => err.status === 502);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+await test('failure without cache → 502, then backs off instead of hammering', async () => {
   let calls = 0;
   const fetchImpl = async () => { calls += 1; return jsonResponse(503, {}); };
   await assert.rejects(getFlightBoard('TNG', { env, fetchImpl }), (err) => err.status === 502);
@@ -205,27 +240,28 @@ await test('upstream failure without cache → 502, then backs off instead of ha
   assert.equal(calls, 1);
 });
 
-await test('429 and 401 trigger a global cooldown', async () => {
-  let calls = 0;
-  await assert.rejects(getFlightBoard('CMN', { env, fetchImpl: async () => { calls += 1; return jsonResponse(429, {}); } }));
-  await assert.rejects(getFlightBoard('RAK', { env, fetchImpl: async () => { calls += 1; return jsonResponse(200, fixture); } }));
-  assert.equal(calls, 1);
-  resetFlightBoardState();
-  await assert.rejects(getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(401, {}) }), (err) => err.code === 'FLIGHTS_UPSTREAM_AUTH');
+await test('timeouts / network errors → generic 502', async () => {
+  const fetchImpl = async () => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError'); };
+  await assert.rejects(getFlightBoard('CMN', { env, fetchImpl }), (err) => err.status === 502 && err.code === 'FLIGHTS_UPSTREAM_ERROR');
 });
 
-await test('daily call limit stops upstream calls', async () => {
+await test('malformed payload → 502', async () => {
+  await assert.rejects(getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(200, { msg: 'nope' }) }), (err) => err.status === 502);
+});
+
+await test('429 and 403 trigger a global cooldown', async () => {
   let calls = 0;
-  const fetchImpl = async () => { calls += 1; return jsonResponse(200, fixture); };
-  const capped = { ...env, FLIGHTS_DAILY_CALL_LIMIT: '2' };
-  await getFlightBoard('CMN', { env: capped, fetchImpl });
-  await getFlightBoard('RAK', { env: capped, fetchImpl });
-  await assert.rejects(getFlightBoard('AGA', { env: capped, fetchImpl }), (err) => err.code === 'FLIGHTS_TEMPORARILY_UNAVAILABLE');
-  assert.equal(calls, 2);
+  await assert.rejects(getFlightBoard('CMN', { env, fetchImpl: async () => { calls += 1; return jsonResponse(429, {}); } }), (err) => err.code === 'FLIGHTS_UPSTREAM_RATE_LIMITED');
+  await assert.rejects(getFlightBoard('RAK', { env, fetchImpl: async () => { calls += 1; return jsonResponse(200, fixture); } }), (err) => err.code === 'FLIGHTS_TEMPORARILY_UNAVAILABLE');
+  assert.equal(calls, 1);
+  resetFlightBoardState();
+  await assert.rejects(getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(403, {}) }), (err) => err.code === 'FLIGHTS_UPSTREAM_BLOCKED');
+  await assert.rejects(getFlightBoard('AGA', { env, fetchImpl: async () => jsonResponse(200, fixture) }), (err) => err.code === 'FLIGHTS_TEMPORARILY_UNAVAILABLE');
 });
 
 await test('logo template "off" disables logos', () => {
-  const board = normalizeBoard(fixture, { logoTemplate: '' });
+  const config = readFlightConfig({ FLIGHTS_AIRLINE_LOGO_URL: 'off' });
+  const board = normalizeBoard(fixture, CMN, { logoTemplate: config.logoTemplate });
   assert.equal(board.arrivals[0].airline.logoUrl, null);
 });
 
@@ -248,7 +284,8 @@ const get = (path) => new Promise((resolve, reject) => {
 });
 
 const realFetch = globalThis.fetch;
-const savedKey = process.env.AERODATABOX_API_KEY;
+const savedGap = process.env.FLIGHTS_UPSTREAM_GAP_MS;
+process.env.FLIGHTS_UPSTREAM_GAP_MS = '0';
 try {
   await test('HTTP: airport list is public', async () => {
     const res = await get('/api/flights/airports');
@@ -256,43 +293,48 @@ try {
     assert.ok(res.json.airports.some((a) => a.iata === 'CMN'));
   });
 
-  await test('HTTP: no key → 503 FLIGHTS_NOT_CONFIGURED, no-store', async () => {
-    delete process.env.AERODATABOX_API_KEY;
+  await test('HTTP: no coverage → 503 "Live flight data unavailable" with official link, no-store', async () => {
+    globalThis.fetch = async () => jsonResponse(200, emptySky);
     const res = await get('/api/flights/CMN');
     assert.equal(res.status, 503);
-    assert.equal(res.json.code, 'FLIGHTS_NOT_CONFIGURED');
+    assert.equal(res.json.success, false);
+    assert.equal(res.json.code, 'FLIGHTS_NO_COVERAGE');
+    assert.equal(res.json.message, 'Live flight data unavailable');
+    assert.equal(res.json.officialUrl, 'https://www.onda.ma/');
     assert.equal(res.headers['cache-control'], 'no-store');
   });
 
   await test('HTTP: unsupported airport → 404', async () => {
-    process.env.AERODATABOX_API_KEY = 'test-key';
     const res = await get('/api/flights/JFK');
     assert.equal(res.status, 404);
+    assert.equal(res.json.code, 'AIRPORT_UNSUPPORTED');
   });
 
-  await test('HTTP: configured → normalised board, key never echoed', async () => {
-    process.env.AERODATABOX_API_KEY = 'secret-key-123';
+  await test('HTTP: observed traffic → board in the existing response format', async () => {
     globalThis.fetch = async () => jsonResponse(200, fixture);
-    const res = await get('/api/flights/rak');
+    const res = await get('/api/flights/cmn');
     assert.equal(res.status, 200);
-    assert.equal(res.json.airport.iata, 'RAK');
-    assert.equal(res.json.stale, false);
-    assert.equal(res.json.arrivals[0].number, 'AT 801');
+    assert.equal(res.json.success, true);
+    for (const key of ['airport', 'provider', 'timeZone', 'fetchedAt', 'stale', 'staleReason', 'refreshAfterSeconds', 'hasLiveData', 'arrivals', 'departures']) {
+      assert.ok(key in res.json, `missing ${key}`);
+    }
+    assert.deepEqual(res.json.airport, { iata: 'CMN', icao: 'GMMN', name: 'Mohammed V International', city: 'Casablanca' });
+    assert.equal(res.json.timeZone, 'Africa/Casablanca');
+    assert.equal(res.json.arrivals[0].number, 'RAM973');
     assert.match(res.headers['cache-control'], /max-age=60/);
-    assert.ok(!JSON.stringify(res.json).includes('secret-key-123'));
   });
 
-  await test('HTTP: upstream auth failure is reported generically', async () => {
-    process.env.AERODATABOX_API_KEY = 'bad';
-    globalThis.fetch = async () => jsonResponse(401, {});
+  await test('HTTP: upstream refusal is reported generically', async () => {
+    globalThis.fetch = async () => jsonResponse(403, {});
     const res = await get('/api/flights/AGA');
     assert.equal(res.status, 502);
     assert.equal(res.json.code, 'FLIGHTS_UPSTREAM_ERROR');
+    assert.equal(res.json.message, 'Live flight data unavailable');
   });
 } finally {
   globalThis.fetch = realFetch;
-  if (savedKey === undefined) delete process.env.AERODATABOX_API_KEY;
-  else process.env.AERODATABOX_API_KEY = savedKey;
+  if (savedGap === undefined) delete process.env.FLIGHTS_UPSTREAM_GAP_MS;
+  else process.env.FLIGHTS_UPSTREAM_GAP_MS = savedGap;
   server.close();
 }
 
