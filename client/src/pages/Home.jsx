@@ -4,7 +4,7 @@ import SeoHead from '../seo/SeoHead'
 import { localBusinessJsonLd, organizationJsonLd, websiteJsonLd } from '../seo/jsonLd'
 
 const FeaturedSection = lazy(() => import('../components/FeaturedSection'))
-const Banner = lazy(() => import('../components/Banner'))
+const JourneyComposer = lazy(() => import('../components/JourneyComposer'))
 const Testimonial = lazy(() => import('../components/Testimonial'))
 const WhyChoose = lazy(() => import('../components/WhyChoose'))
 const SeoHomeModule = lazy(() => import('../components/SeoHomeModule'))
@@ -31,7 +31,7 @@ const Home = () => {
         <FeaturedSection />
       </Suspense>
       <Suspense fallback={<SectionFallback />}>
-        <Banner />
+        <JourneyComposer />
       </Suspense>
       <Suspense fallback={<SectionFallback />}>
         <Testimonial />

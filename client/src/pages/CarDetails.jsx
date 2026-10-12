@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { assets } from '../assets/assets'
 import Loader from '../components/Loader'
 import { useAppContext } from '../context/AppContext'
@@ -94,6 +94,7 @@ const formatFeeLabel = (location, currency, freeLabel) => {
 
 const CarDetails = () => {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const { t, language } = useI18n()
   const { cars, axios, pickupDate, setPickupDate, returnDate, setReturnDate, pickupLocations, carsLoading } = useAppContext()
 
@@ -277,19 +278,24 @@ const CarDetails = () => {
     return pickupLocations.filter((l) => citySet.has(String(l.city || '').toLowerCase()))
   }, [car, pickupLocations])
 
+  const requestedPickupId = searchParams.get('pickup') || ''
+  const requestedReturnId = searchParams.get('return') || ''
+
   useEffect(() => {
     const ids = new Set(bookableLocations.map((l) => String(l._id)))
     const preferred = findDefaultLocationId(bookableLocations)
     if (!preferred && ids.size === 0) return
+    const pickupFallback = ids.has(requestedPickupId) ? requestedPickupId : preferred
+    const returnFallback = ids.has(requestedReturnId) ? requestedReturnId : pickupFallback
     setForm((f) => {
       const pickupOk = Boolean(f.pickupLocationId) && ids.has(String(f.pickupLocationId))
       const returnOk = Boolean(f.returnLocationId) && ids.has(String(f.returnLocationId))
-      const pickupLocationId = pickupOk ? f.pickupLocationId : preferred
-      const returnLocationId = returnOk ? f.returnLocationId : preferred
+      const pickupLocationId = pickupOk ? f.pickupLocationId : pickupFallback
+      const returnLocationId = returnOk ? f.returnLocationId : returnFallback
       if (pickupLocationId === f.pickupLocationId && returnLocationId === f.returnLocationId) return f
       return { ...f, pickupLocationId, returnLocationId }
     })
-  }, [bookableLocations])
+  }, [bookableLocations, requestedPickupId, requestedReturnId])
 
   const localPreview = useMemo(() => {
     if (!car) return null

@@ -25,7 +25,6 @@
     "check:api-tls": "node scripts/check-api-tls.mjs",
     "test:xlsx": "node scripts/test-xlsx-export.mjs",
     "test:rental-duration": "node scripts/verify-rental-duration.mjs",
-    "test:flights": "node scripts/test-flight-board.mjs",
     "test:signed-contract-wa": "node scripts/verify-signed-contract-whatsapp.mjs",
     "bench:pdf": "node scripts/bench-pdf-generation.mjs"
   },

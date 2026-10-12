@@ -9,7 +9,6 @@ import { findDefaultCityName } from '../utils/defaultLocation'
 import toast from 'react-hot-toast'
 import { trackSearch } from '../analytics/ga4'
 import { haptic } from '../utils/haptics'
-import { BOOKING_PREFILL_EVENT } from '../utils/bookingPrefill'
 import './hero/heroStage.css'
 
 /** "Roulez avec distinction" → ["Roulez avec", "distinction"] for the italic accent word. */
@@ -39,39 +38,6 @@ const Hero = () => {
 
   const startISO = typeof pickupDate === 'string' ? pickupDate.slice(0, 10) : ''
   const endISO = typeof returnDate === 'string' ? returnDate.slice(0, 10) : ''
-
-  const formRef = useRef(null)
-  const [flash, setFlash] = useState(false)
-
-  useEffect(() => {
-    let focusTimer = 0
-    let flashTimer = 0
-    const onPrefill = (event) => {
-      const city = event.detail?.city
-      if (city && cities.includes(city)) setPickupLocation(city)
-      const form = formRef.current
-      if (!form) return
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      form.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' })
-      setFlash(true)
-      window.clearTimeout(flashTimer)
-      flashTimer = window.setTimeout(() => setFlash(false), 1800)
-      if (!window.matchMedia('(min-width: 768px)').matches) return
-      window.clearTimeout(focusTimer)
-      focusTimer = window.setTimeout(() => {
-        const target = startISO && endISO
-          ? form.querySelector('button[type="submit"]')
-          : form.querySelector('.hx-field-dates input')
-        target?.focus({ preventScroll: true })
-      }, reduce ? 0 : 700)
-    }
-    window.addEventListener(BOOKING_PREFILL_EVENT, onPrefill)
-    return () => {
-      window.removeEventListener(BOOKING_PREFILL_EVENT, onPrefill)
-      window.clearTimeout(focusTimer)
-      window.clearTimeout(flashTimer)
-    }
-  }, [cities, startISO, endISO])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -124,7 +90,7 @@ const Hero = () => {
 
         <HeroCarStage />
 
-        <form ref={formRef} onSubmit={handleSearch} className={`hx-book${flash ? ' is-flash' : ''}`} aria-label={t('hero.bookingLabel')}>
+        <form onSubmit={handleSearch} className="hx-book" aria-label={t('hero.bookingLabel')}>
           <p className="hx-book-label">{t('hero.bookingLabel')}</p>
           <div className="hx-book-shell">
             <div className="hx-field hx-field-city">
