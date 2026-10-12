@@ -16,6 +16,7 @@ import superAdminRouter from "./routes/superAdminRoutes.js";
 import contractRouter from "./routes/contractRoutes.js";
 import invoiceRouter from "./routes/invoiceRoutes.js";
 import exportTemplateRouter from "./routes/exportTemplateRoutes.js";
+import flightRouter from "./routes/flightRoutes.js";
 import { protectDocumentUploads } from "./middleware/uploadAccess.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -168,6 +169,7 @@ app.use("/api/super-admin", superAdminRouter);
 app.use("/api/contracts", contractRouter);
 app.use("/api/invoices", invoiceRouter);
 app.use("/api/export-templates", exportTemplateRouter);
+app.use("/api/flights", flightRouter);
 
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) {

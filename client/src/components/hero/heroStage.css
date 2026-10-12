@@ -253,6 +253,13 @@
     0 32px 70px -36px rgba(22, 18, 16, 0.55);
 }
 
+.hx-book.is-flash .hx-book-shell {
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 4px rgba(143, 31, 31, 0.22),
+    0 32px 70px -36px rgba(22, 18, 16, 0.55);
+}
+
 .hx-field {
   position: relative;
   min-width: 0;
