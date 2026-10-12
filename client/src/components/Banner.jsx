@@ -13,6 +13,8 @@ const TICKER_ITEMS = 8
 const MOROCCO_TZ = 'Africa/Casablanca'
 const LOCALES = { en: 'en-GB', fr: 'fr-FR', es: 'es-ES' }
 const COMPLETED = new Set(['arrived', 'departed'])
+/** Answers the server already retries on its own schedule — a manual retry can't change them. */
+const SERVER_STATES = new Set(['FLIGHTS_NO_COVERAGE', 'FLIGHTS_TEMPORARILY_UNAVAILABLE', 'FLIGHTS_UPSTREAM_ERROR'])
 const TONES = {
   checkIn: 'info',
   enRoute: 'info',
@@ -273,7 +275,7 @@ const Banner = () => {
           <p className="fb-message-title">{t('flights.unavailable')}</p>
           <p className="fb-message-text">{t('flights.unavailableHint')}</p>
           <OfficialLink>{t('flights.officialLink')}</OfficialLink>
-          {error.code !== 'FLIGHTS_NO_COVERAGE' ? (
+          {!SERVER_STATES.has(error.code) ? (
             <button type="button" className="fb-retry" onClick={retry} disabled={loading}>{t('flights.retry')}</button>
           ) : null}
         </div>

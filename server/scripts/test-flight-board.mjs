@@ -173,6 +173,23 @@ await test('empty sky → 503 FLIGHTS_NO_COVERAGE (never "no flights"), cached f
   assert.equal(calls, 1);
 });
 
+await test('empty sky is re-checked after 10 minutes, not every TTL', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls += 1; return jsonResponse(200, emptySky); };
+  const realNow = Date.now;
+  try {
+    await assert.rejects(getFlightBoard('CMN', { env, fetchImpl }));
+    Date.now = () => realNow() + 5 * 60_000;
+    await assert.rejects(getFlightBoard('CMN', { env, fetchImpl }));
+    assert.equal(calls, 1);
+    Date.now = () => realNow() + 11 * 60_000;
+    await assert.rejects(getFlightBoard('CMN', { env, fetchImpl }));
+    assert.equal(calls, 2);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
 await test('only overflights in range → still FLIGHTS_NO_COVERAGE', async () => {
   await assert.rejects(
     getFlightBoard('CMN', { env, fetchImpl: async () => jsonResponse(200, overflightsOnly) }),
@@ -293,10 +310,10 @@ try {
     assert.ok(res.json.airports.some((a) => a.iata === 'CMN'));
   });
 
-  await test('HTTP: no coverage → 503 "Live flight data unavailable" with official link, no-store', async () => {
+  await test('HTTP: no coverage → 200 success:false "Live flight data unavailable" with official link, no-store', async () => {
     globalThis.fetch = async () => jsonResponse(200, emptySky);
     const res = await get('/api/flights/CMN');
-    assert.equal(res.status, 503);
+    assert.equal(res.status, 200);
     assert.equal(res.json.success, false);
     assert.equal(res.json.code, 'FLIGHTS_NO_COVERAGE');
     assert.equal(res.json.message, 'Live flight data unavailable');

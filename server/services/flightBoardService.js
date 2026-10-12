@@ -19,6 +19,7 @@ const UPSTREAM_TIMEOUT_MS = 8_000;
 const UPSTREAM_MIN_GAP_MS = 1_500;
 const UPSTREAM_MAX_WAIT_MS = 6_000;
 const STALE_MAX_AGE_MS = 10 * 60_000;
+const NO_COVERAGE_TTL_MS = 10 * 60_000;
 const FAILURE_RETRY_MS = 60_000;
 const RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
 const BLOCKED_COOLDOWN_MS = 30 * 60_000;
@@ -308,7 +309,9 @@ export const getFlightBoard = async (code, { env = process.env, fetchImpl = fetc
     cache.delete(airport.iata);
     entry = undefined;
   }
-  if (entry && now - entry.fetchedAt < config.ttlMs) {
+  // An empty sky rarely changes minute to minute; re-asking would only burn the shared rate limit.
+  const freshFor = hasFlights(entry) ? config.ttlMs : NO_COVERAGE_TTL_MS;
+  if (entry && now - entry.fetchedAt < freshFor) {
     return present(airport, entry, config, { stale: false });
   }
 

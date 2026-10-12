@@ -21,7 +21,9 @@ export const getAirportFlights = async (req, res) => {
     if (error instanceof FlightBoardError) {
       const publicCode = error.code.startsWith('FLIGHTS_UPSTREAM') ? 'FLIGHTS_UPSTREAM_ERROR' : error.code;
       const message = error.status === 404 ? 'Airport not supported' : UNAVAILABLE_MESSAGE;
-      return res.status(error.status).json({ success: false, code: publicCode, message, officialUrl: OFFICIAL_FLIGHT_INFO_URL });
+      // "Nothing observed" is an expected answer, not a server failure.
+      const status = error.code === 'FLIGHTS_NO_COVERAGE' ? 200 : error.status;
+      return res.status(status).json({ success: false, code: publicCode, message, officialUrl: OFFICIAL_FLIGHT_INFO_URL });
     }
     console.error('[flights]', error?.message || error);
     res.status(500).json({ success: false, code: 'FLIGHTS_ERROR', message: UNAVAILABLE_MESSAGE, officialUrl: OFFICIAL_FLIGHT_INFO_URL });
