@@ -509,7 +509,7 @@ export const DEFAULT_INVOICE_HEADER = `
         <div><span>Date</span><strong>{{invoice_date}}</strong></div>
         {{invoice_reservation_meta_html}}
       </div>
-      <div class="inv-status">{{invoice_payment_status}}</div>
+      <div class="inv-status"></div>
     </div>
   </div>
 </div>
