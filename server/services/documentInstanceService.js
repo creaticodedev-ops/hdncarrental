@@ -14,8 +14,11 @@ import { publicUploadUrl } from './pdfDocuments.js';
 import { resolveCompanyBranding } from './agencySettingsService.js';
 import {
   buildCompanyCachetSignatureHtml,
+  buildInvoiceAmountInWordsHtml,
   buildInvoiceDiscountRowHtml,
   buildInvoiceItemsHtml,
+  buildInvoiceRentalSectionHtml,
+  buildInvoiceReservationMetaHtml,
   buildInvoiceTaxRowHtml,
   formatInvoiceDate,
   formatInvoiceMoney,
@@ -24,6 +27,7 @@ import {
   resolveAmountPaid,
 } from './invoiceTemplateHelpers.js';
 import { resolveCompanyStampAssetUrl } from './companyBrandingService.js';
+import { amountToFrenchMadWords } from '../utils/frenchAmountInWords.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTRACTS_ROOT = path.join(__dirname, '..', 'uploads', 'contracts');
@@ -144,6 +148,13 @@ export const buildInvoiceSourceData = async ({
   const currency = invoiceFields.currency || 'MAD';
   const subtotal = Number(invoiceFields.subtotal ?? booking?.price ?? 0) || 0;
   const discountAmount = Number(invoiceFields.discountAmount || 0) || 0;
+  const lineDiscountTotal = (Array.isArray(invoiceFields.items) ? invoiceFields.items : [])
+    .reduce((sum, item) => sum + (Number(item?.discountAmount) || 0), 0);
+  const effectiveDiscount = Number(
+    invoiceFields.effectiveDiscount != null
+      ? invoiceFields.effectiveDiscount
+      : discountAmount + lineDiscountTotal,
+  ) || 0;
   const taxAmount = Number(invoiceFields.taxAmount || 0) || 0;
   const totalAmount = Number(invoiceFields.totalAmount ?? booking?.price ?? 0) || 0;
   const paymentStatus = invoiceFields.paymentStatus || booking?.paymentStatus || 'pending';
@@ -154,31 +165,45 @@ export const buildInvoiceSourceData = async ({
     booking,
   });
   const balanceDue = Math.max(0, totalAmount - amountPaid);
-  const totalHt = Math.max(0, subtotal - discountAmount);
+  const totalHt = Math.max(0, subtotal - effectiveDiscount);
 
   const branding = agency || await resolveCompanyBranding(owner?._id || owner);
-  const pickupDate = booking?.pickupDate || invoiceFields.pickupDate || invoiceFields.invoiceDate || new Date();
-  const returnDate = booking?.returnDate || invoiceFields.returnDate || invoiceFields.dueDate || pickupDate;
+  const invoiceKind = String(invoiceFields.invoiceKind || (booking?._id ? 'reservation' : 'free')).toLowerCase() === 'reservation'
+    ? 'reservation'
+    : 'free';
+  const showRentalSection = invoiceKind === 'reservation' || Boolean(booking?._id);
+  const reservationRef = String(
+    booking?.reservationId
+    || invoiceFields.reservationRef
+    || (showRentalSection ? '' : ''),
+  ).trim();
+
+  const pickupDate = showRentalSection
+    ? (booking?.pickupDate || invoiceFields.pickupDate || null)
+    : (invoiceFields.pickupDate || null);
+  const returnDate = showRentalSection
+    ? (booking?.returnDate || invoiceFields.returnDate || null)
+    : (invoiceFields.returnDate || null);
 
   const bookingLike = {
     ...(booking || {}),
     _id: booking?._id || null,
-    reservationId: booking?.reservationId || invoiceNumber,
+    reservationId: reservationRef || (showRentalSection ? invoiceNumber : ''),
     customerName: invoiceFields.customerName || booking?.customerName || '—',
     customerEmail: invoiceFields.customerEmail || booking?.customerEmail || '',
     customerPhone: invoiceFields.customerPhone || booking?.customerPhone || '',
     nationality: invoiceFields.customerNationality || booking?.nationality || '',
     dateOfBirth: invoiceFields.customerDob || booking?.dateOfBirth || '',
     customerAddress: invoiceFields.customerAddress || booking?.customerAddress || '',
-    pickupDate,
-    returnDate,
-    pickupLocation: booking?.pickupLocation || invoiceFields.pickupLocation || '',
-    returnLocation: booking?.returnLocation || invoiceFields.returnLocation || '',
+    pickupDate: pickupDate || invoiceFields.invoiceDate || new Date(),
+    returnDate: returnDate || pickupDate || invoiceFields.invoiceDate || new Date(),
+    pickupLocation: showRentalSection ? (booking?.pickupLocation || invoiceFields.pickupLocation || '') : '',
+    returnLocation: showRentalSection ? (booking?.returnLocation || invoiceFields.returnLocation || '') : '',
     price: totalAmount,
     paymentStatus,
     notes: invoiceFields.notes || booking?.notes || '',
     channel: booking?.channel || 'manual',
-    car: invoiceFields.vehicleBrand || invoiceFields.vehicleModel || invoiceFields.vehiclePlate || booking?.car
+    car: showRentalSection && (invoiceFields.vehicleBrand || invoiceFields.vehicleModel || invoiceFields.vehiclePlate || booking?.car)
       ? {
           ...(booking?.car || {}),
           brand: invoiceFields.vehicleBrand || booking?.car?.brand || '',
@@ -218,26 +243,33 @@ export const buildInvoiceSourceData = async ({
     includeCompanyStamp,
   });
 
-  const vehicleLabel = `${invoiceFields.vehicleBrand || booking?.car?.brand || ''} ${invoiceFields.vehicleModel || booking?.car?.model || ''}`.trim()
-    || variables.car_make
-    || 'Location de véhicule';
+  const vehicleLabel = `${invoiceFields.vehicleBrand || booking?.car?.brand || ''} ${invoiceFields.vehicleModel || booking?.car?.model || ''}`.trim();
+  const fallbackDescription = showRentalSection && vehicleLabel
+    ? `Location de véhicule — ${vehicleLabel}`
+    : 'Prestation';
 
   const taxId = String(invoiceFields.customerTaxId || '').trim();
   const paymentRef = String(invoiceFields.paymentReference || '').trim();
   const notesText = String(invoiceFields.notes || booking?.notes || '').trim();
   const paymentInstructions = String(branding.paymentInstructions || '').trim();
   const footerNote = String(branding.invoiceFooter || '').trim();
+  const logoHtml = branding.logoUrl
+    ? buildImageHtml(branding.logoUrl, branding.name || 'HDN CAR', 'max-height:64px;max-width:168px;')
+      .replace('<img ', '<img class="inv-logo" ')
+    : '';
+  const amountWords = amountToFrenchMadWords(totalAmount, { currency });
 
   return {
     ...variables,
+    reservation_id: reservationRef || '—',
     notes: notesText || '',
     payment_instructions: paymentInstructions,
     invoice_footer_note: footerNote,
     agency_address_line2: branding.addressLine2 || '',
-    company_logo_html: branding.logoUrl
-      ? buildImageHtml(branding.logoUrl, branding.name || 'HDN CAR', 'max-height:52px;max-width:140px;')
-        .replace('<img ', '<img class="inv-logo" ')
-      : '',
+    company_logo_html: logoHtml,
+    agency_brand_name_html: logoHtml
+      ? ''
+      : `<div class="inv-brand-name is-fallback">${branding.name || 'HDN CAR'}</div>`,
     customer_tax_id: taxId,
     customer_tax_id_line: taxId ? `Réf. / IF client : ${taxId}` : '',
     payment_reference_line: paymentRef ? ` · Réf. : ${paymentRef}` : '',
@@ -247,19 +279,33 @@ export const buildInvoiceSourceData = async ({
     invoice_payment_status: invoicePaymentStatusLabel(paymentStatus),
     invoice_payment_method: invoicePaymentMethodLabel(invoiceFields.paymentMethod || booking?.paymentMethod || 'cash'),
     invoice_payment_reference: paymentRef,
+    invoice_reservation_meta_html: buildInvoiceReservationMetaHtml(reservationRef),
+    invoice_rental_section_html: buildInvoiceRentalSectionHtml({
+      show: showRentalSection,
+      carMake: variables.car_make,
+      carRegistration: variables.car_registration,
+      rentalDays: variables.rental_days,
+      reservationId: reservationRef,
+      pickupDate: variables.pickup_date,
+      returnDate: variables.return_date,
+      pickupLocation: variables.pickup_location,
+      returnLocation: variables.return_location,
+    }),
     invoice_items_html: buildInvoiceItemsHtml(invoiceFields.items || [], {
       currency,
-      fallbackDescription: `Location de véhicule — ${vehicleLabel}`,
+      fallbackDescription,
       fallbackAmount: totalAmount,
     }),
     invoice_subtotal: formatInvoiceMoney(subtotal, currency),
-    invoice_discount: formatInvoiceMoney(discountAmount, currency),
+    invoice_discount: formatInvoiceMoney(effectiveDiscount, currency),
     invoice_total_ht: formatInvoiceMoney(totalHt, currency),
     invoice_tax: formatInvoiceMoney(taxAmount, currency),
     invoice_total_ttc: formatInvoiceMoney(totalAmount, currency),
     invoice_amount_paid: formatInvoiceMoney(amountPaid, currency),
     invoice_balance_due: formatInvoiceMoney(balanceDue, currency),
-    invoice_discount_row_html: buildInvoiceDiscountRowHtml(discountAmount, currency),
+    invoice_amount_in_words: amountWords.sentence,
+    invoice_amount_in_words_html: buildInvoiceAmountInWordsHtml(totalAmount, currency),
+    invoice_discount_row_html: buildInvoiceDiscountRowHtml(effectiveDiscount, currency),
     invoice_tax_row_html: buildInvoiceTaxRowHtml(taxAmount, currency),
     company_cachet_signature_html: buildCompanyCachetSignatureHtml(
       { ...branding, companySignatureUrl: templateWithBrand.companySignatureUrl },
@@ -273,18 +319,19 @@ export const buildInvoiceSourceData = async ({
       invoiceNumber,
       invoiceDate: invoiceFields.invoiceDate || null,
       dueDate: invoiceFields.dueDate || null,
+      invoiceKind,
       currency,
       customerName: invoiceFields.customerName || '',
       customerEmail: invoiceFields.customerEmail || '',
       customerPhone: invoiceFields.customerPhone || '',
       customerAddress: invoiceFields.customerAddress || '',
       customerTaxId: invoiceFields.customerTaxId || '',
-      vehicleBrand: invoiceFields.vehicleBrand || '',
-      vehicleModel: invoiceFields.vehicleModel || '',
-      vehicleYear: invoiceFields.vehicleYear || '',
-      vehiclePlate: invoiceFields.vehiclePlate || '',
-      vehicleType: invoiceFields.vehicleType || '',
-      reservationRef: invoiceFields.reservationRef || booking?.reservationId || '',
+      vehicleBrand: showRentalSection ? (invoiceFields.vehicleBrand || '') : '',
+      vehicleModel: showRentalSection ? (invoiceFields.vehicleModel || '') : '',
+      vehicleYear: showRentalSection ? (invoiceFields.vehicleYear || '') : '',
+      vehiclePlate: showRentalSection ? (invoiceFields.vehiclePlate || '') : '',
+      vehicleType: showRentalSection ? (invoiceFields.vehicleType || '') : '',
+      reservationRef: reservationRef || '',
       pickupDate: pickupDate || null,
       returnDate: returnDate || null,
       pickupLocation: bookingLike.pickupLocation || '',
@@ -296,6 +343,7 @@ export const buildInvoiceSourceData = async ({
       totalAmount,
       amountPaid,
       balanceDue,
+      amountInWords: amountWords.sentence,
       paymentStatus,
       paymentMethod: invoiceFields.paymentMethod || 'cash',
       paymentReference: invoiceFields.paymentReference || '',
@@ -304,6 +352,7 @@ export const buildInvoiceSourceData = async ({
     _meta: {
       includeCompanyStamp: Boolean(includeCompanyStamp),
       bookingId: booking?._id ? String(booking._id) : null,
+      invoiceKind,
       brandingName: branding.name,
     },
   };

@@ -1,5 +1,6 @@
 import { buildImageHtml } from './templateEngine.js';
 import { resolveCompanyStampAssetUrl } from './companyBrandingService.js';
+import { amountToFrenchMadWords } from '../utils/frenchAmountInWords.js';
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -55,27 +56,82 @@ export const formatInvoiceDate = (value) => {
 
 /**
  * Build invoice line-item table rows.
- * Falls back to a single rental line when items are empty but a total exists.
+ * Falls back to a single service line when items are empty but a total exists.
+ * Montant column shows gross (qty × unit); line discounts appear under the designation
+ * and roll into the Remise summary — never double-counted.
  */
-export const buildInvoiceItemsHtml = (items = [], { currency = 'MAD', fallbackDescription = 'Location de véhicule', fallbackAmount = 0 } = {}) => {
+export const buildInvoiceItemsHtml = (items = [], { currency = 'MAD', fallbackDescription = 'Prestation', fallbackAmount = 0 } = {}) => {
   const rows = Array.isArray(items) ? items.filter((item) => item && (item.description || item.unitPrice || item.quantity)) : [];
   const effective = rows.length
     ? rows
-    : [{ description: fallbackDescription, quantity: 1, unitPrice: fallbackAmount, taxRate: 0 }];
+    : [{ description: fallbackDescription, quantity: 1, unitPrice: fallbackAmount, taxRate: 0, discountAmount: 0 }];
 
   return effective
     .map((item) => {
       const qty = Number(item.quantity) || 0;
       const unit = Number(item.unitPrice) || 0;
-      const amount = qty * unit;
+      const gross = qty * unit;
+      const lineDiscount = Number(item.discountAmount) || 0;
+      const details = String(item.details || '').trim();
+      const discountNote = lineDiscount > 0
+        ? `<div class="inv-line-details">Remise ligne : − ${escapeHtml(money(lineDiscount, currency))}</div>`
+        : '';
+      const designation = [
+        escapeHtml(item.description || '—'),
+        details ? `<div class="inv-line-details">${escapeHtml(details)}</div>` : '',
+        discountNote,
+      ].join('');
       return `<tr>
-  <td class="inv-col-desc">${escapeHtml(item.description || '—')}</td>
+  <td class="inv-col-desc">${designation}</td>
   <td class="inv-col-qty">${escapeHtml(String(qty))}</td>
   <td class="inv-col-unit">${escapeHtml(money(unit, currency))}</td>
-  <td class="inv-col-amount">${escapeHtml(money(amount, currency))}</td>
+  <td class="inv-col-amount">${escapeHtml(money(gross, currency))}</td>
 </tr>`;
     })
     .join('\n');
+};
+
+/** Rental / vehicle block — omitted entirely for free invoices. */
+export const buildInvoiceRentalSectionHtml = ({
+  show = false,
+  carMake = '',
+  carRegistration = '',
+  rentalDays = '',
+  reservationId = '',
+  pickupDate = '',
+  returnDate = '',
+  pickupLocation = '',
+  returnLocation = '',
+} = {}) => {
+  if (!show) return '';
+  const daysLabel = rentalDays ? `${escapeHtml(String(rentalDays))} jour(s)` : '—';
+  return `<div class="inv-rental">
+  <p class="inv-section-label">Détails de la location</p>
+  <div class="inv-rental-grid">
+    <div class="inv-rental-item"><span>Véhicule</span><strong>${escapeHtml(carMake || '—')}</strong></div>
+    <div class="inv-rental-item"><span>Immatriculation</span><strong>${escapeHtml(carRegistration || '—')}</strong></div>
+    <div class="inv-rental-item"><span>Durée</span><strong>${daysLabel}</strong></div>
+    <div class="inv-rental-item"><span>Réservation</span><strong>${escapeHtml(reservationId || '—')}</strong></div>
+    <div class="inv-rental-item"><span>Départ</span><strong>${escapeHtml(pickupDate || '—')}</strong></div>
+    <div class="inv-rental-item"><span>Retour</span><strong>${escapeHtml(returnDate || '—')}</strong></div>
+    <div class="inv-rental-item"><span>Lieu de départ</span><strong>${escapeHtml(pickupLocation || '—')}</strong></div>
+    <div class="inv-rental-item"><span>Lieu de retour</span><strong>${escapeHtml(returnLocation || '—')}</strong></div>
+  </div>
+</div>`;
+};
+
+export const buildInvoiceReservationMetaHtml = (reservationId) => {
+  const id = String(reservationId || '').trim();
+  if (!id || id === '—' || id.toUpperCase() === 'PREVIEW') return '';
+  return `<div><span>Réservation</span><strong>${escapeHtml(id)}</strong></div>`;
+};
+
+export const buildInvoiceAmountInWordsHtml = (totalAmount, currency = 'MAD') => {
+  const { sentence } = amountToFrenchMadWords(totalAmount, { currency });
+  return `<div class="inv-amount-words">
+  <p class="inv-section-label">Arrêtée à</p>
+  <p class="inv-amount-words-text">${escapeHtml(sentence)}</p>
+</div>`;
 };
 
 export const buildInvoiceDiscountRowHtml = (discountAmount, currency = 'MAD') => {
@@ -156,6 +212,9 @@ export default {
   invoicePaymentStatusLabel,
   invoicePaymentMethodLabel,
   buildInvoiceItemsHtml,
+  buildInvoiceRentalSectionHtml,
+  buildInvoiceReservationMetaHtml,
+  buildInvoiceAmountInWordsHtml,
   buildInvoiceDiscountRowHtml,
   buildInvoiceTaxRowHtml,
   buildCompanyCachetSignatureHtml,

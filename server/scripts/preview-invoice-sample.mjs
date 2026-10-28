@@ -1,6 +1,5 @@
 /**
- * Offline visual QA sample for the premium invoice template (no DB).
- * Writes HTML to uploads/invoice-preview-sample.html
+ * Offline visual QA for free + reservation invoice templates (no DB).
  */
 import fs from 'fs';
 import path from 'path';
@@ -15,37 +14,45 @@ import {
   buildInvoiceItemsHtml,
   buildInvoiceDiscountRowHtml,
   buildInvoiceTaxRowHtml,
+  buildInvoiceRentalSectionHtml,
+  buildInvoiceReservationMetaHtml,
+  buildInvoiceAmountInWordsHtml,
   formatInvoiceMoney,
   formatInvoiceDate,
   buildCompanyCachetSignatureHtml,
 } from '../services/invoiceTemplateHelpers.js';
-import { OFFICIAL_COMPANY_PROFILE } from '../services/companyBrandingService.js';
+import {
+  OFFICIAL_COMPANY_PROFILE,
+  resolveDefaultCompanyLogoDataUri,
+} from '../services/companyBrandingService.js';
+import { buildImageHtml } from '../services/templateEngine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-
-const currency = 'MAD';
-const items = [
-  { description: 'Location — Mercedes-Benz Classe C AMG Line', quantity: 3, unitPrice: 850, taxRate: 0 },
-  { description: 'Frais de livraison (Aéroport Marrakech Menara)', quantity: 1, unitPrice: 250, taxRate: 0 },
-  { description: 'Conducteur supplémentaire — assurance tous risques', quantity: 1, unitPrice: 120, taxRate: 0 },
-  {
-    description: 'Service optionnel longue description pour tester le retour à la ligne sur une désignation étendue sans casser le tableau financier',
-    quantity: 1,
-    unitPrice: 75,
-    taxRate: 0,
-  },
-];
-const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-const discount = 150;
-const tax = 0;
-const total = subtotal - discount + tax;
-const paid = 1000;
-const due = Math.max(0, total - paid);
 const branding = { ...OFFICIAL_COMPANY_PROFILE };
+const logoData = resolveDefaultCompanyLogoDataUri();
+const logoHtml = logoData
+  ? buildImageHtml(logoData, 'HDN CAR', 'max-height:64px;max-width:168px;').replace('<img ', '<img class="inv-logo" ')
+  : '';
 
-const vars = {
-  company_logo_html: '',
+const fill = (html, vars) => html.replace(/\{\{(\w+)\}\}/g, (_, key) => (vars[key] != null ? String(vars[key]) : ''));
+
+const renderDoc = (vars) => `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"/><title>${vars.title}</title>
+<style>
+body{margin:0;background:#ebe4de}
+.doc-page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;box-shadow:0 12px 40px rgba(0,0,0,.12);padding:12mm}
+${DEFAULT_INVOICE_CUSTOM_CSS}
+</style></head><body>
+<div class="doc-page">
+<header class="doc-header">${fill(DEFAULT_INVOICE_HEADER, vars)}</header>
+<main>${fill(DEFAULT_INVOICE_BODY, vars)}</main>
+<footer class="doc-footer">${fill(DEFAULT_INVOICE_FOOTER, vars)}</footer>
+</div></body></html>`;
+
+const base = {
+  company_logo_html: logoHtml,
+  agency_brand_name_html: logoHtml ? '' : '<div class="inv-brand-name is-fallback">HDN CAR</div>',
   agency_name: branding.name,
   agency_address_line1: branding.addressLine1,
   agency_address_line2: branding.addressLine2,
@@ -55,69 +62,92 @@ const vars = {
   agency_ice: branding.ice,
   agency_if: branding.if,
   agency_rc: branding.rc,
-  invoice_number: 'INV-2026-0042',
   invoice_date: formatInvoiceDate(new Date()),
-  reservation_id: 'RES-HDN-88421',
-  invoice_payment_status: 'Partiel',
+  invoice_payment_status: 'En attente',
+  invoice_payment_method: 'Espèces',
+  payment_reference_line: '',
+  payment_instructions: '',
+  notes: '',
+  invoice_footer_note: '',
+  company_cachet_signature_html: buildCompanyCachetSignatureHtml(branding, { includeCompanyStamp: true }),
+};
+
+const freeItems = [
+  { description: 'Entretien véhicule — révision 20 000 km', details: 'Huile + filtres', quantity: 1, unitPrice: 850, discountAmount: 0 },
+  { description: 'Kit accessoires GPS', quantity: 2, unitPrice: 200, discountAmount: 50 },
+];
+const freeSub = 850 + 400;
+const freeDisc = 50;
+const freeTotal = freeSub - freeDisc;
+
+const freeVars = {
+  ...base,
+  title: 'Facture libre sample',
+  invoice_number: 'INV-FREE-001',
+  customer_name: 'Cabinet Notarial El Amrani',
+  customer_address: 'Avenue Hassan II, Safi',
+  customer_phone: '+212 524 000 000',
+  customer_email: 'contact@notaire-elamrani.ma',
+  customer_tax_id_line: '',
+  invoice_reservation_meta_html: '',
+  invoice_rental_section_html: '',
+  invoice_items_html: buildInvoiceItemsHtml(freeItems, { currency: 'MAD' }),
+  invoice_subtotal: formatInvoiceMoney(freeSub, 'MAD'),
+  invoice_discount_row_html: buildInvoiceDiscountRowHtml(freeDisc, 'MAD'),
+  invoice_total_ht: formatInvoiceMoney(freeTotal, 'MAD'),
+  invoice_tax_row_html: '',
+  invoice_total_ttc: formatInvoiceMoney(freeTotal, 'MAD'),
+  invoice_amount_paid: formatInvoiceMoney(0, 'MAD'),
+  invoice_balance_due: formatInvoiceMoney(freeTotal, 'MAD'),
+  invoice_amount_in_words_html: buildInvoiceAmountInWordsHtml(freeTotal, 'MAD'),
+};
+
+const rentalVars = {
+  ...base,
+  title: 'Facture réservation sample',
+  invoice_number: 'INV-2026-0042',
+  invoice_payment_status: 'Partiellement payée',
+  invoice_payment_method: 'Virement',
+  payment_reference_line: ' · Réf. : VIR-99102',
   customer_name: 'Société Atlas Voyages & Événements SARL',
   customer_address: '12 Boulevard Mohammed V, Marrakech',
   customer_phone: '+212 600 000 000',
   customer_email: 'facturation@atlas-voyages.ma',
   customer_tax_id_line: 'Réf. / IF client : 12345678',
-  car_make: 'Mercedes-Benz Classe C',
-  car_registration: '12345-A-64',
-  rental_days: '3',
-  pickup_date: '28/10/2026 10:00',
-  return_date: '31/10/2026 10:00',
-  pickup_location: 'Aéroport Marrakech Menara',
-  return_location: 'Agence HDN CAR Safi',
-  invoice_items_html: buildInvoiceItemsHtml(items, { currency }),
-  notes: 'Paiement sous 7 jours. Caution séparée non incluse dans cette facture.',
-  payment_instructions: branding.paymentInstructions || 'Virement bancaire ou espèces à l’agence.',
-  invoice_payment_method: 'Virement',
-  payment_reference_line: ' · Réf. : VIR-99102',
-  invoice_subtotal: formatInvoiceMoney(subtotal, currency),
-  invoice_discount_row_html: buildInvoiceDiscountRowHtml(discount, currency),
-  invoice_total_ht: formatInvoiceMoney(subtotal - discount, currency),
-  invoice_tax_row_html: buildInvoiceTaxRowHtml(tax, currency),
-  invoice_total_ttc: formatInvoiceMoney(total, currency),
-  invoice_amount_paid: formatInvoiceMoney(paid, currency),
-  invoice_balance_due: formatInvoiceMoney(due, currency),
-  company_cachet_signature_html: buildCompanyCachetSignatureHtml(branding, { includeCompanyStamp: true }),
-  invoice_footer_note: branding.invoiceFooter || '',
+  invoice_reservation_meta_html: buildInvoiceReservationMetaHtml('RES-HDN-88421'),
+  invoice_rental_section_html: buildInvoiceRentalSectionHtml({
+    show: true,
+    carMake: 'Mercedes-Benz Classe C',
+    carRegistration: '12345-A-64',
+    rentalDays: '3',
+    reservationId: 'RES-HDN-88421',
+    pickupDate: '28/10/2026 10:00',
+    returnDate: '31/10/2026 10:00',
+    pickupLocation: 'Aéroport Marrakech Menara',
+    returnLocation: 'Agence HDN CAR Safi',
+  }),
+  invoice_items_html: buildInvoiceItemsHtml([
+    { description: 'Location — Mercedes-Benz Classe C', quantity: 3, unitPrice: 850 },
+    { description: 'Frais de livraison', quantity: 1, unitPrice: 250 },
+  ], { currency: 'MAD' }),
+  invoice_subtotal: formatInvoiceMoney(2800, 'MAD'),
+  invoice_discount_row_html: buildInvoiceDiscountRowHtml(150, 'MAD'),
+  invoice_total_ht: formatInvoiceMoney(2650, 'MAD'),
+  invoice_tax_row_html: buildInvoiceTaxRowHtml(0, 'MAD'),
+  invoice_total_ttc: formatInvoiceMoney(2650, 'MAD'),
+  invoice_amount_paid: formatInvoiceMoney(1000, 'MAD'),
+  invoice_balance_due: formatInvoiceMoney(1650, 'MAD'),
+  invoice_amount_in_words_html: buildInvoiceAmountInWordsHtml(2650, 'MAD'),
+  notes: 'Caution séparée non incluse.',
 };
-
-const fill = (html) => html.replace(/\{\{(\w+)\}\}/g, (_, key) => (vars[key] != null ? String(vars[key]) : ''));
-
-const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8"/>
-<title>Facture sample — HDN CAR</title>
-<style>
-  body { margin: 0; background: #ebe4de; }
-  .doc-page {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 16px auto;
-    background: #fff;
-    box-shadow: 0 12px 40px rgba(0,0,0,.12);
-  }
-  ${DEFAULT_INVOICE_CUSTOM_CSS}
-</style>
-</head>
-<body>
-  <div class="doc-page">
-    <header class="doc-header">${fill(DEFAULT_INVOICE_HEADER)}</header>
-    <main>${fill(DEFAULT_INVOICE_BODY)}</main>
-    <footer class="doc-footer">${fill(DEFAULT_INVOICE_FOOTER)}</footer>
-  </div>
-</body>
-</html>`;
 
 const outDir = path.join(root, 'uploads');
 fs.mkdirSync(outDir, { recursive: true });
-const out = path.join(outDir, 'invoice-preview-sample.html');
-fs.writeFileSync(out, html, 'utf8');
-console.log('Wrote', out);
-console.log('Totals', { subtotal, discount, total, paid, due });
+fs.writeFileSync(path.join(outDir, 'invoice-preview-free.html'), renderDoc(freeVars), 'utf8');
+fs.writeFileSync(path.join(outDir, 'invoice-preview-reservation.html'), renderDoc(rentalVars), 'utf8');
+console.log('Wrote free + reservation samples with logo=', Boolean(logoHtml));
+console.log(amountSentence(freeTotal));
+
+function amountSentence(n) {
+  return buildInvoiceAmountInWordsHtml(n, 'MAD').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}

@@ -18,8 +18,17 @@ const formatDateTime = (value) => {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString()
 }
 
-const createEmptyItem = () => ({ description: '', quantity: 1, unitPrice: '', taxRate: 0 })
+const createEmptyItem = () => ({
+  description: '',
+  details: '',
+  quantity: 1,
+  unitPrice: '',
+  discountAmount: '',
+  taxRate: 0,
+})
 const createEmptyForm = () => ({
+  invoiceKind: 'free',
+  bookingId: '',
   invoiceNumber: '',
   invoiceDate: new Date().toISOString().slice(0, 10),
   dueDate: '',
@@ -170,7 +179,10 @@ const Invoices = () => {
       return d.toISOString().slice(0, 10)
     }
     const itemsSource = (invoice.items?.length ? invoice.items : inv.items) || []
+    const kind = inv.invoiceKind || sd._meta?.invoiceKind || (invoice.booking ? 'reservation' : 'free')
     return {
+      invoiceKind: kind === 'reservation' ? 'reservation' : 'free',
+      bookingId: invoice.booking?._id || invoice.booking || '',
       invoiceNumber: pick(invoice.invoiceNumber, inv.invoiceNumber, sd.contract_number),
       invoiceDate: toDateInput(invoice.invoiceDate || inv.invoiceDate),
       dueDate: toDateInput(invoice.dueDate || inv.dueDate),
@@ -192,8 +204,10 @@ const Invoices = () => {
       items: itemsSource.length
         ? itemsSource.map((item) => ({
             description: item.description || '',
+            details: item.details || '',
             quantity: item.quantity ?? 1,
             unitPrice: item.unitPrice ?? '',
+            discountAmount: item.discountAmount ?? '',
             taxRate: item.taxRate ?? 0,
           }))
         : [createEmptyItem()],
@@ -470,6 +484,8 @@ const Invoices = () => {
     setCreating(true)
     try {
       const { data } = await axios.post('/api/invoices/manual', {
+        invoiceKind: form.invoiceKind === 'reservation' ? 'reservation' : 'free',
+        bookingId: form.bookingId || undefined,
         invoiceNumber: form.invoiceNumber || '',
         invoiceDate: form.invoiceDate || new Date().toISOString().slice(0, 10),
         dueDate: form.dueDate || '',

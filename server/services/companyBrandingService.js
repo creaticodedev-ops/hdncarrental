@@ -4,6 +4,13 @@
  * AgencySettings.companyProfile may override any field without inventing new IDs.
  */
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { fileToDataUri } from '../utils/templateAssets.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export const OFFICIAL_COMPANY_PROFILE = Object.freeze({
   name: 'HDN CAR',
   addressLine1: 'AB IBN BATTOUTA, QUARTIER AZIB DERAI',
@@ -22,6 +29,30 @@ export const OFFICIAL_COMPANY_PROFILE = Object.freeze({
   signatureUrl: '',
   combinedStampSignatureUrl: '',
 });
+
+/** Bundled HDN CAR logo candidates (server-side, Puppeteer-safe). */
+const DEFAULT_LOGO_CANDIDATES = [
+  path.join(__dirname, '..', 'assets', 'branding', 'hdn-car-logo.webp'),
+  path.join(__dirname, '..', 'assets', 'branding', 'hdn-car-logo.png'),
+  path.join(__dirname, '..', '..', 'client', 'src', 'assets', 'logo.webp'),
+  path.join(__dirname, '..', '..', 'client', 'public', 'images', 'logo.png'),
+];
+
+let cachedDefaultLogoDataUri = null;
+
+/** Embed the official project logo as a data URI for PDF/preview reliability. */
+export const resolveDefaultCompanyLogoDataUri = () => {
+  if (cachedDefaultLogoDataUri) return cachedDefaultLogoDataUri;
+  for (const candidate of DEFAULT_LOGO_CANDIDATES) {
+    if (!fs.existsSync(candidate)) continue;
+    const dataUri = fileToDataUri(candidate);
+    if (dataUri) {
+      cachedDefaultLogoDataUri = dataUri;
+      return dataUri;
+    }
+  }
+  return '';
+};
 
 const trim = (value) => {
   if (value === undefined || value === null) return '';
@@ -85,7 +116,7 @@ export const companyProfileToAgency = (profile) => {
     accentColor: p.accentColor,
     paymentInstructions: p.paymentInstructions,
     invoiceFooter: p.invoiceFooter,
-    logoUrl: p.logoUrl,
+    logoUrl: p.logoUrl || resolveDefaultCompanyLogoDataUri(),
     stampUrl: p.stampUrl,
     signatureUrl: p.signatureUrl,
     combinedStampSignatureUrl: p.combinedStampSignatureUrl,
@@ -139,6 +170,7 @@ export const resolveCompanyStampAssetUrl = (profile) => {
 
 export default {
   OFFICIAL_COMPANY_PROFILE,
+  resolveDefaultCompanyLogoDataUri,
   normalizeCompanyProfile,
   companyProfileToAgency,
   applyCompanyProfilePatch,

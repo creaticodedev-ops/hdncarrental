@@ -159,8 +159,10 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
   }
   .inv-brand-row { display: flex; align-items: flex-start; gap: 14px; }
   .inv-logo {
-    max-height: 52px;
-    max-width: 140px;
+    max-height: 64px;
+    max-width: 168px;
+    width: auto;
+    height: auto;
     object-fit: contain;
     display: block;
   }
@@ -171,6 +173,29 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
     letter-spacing: 0.04em;
     color: #8F1F1F;
     line-height: 1.05;
+  }
+  .inv-brand-name.is-fallback { margin-bottom: 2px; }
+  .inv-line-details {
+    margin-top: 3px;
+    font-size: 8pt;
+    color: #6b6560;
+    line-height: 1.35;
+    font-weight: 400;
+  }
+  .inv-amount-words {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f7f3f0;
+    border: 1px solid #e8e2dc;
+  }
+  .inv-amount-words-text {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 9.5pt;
+    font-style: italic;
+    color: #1a1614;
+    line-height: 1.45;
   }
   .inv-brand-meta {
     margin-top: 6px;
@@ -424,7 +449,7 @@ export const DEFAULT_INVOICE_HEADER = `
       <div class="inv-brand-row">
         {{company_logo_html}}
         <div>
-          <div class="inv-brand-name">{{agency_name}}</div>
+          {{agency_brand_name_html}}
           <div class="inv-brand-meta">
             {{agency_address_line1}}<br/>
             {{agency_address_line2}}<br/>
@@ -439,7 +464,7 @@ export const DEFAULT_INVOICE_HEADER = `
       <div class="inv-doc-meta">
         <div><span>N°</span><strong>{{invoice_number}}</strong></div>
         <div><span>Date</span><strong>{{invoice_date}}</strong></div>
-        <div><span>Réservation</span><strong>{{reservation_id}}</strong></div>
+        {{invoice_reservation_meta_html}}
       </div>
       <div class="inv-status">{{invoice_payment_status}}</div>
     </div>
@@ -462,19 +487,7 @@ export const DEFAULT_INVOICE_BODY = `
     </div>
   </div>
 
-  <div class="inv-rental">
-    <p class="inv-section-label">Détails de la location</p>
-    <div class="inv-rental-grid">
-      <div class="inv-rental-item"><span>Véhicule</span><strong>{{car_make}}</strong></div>
-      <div class="inv-rental-item"><span>Immatriculation</span><strong>{{car_registration}}</strong></div>
-      <div class="inv-rental-item"><span>Durée</span><strong>{{rental_days}} jour(s)</strong></div>
-      <div class="inv-rental-item"><span>Réservation</span><strong>{{reservation_id}}</strong></div>
-      <div class="inv-rental-item"><span>Départ</span><strong>{{pickup_date}}</strong></div>
-      <div class="inv-rental-item"><span>Retour</span><strong>{{return_date}}</strong></div>
-      <div class="inv-rental-item"><span>Lieu de départ</span><strong>{{pickup_location}}</strong></div>
-      <div class="inv-rental-item"><span>Lieu de retour</span><strong>{{return_location}}</strong></div>
-    </div>
-  </div>
+  {{invoice_rental_section_html}}
 
   <div class="inv-table-wrap">
     <table class="inv-table">
@@ -498,6 +511,7 @@ export const DEFAULT_INVOICE_BODY = `
       <p>{{notes}}</p>
       <p>{{payment_instructions}}</p>
       <p>Mode de paiement : <strong>{{invoice_payment_method}}</strong>{{payment_reference_line}}</p>
+      {{invoice_amount_in_words_html}}
     </div>
     <div class="inv-summary">
       <div class="inv-sum-row"><span>Sous-total</span><strong>{{invoice_subtotal}}</strong></div>

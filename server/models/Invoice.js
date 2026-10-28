@@ -3,8 +3,10 @@ import { documentSectionsSchema, templateSnapshotSchema } from './Contract.js';
 
 const invoiceItemSchema = new mongoose.Schema({
   description: { type: String, default: '' },
+  details: { type: String, default: '' },
   quantity: { type: Number, default: 1 },
   unitPrice: { type: Number, default: 0 },
+  discountAmount: { type: Number, default: 0 },
   taxRate: { type: Number, default: 0 },
 }, { _id: false });
 

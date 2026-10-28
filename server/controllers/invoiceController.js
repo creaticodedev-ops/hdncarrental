@@ -39,25 +39,41 @@ const normalizeInvoiceItems = (items = []) =>
   (Array.isArray(items) ? items : [])
     .map((item) => ({
       description: String(item.description || '').trim(),
+      details: String(item.details || '').trim(),
       quantity: Number(item.quantity || 1),
       unitPrice: Number(item.unitPrice || 0),
+      discountAmount: Math.max(0, Number(item.discountAmount || 0) || 0),
       taxRate: Number(item.taxRate || 0),
     }))
     .filter((item) => item.description || item.quantity || item.unitPrice);
 
+const lineGross = (item) => Math.max(0, (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0));
+const lineNet = (item) => Math.max(0, lineGross(item) - (Number(item.discountAmount) || 0));
+
 const computeInvoiceTotals = ({ items, discountAmount = 0, taxAmount: suppliedTaxAmount }) => {
   const normalizedItems = normalizeInvoiceItems(items);
-  const subtotal = normalizedItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const subtotal = normalizedItems.reduce((sum, item) => sum + lineGross(item), 0);
+  const lineDiscounts = normalizedItems.reduce((sum, item) => sum + (Number(item.discountAmount) || 0), 0);
+  const globalDiscount = Math.max(0, Number(discountAmount || 0) || 0);
+  const effectiveDiscount = globalDiscount + lineDiscounts;
   const computedTaxAmount = Number(
     suppliedTaxAmount ??
       normalizedItems.reduce(
-        (sum, item) => sum + ((item.quantity * item.unitPrice) * (item.taxRate || 0) / 100),
+        (sum, item) => sum + (lineNet(item) * (item.taxRate || 0) / 100),
         0,
       ),
   );
-  const discount = Number(discountAmount || 0);
-  const totalAmount = Math.max(0, subtotal + computedTaxAmount - discount);
-  return { normalizedItems, subtotal, taxAmount: computedTaxAmount, discountAmount: discount, totalAmount };
+  const totalAmount = Math.max(0, subtotal - effectiveDiscount + computedTaxAmount);
+  return {
+    normalizedItems,
+    subtotal,
+    taxAmount: computedTaxAmount,
+    /** Invoice-level discount only — line discounts stay on items */
+    discountAmount: globalDiscount,
+    /** Combined discount for PDF / UI display */
+    effectiveDiscount,
+    totalAmount,
+  };
 };
 
 const invoiceFieldsFromDoc = (invoice) => {
@@ -173,7 +189,7 @@ const generateInvoiceDocument = async ({ owner, invoiceNumber, invoiceData, incl
   const bookingLike = {
     ...(booking || {}),
     _id: booking?._id || null,
-    reservationId: booking?.reservationId || invoiceData.reservationRef || invoiceNumber,
+    reservationId: booking?.reservationId || invoiceData.reservationRef || '',
     customerName: invoiceData.customerName || booking?.customerName || '—',
     customerEmail: invoiceData.customerEmail || booking?.customerEmail || '',
     customerPhone: invoiceData.customerPhone || booking?.customerPhone || '',
@@ -500,6 +516,8 @@ export const createManualInvoice = async (req, res) => {
       pickupLocation,
       returnLocation,
       reservationRef,
+      bookingId,
+      invoiceKind: rawKind = 'free',
       items = [],
       discountAmount = 0,
       taxAmount: suppliedTaxAmount,
@@ -516,7 +534,16 @@ export const createManualInvoice = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Customer name is required' });
     }
 
-    const { normalizedItems, subtotal, taxAmount, discountAmount: discount, totalAmount } = computeInvoiceTotals({
+    const invoiceKind = String(rawKind || 'free').toLowerCase() === 'reservation' ? 'reservation' : 'free';
+    let linkedBooking = null;
+    if (invoiceKind === 'reservation' && bookingId) {
+      linkedBooking = await Booking.findOne({ _id: bookingId, owner: req.user._id }).populate('car');
+      if (!linkedBooking) {
+        return res.status(404).json({ success: false, message: 'Booking not found' });
+      }
+    }
+
+    const { normalizedItems, subtotal, taxAmount, discountAmount: discount, effectiveDiscount, totalAmount } = computeInvoiceTotals({
       items,
       discountAmount,
       taxAmount: suppliedTaxAmount,
@@ -529,10 +556,11 @@ export const createManualInvoice = async (req, res) => {
     const finalInvoiceNumber = buildInvoiceNumber(null, invoiceNumber);
     const invoiceDateValue = invoiceDate ? new Date(invoiceDate) : new Date();
     const dueDateValue = dueDate ? new Date(dueDate) : null;
-    const itemsSummary = normalizedItems.map((item) => `${item.description || 'Item'} x${item.quantity || 1} @ ${currency} ${Number(item.unitPrice || 0).toFixed(2)}`).join('\n');
-    const finalNotes = [notes, itemsSummary].filter(Boolean).join('\n\n');
+    const isReservation = invoiceKind === 'reservation';
+    const finalNotes = String(notes || '').trim();
 
     const invoiceData = {
+      invoiceKind,
       customerName,
       customerEmail,
       customerPhone,
@@ -542,11 +570,13 @@ export const createManualInvoice = async (req, res) => {
       customerDob: '',
       invoiceDate: invoiceDateValue,
       dueDate: dueDateValue,
-      pickupDate: pickupDate || invoiceDateValue,
-      returnDate: returnDate || dueDateValue || invoiceDateValue,
-      pickupLocation: pickupLocation || '',
-      returnLocation: returnLocation || '',
-      reservationRef: reservationRef || '',
+      pickupDate: isReservation ? (pickupDate || linkedBooking?.pickupDate || '') : '',
+      returnDate: isReservation ? (returnDate || linkedBooking?.returnDate || '') : '',
+      pickupLocation: isReservation ? (pickupLocation || linkedBooking?.pickupLocation || '') : '',
+      returnLocation: isReservation ? (returnLocation || linkedBooking?.returnLocation || '') : '',
+      reservationRef: isReservation
+        ? (reservationRef || linkedBooking?.reservationId || '')
+        : '',
       subtotal,
       discountAmount: discount,
       taxAmount,
@@ -556,13 +586,14 @@ export const createManualInvoice = async (req, res) => {
       paymentMethod,
       paymentReference,
       notes: finalNotes,
-      vehicleBrand,
-      vehicleModel,
-      vehicleYear,
-      vehiclePlate,
-      vehicleType,
+      vehicleBrand: isReservation ? vehicleBrand : '',
+      vehicleModel: isReservation ? vehicleModel : '',
+      vehicleYear: isReservation ? vehicleYear : '',
+      vehiclePlate: isReservation ? vehiclePlate : '',
+      vehicleType: isReservation ? vehicleType : '',
       currency,
       items: normalizedItems,
+      effectiveDiscount,
     };
 
     const generated = await generateInvoiceDocument({
@@ -570,11 +601,12 @@ export const createManualInvoice = async (req, res) => {
       invoiceNumber: finalInvoiceNumber,
       invoiceData,
       includeCompanyStamp,
+      booking: linkedBooking,
     });
 
     const invoice = await Invoice.create({
       owner: req.user._id,
-      booking: null,
+      booking: linkedBooking?._id || null,
       template: generated.template._id,
       source: 'manual',
       invoiceNumber: finalInvoiceNumber,
@@ -586,11 +618,11 @@ export const createManualInvoice = async (req, res) => {
       customerPhone,
       customerAddress,
       customerTaxId,
-      vehicleBrand,
-      vehicleModel,
-      vehicleYear,
-      vehiclePlate,
-      vehicleType,
+      vehicleBrand: invoiceData.vehicleBrand,
+      vehicleModel: invoiceData.vehicleModel,
+      vehicleYear: invoiceData.vehicleYear,
+      vehiclePlate: invoiceData.vehiclePlate,
+      vehicleType: invoiceData.vehicleType,
       items: normalizedItems,
       subtotal,
       discountAmount: discount,
@@ -1061,9 +1093,16 @@ export const previewInvoiceHtml = async (req, res) => {
     const sections = cloneSectionsFromTemplate(template, branding);
     const invoiceNumber = buildInvoiceNumber(null, body.invoiceNumber || 'PREVIEW');
 
+    const invoiceKind = String(body.invoiceKind || 'free').toLowerCase() === 'reservation' ? 'reservation' : 'free';
+    let booking = null;
+    if (invoiceKind === 'reservation' && body.bookingId) {
+      booking = await Booking.findOne({ _id: body.bookingId, owner: req.user._id }).populate('car').lean();
+    }
+
     const sourceData = await buildInvoiceSourceData({
       invoiceFields: {
         invoiceNumber,
+        invoiceKind,
         invoiceDate: body.invoiceDate || new Date().toISOString().slice(0, 10),
         dueDate: body.dueDate || '',
         customerName: body.customerName || '—',
@@ -1076,14 +1115,15 @@ export const previewInvoiceHtml = async (req, res) => {
         vehicleYear: body.vehicleYear || '',
         vehiclePlate: body.vehiclePlate || '',
         vehicleType: body.vehicleType || '',
-        pickupDate: body.pickupDate || body.invoiceDate,
-        returnDate: body.returnDate || body.dueDate,
+        pickupDate: body.pickupDate || '',
+        returnDate: body.returnDate || '',
         pickupLocation: body.pickupLocation || '',
         returnLocation: body.returnLocation || '',
         reservationRef: body.reservationRef || '',
         items: normalizedItems,
         subtotal,
         discountAmount,
+        effectiveDiscount: body.effectiveDiscount,
         taxAmount,
         totalAmount,
         amountPaid: body.amountPaid,
@@ -1093,6 +1133,7 @@ export const previewInvoiceHtml = async (req, res) => {
         notes: body.notes || '',
         currency: body.currency || 'MAD',
       },
+      booking,
       owner: req.user,
       template: { ...template, ...sections },
       includeCompanyStamp: body.includeCompanyStamp !== false,
@@ -1106,7 +1147,11 @@ export const previewInvoiceHtml = async (req, res) => {
       includeCompanyStamp: body.includeCompanyStamp !== false,
     });
 
-    res.json({ success: true, html, totals: { subtotal, taxAmount, discountAmount, totalAmount } });
+    res.json({
+      success: true,
+      html,
+      totals: { subtotal, taxAmount, discountAmount, totalAmount },
+    });
   } catch (error) {
     console.error('[previewInvoiceHtml]', error.message);
     res.status(500).json({ success: false, message: error.message || 'Failed to preview invoice' });
