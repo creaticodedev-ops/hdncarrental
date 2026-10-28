@@ -278,7 +278,7 @@ export const buildInvoiceSourceData = async ({
     invoice_due_date: invoiceFields.dueDate ? formatInvoiceDate(invoiceFields.dueDate) : '—',
     invoice_payment_status: invoicePaymentStatusLabel(paymentStatus),
     invoice_payment_method: invoicePaymentMethodLabel(invoiceFields.paymentMethod || booking?.paymentMethod || 'cash'),
-    invoice_payment_reference: paymentRef,
+    invoice_payment_reference: paymentRef || '—',
     invoice_reservation_meta_html: buildInvoiceReservationMetaHtml(reservationRef),
     invoice_rental_section_html: buildInvoiceRentalSectionHtml({
       show: showRentalSection,

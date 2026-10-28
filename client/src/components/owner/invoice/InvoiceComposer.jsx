@@ -26,6 +26,16 @@ const Field = ({ label, children, className = '', wide = false }) => (
   </div>
 )
 
+const Section = ({ number, title, children }) => (
+  <section className="invw-section">
+    <h3 className="invw-section-title">
+      {number != null ? <span className="invw-section-num" aria-hidden="true">{number}</span> : null}
+      {title}
+    </h3>
+    {children}
+  </section>
+)
+
 /**
  * Premium invoice creation / edit composer with live server-rendered preview.
  * Supports Facture libre (default) and Facture liée à une réservation.
@@ -42,6 +52,7 @@ const InvoiceComposer = ({
   variant = 'embedded',
   mobilePane = 'edit',
   onRequestPreviewPane,
+  hideModeToggle = false,
 }) => {
   const { axios, currency: appCurrency } = useAppContext()
   const { t } = useI18n()
@@ -260,34 +271,34 @@ const InvoiceComposer = ({
     <div className="invw-frame">
       <div className={`invw invw-layout is-${variant}`} data-mobile-pane={mobilePane}>
         <form id={formId} className="invw-form" onSubmit={onSubmit}>
-          <section className="invw-section">
-            <h3 className="invw-section-title">{t('admin.invoices.sectionMode')}</h3>
-            <div className="invw-mode-toggle" role="tablist" aria-label={t('admin.invoices.sectionMode')}>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={invoiceKind === 'free'}
-                className={invoiceKind === 'free' ? 'is-active' : ''}
-                onClick={() => setKind('free')}
-              >
-                <strong>{t('admin.invoices.modeFree')}</strong>
-                <span>{t('admin.invoices.modeFreeHint')}</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={invoiceKind === 'reservation'}
-                className={invoiceKind === 'reservation' ? 'is-active' : ''}
-                onClick={() => setKind('reservation')}
-              >
-                <strong>{t('admin.invoices.modeReservation')}</strong>
-                <span>{t('admin.invoices.modeReservationHint')}</span>
-              </button>
-            </div>
-          </section>
+          {!hideModeToggle ? (
+            <Section title={t('admin.invoices.sectionMode')}>
+              <div className="invw-mode-toggle" role="tablist" aria-label={t('admin.invoices.sectionMode')}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={invoiceKind === 'free'}
+                  className={invoiceKind === 'free' ? 'is-active' : ''}
+                  onClick={() => setKind('free')}
+                >
+                  <strong>{t('admin.invoices.modeFree')}</strong>
+                  <span>{t('admin.invoices.modeFreeHint')}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={invoiceKind === 'reservation'}
+                  className={invoiceKind === 'reservation' ? 'is-active' : ''}
+                  onClick={() => setKind('reservation')}
+                >
+                  <strong>{t('admin.invoices.modeReservation')}</strong>
+                  <span>{t('admin.invoices.modeReservationHint')}</span>
+                </button>
+              </div>
+            </Section>
+          ) : null}
 
-          <section className="invw-section">
-            <h3 className="invw-section-title">{t('admin.invoices.sectionIdentity')}</h3>
+          <Section number={1} title={t('admin.invoices.sectionIdentity')}>
             <div className="invw-grid is-3">
               <Field label={t('admin.invoices.invoiceNumber')}>
                 <input value={form.invoiceNumber} onChange={(e) => update('invoiceNumber', e.target.value)} placeholder="INV-…" />
@@ -302,11 +313,10 @@ const InvoiceComposer = ({
                 <input value={form.currency} onChange={(e) => update('currency', e.target.value)} />
               </Field>
             </div>
-          </section>
+          </Section>
 
           {invoiceKind === 'reservation' ? (
-            <section className="invw-section">
-              <h3 className="invw-section-title">{t('admin.invoices.sectionReservation')}</h3>
+            <Section title={t('admin.invoices.sectionReservation')}>
               <Field label={t('admin.invoices.searchReservation')}>
                 <input
                   value={bookingQuery}
@@ -342,11 +352,10 @@ const InvoiceComposer = ({
                   <input value={form.reservationRef || ''} onChange={(e) => update('reservationRef', e.target.value)} placeholder="RES-…" />
                 </Field>
               </div>
-            </section>
+            </Section>
           ) : null}
 
-          <section className="invw-section">
-            <h3 className="invw-section-title">{t('admin.invoices.sectionCustomer')}</h3>
+          <Section number={2} title={t('admin.invoices.sectionCustomer')}>
             <div className="invw-grid">
               <Field label={t('admin.invoices.customerName')}>
                 <input required value={form.customerName} onChange={(e) => update('customerName', e.target.value)} />
@@ -364,12 +373,11 @@ const InvoiceComposer = ({
                 <input value={form.customerAddress} onChange={(e) => update('customerAddress', e.target.value)} />
               </Field>
             </div>
-          </section>
+          </Section>
 
           {invoiceKind === 'reservation' ? (
             <>
-              <section className="invw-section">
-                <h3 className="invw-section-title">{t('admin.invoices.sectionVehicle')}</h3>
+              <Section title={t('admin.invoices.sectionVehicle')}>
                 <div className="invw-grid is-3">
                   <Field label={t('admin.invoices.vehicleBrand')}>
                     <input value={form.vehicleBrand} onChange={(e) => update('vehicleBrand', e.target.value)} />
@@ -387,10 +395,9 @@ const InvoiceComposer = ({
                     <input value={form.vehicleType} onChange={(e) => update('vehicleType', e.target.value)} />
                   </Field>
                 </div>
-              </section>
+              </Section>
 
-              <section className="invw-section">
-                <h3 className="invw-section-title">{t('admin.invoices.sectionRental')}</h3>
+              <Section title={t('admin.invoices.sectionRental')}>
                 <div className="invw-grid is-3">
                   <Field label={t('admin.invoices.pickupDate')}>
                     <DateField value={form.pickupDate || ''} onChange={(value) => update('pickupDate', value)} />
@@ -405,72 +412,86 @@ const InvoiceComposer = ({
                     <input value={form.returnLocation || ''} onChange={(e) => update('returnLocation', e.target.value)} />
                   </Field>
                 </div>
-              </section>
+              </Section>
             </>
           ) : null}
 
-          <section className="invw-section">
-            <h3 className="invw-section-title">{t('admin.invoices.sectionItems')}</h3>
-            <div className="invw-items">
-              {(form.items || []).map((item, index) => {
-                const net = Math.max(
-                  0,
-                  (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) - (Number(item.discountAmount) || 0),
-                )
-                return (
-                  <div key={index} className="invw-item is-rich">
-                    <Field label={t('admin.invoices.itemDescription')}>
-                      <input
-                        value={item.description}
-                        onChange={(e) => updateItem(index, 'description', e.target.value)}
-                        placeholder={t('admin.invoices.itemDescriptionPlaceholder')}
-                      />
-                    </Field>
-                    <Field label={t('admin.invoices.itemDetails')} wide>
-                      <input
-                        value={item.details || ''}
-                        onChange={(e) => updateItem(index, 'details', e.target.value)}
-                        placeholder={t('admin.invoices.itemDetailsPlaceholder')}
-                      />
-                    </Field>
-                    <Field label={t('admin.invoices.itemQty')}>
-                      <input type="number" min="0" step="1" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />
-                    </Field>
-                    <Field label={t('admin.invoices.itemUnit')}>
-                      <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(index, 'unitPrice', e.target.value)} />
-                    </Field>
-                    <Field label={t('admin.invoices.itemDiscount')}>
-                      <input type="number" min="0" step="0.01" value={item.discountAmount ?? ''} onChange={(e) => updateItem(index, 'discountAmount', e.target.value)} />
-                    </Field>
-                    <Field label={t('admin.invoices.itemTax')}>
-                      <input type="number" min="0" step="0.01" value={item.taxRate} onChange={(e) => updateItem(index, 'taxRate', e.target.value)} />
-                    </Field>
-                    <div className="invw-item-amount">
-                      <span>{t('admin.invoices.lineAmount')}</span>
-                      <strong>{money(net, currency)}</strong>
-                    </div>
-                    <div className="invw-item-tools">
-                      <button type="button" className="admin-btn admin-btn-ghost" onClick={() => moveItem(index, -1)} disabled={index === 0} aria-label="Up">↑</button>
-                      <button type="button" className="admin-btn admin-btn-ghost" onClick={() => moveItem(index, 1)} disabled={index >= (form.items || []).length - 1} aria-label="Down">↓</button>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost"
-                        disabled={(form.items || []).length <= 1}
-                        onClick={() => setForm((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }))}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+          <Section number={3} title={t('admin.invoices.sectionItems')}>
+            <div className="invw-table-scroll">
+              <table className="invw-lines-table">
+                <thead>
+                  <tr>
+                    <th>{t('admin.invoices.itemDescription')}</th>
+                    <th>{t('admin.invoices.itemDetails')}</th>
+                    <th>{t('admin.invoices.itemQty')}</th>
+                    <th>{t('admin.invoices.itemUnit')}</th>
+                    <th>{t('admin.invoices.itemDiscount')}</th>
+                    <th>{t('admin.invoices.itemTax')}</th>
+                    <th>{t('admin.invoices.lineAmount')}</th>
+                    <th aria-label="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {(form.items || []).map((item, index) => {
+                    const net = Math.max(
+                      0,
+                      (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) - (Number(item.discountAmount) || 0),
+                    )
+                    return (
+                      <tr key={index}>
+                        <td>
+                          <input
+                            value={item.description}
+                            onChange={(e) => updateItem(index, 'description', e.target.value)}
+                            placeholder={t('admin.invoices.itemDescriptionPlaceholder')}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            value={item.details || ''}
+                            onChange={(e) => updateItem(index, 'details', e.target.value)}
+                            placeholder={t('admin.invoices.itemDetailsPlaceholder')}
+                          />
+                        </td>
+                        <td>
+                          <input type="number" min="0" step="1" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />
+                        </td>
+                        <td>
+                          <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(index, 'unitPrice', e.target.value)} />
+                        </td>
+                        <td>
+                          <input type="number" min="0" step="0.01" value={item.discountAmount ?? ''} onChange={(e) => updateItem(index, 'discountAmount', e.target.value)} />
+                        </td>
+                        <td>
+                          <input type="number" min="0" step="0.01" value={item.taxRate} onChange={(e) => updateItem(index, 'taxRate', e.target.value)} />
+                        </td>
+                        <td className="invw-line-amt">{money(net, currency)}</td>
+                        <td>
+                          <div className="invw-item-tools">
+                            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => moveItem(index, -1)} disabled={index === 0}>↑</button>
+                            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => moveItem(index, 1)} disabled={index >= (form.items || []).length - 1}>↓</button>
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost is-danger"
+                              disabled={(form.items || []).length <= 1}
+                              onClick={() => setForm((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }))}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
             <button
               type="button"
               className="admin-btn admin-btn-secondary mt-3"
               onClick={() => setForm((prev) => ({ ...prev, items: [...prev.items, emptyItem()] }))}
             >
-              {t('admin.invoices.addItem')}
+              + {t('admin.invoices.addItem')}
             </button>
             <div className="invw-grid mt-3">
               <Field label={t('admin.invoices.discountAmount')}>
@@ -485,10 +506,9 @@ const InvoiceComposer = ({
               <div><span>{t('admin.invoices.amountPaid')}</span><strong>{money(lineTotals.amountPaid, currency)}</strong></div>
               <div><span>{t('admin.invoices.balanceDue')}</span><strong>{money(lineTotals.balance, currency)}</strong></div>
             </div>
-          </section>
+          </Section>
 
-          <section className="invw-section">
-            <h3 className="invw-section-title">{t('admin.invoices.sectionPayment')}</h3>
+          <Section number={4} title={t('admin.invoices.sectionPayment')}>
             <div className="invw-grid is-3">
               <Field label={t('admin.invoices.paymentStatus')}>
                 <select value={form.paymentStatus} onChange={(e) => update('paymentStatus', e.target.value)}>
@@ -533,7 +553,7 @@ const InvoiceComposer = ({
               />
               {t('admin.invoices.includeStamp')}
             </label>
-          </section>
+          </Section>
 
           <div className="invw-actions">
             {!hideSubmit ? (
@@ -563,27 +583,39 @@ const InvoiceComposer = ({
 
         <aside ref={previewPaneRef} className="invw-preview-pane" aria-label={t('admin.invoices.livePreview')}>
           <div className="invw-preview-bar">
-            <p>{t('admin.invoices.livePreview')}</p>
-            <span className="text-xs text-[var(--admin-muted)]">
-              {previewStatus === 'loading'
-                ? t('admin.invoices.previewUpdating')
-                : previewStatus === 'error'
-                  ? t('admin.invoices.previewError')
-                  : previewStatus === 'ready'
-                    ? t('admin.invoices.previewReady')
-                    : t('admin.invoices.previewEmpty')}
-            </span>
-          </div>
-          {previewHtml ? (
-            <iframe title={t('admin.invoices.livePreview')} className="invw-preview-frame" srcDoc={previewHtml} />
-          ) : previewStatus === 'error' ? (
-            <div className="invw-preview-error">
-              <strong>{t('admin.invoices.previewError')}</strong>
-              {previewError ? <code>{previewError}</code> : null}
+            <div>
+              <p>{t('admin.invoices.livePreview')}</p>
+              <span className="invw-preview-status">
+                {previewStatus === 'loading'
+                  ? t('admin.invoices.previewUpdating')
+                  : previewStatus === 'error'
+                    ? t('admin.invoices.previewError')
+                    : previewStatus === 'ready'
+                      ? t('admin.invoices.previewReady')
+                      : t('admin.invoices.previewEmpty')}
+              </span>
             </div>
-          ) : (
-            <div className="invw-preview-empty">{t('admin.invoices.previewEmpty')}</div>
-          )}
+            <div className="invw-preview-tools">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={openPreviewWindow} disabled={!previewHtml}>
+                {t('admin.invoices.openPreview')}
+              </button>
+              <button type="button" className="admin-btn admin-btn-secondary" onClick={printPreview} disabled={!previewHtml}>
+                {t('admin.invoices.print')}
+              </button>
+            </div>
+          </div>
+          <div className="invw-preview-stage">
+            {previewHtml ? (
+              <iframe title={t('admin.invoices.livePreview')} className="invw-preview-frame" srcDoc={previewHtml} />
+            ) : previewStatus === 'error' ? (
+              <div className="invw-preview-error">
+                <strong>{t('admin.invoices.previewError')}</strong>
+                {previewError ? <code>{previewError}</code> : null}
+              </div>
+            ) : (
+              <div className="invw-preview-empty">{t('admin.invoices.previewEmpty')}</div>
+            )}
+          </div>
         </aside>
       </div>
     </div>

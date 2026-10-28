@@ -21,7 +21,7 @@ import {
 
 const BUILTIN_CONTRACT_VERSION = 6;
 /** Bumped for premium HDN CAR corporate invoice stationery (header/body/footer/CSS). */
-const BUILTIN_INVOICE_VERSION = 5;
+const BUILTIN_INVOICE_VERSION = 6;
 
 /**
  * Ensure each owner has seed contract + invoice templates.

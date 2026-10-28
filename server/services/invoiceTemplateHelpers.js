@@ -127,10 +127,15 @@ export const buildInvoiceReservationMetaHtml = (reservationId) => {
 };
 
 export const buildInvoiceAmountInWordsHtml = (totalAmount, currency = 'MAD') => {
-  const { sentence } = amountToFrenchMadWords(totalAmount, { currency });
+  const { sentence, words } = amountToFrenchMadWords(totalAmount, { currency });
+  // Highlight the amount words within the fixed French formula.
+  const highlighted = escapeHtml(sentence).replace(
+    escapeHtml(words),
+    `<strong>${escapeHtml(words)}</strong>`,
+  );
   return `<div class="inv-amount-words">
   <p class="inv-section-label">Arrêtée à</p>
-  <p class="inv-amount-words-text">${escapeHtml(sentence)}</p>
+  <p class="inv-amount-words-text">${highlighted}</p>
 </div>`;
 };
 

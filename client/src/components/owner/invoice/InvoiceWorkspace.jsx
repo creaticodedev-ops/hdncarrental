@@ -4,8 +4,7 @@ import InvoiceComposer from './InvoiceComposer'
 import './invoiceWorkspace.css'
 
 /**
- * Full-viewport invoice creation workspace.
- * Replaces the narrow AdminDrawer — a complex editor + A4 preview cannot live in a 32rem side panel.
+ * Full-viewport invoice creation workspace matching the premium HDN CAR reference.
  */
 const InvoiceWorkspace = ({
   open,
@@ -30,6 +29,8 @@ const InvoiceWorkspace = ({
 
   dirtyRef.current = dirty
   askLeaveRef.current = askLeave
+
+  const invoiceKind = form?.invoiceKind === 'reservation' ? 'reservation' : 'free'
 
   useEffect(() => {
     if (open) {
@@ -83,6 +84,28 @@ const InvoiceWorkspace = ({
     onClose?.()
   }
 
+  const setKind = (kind) => {
+    setForm((prev) => ({
+      ...prev,
+      invoiceKind: kind,
+      ...(kind === 'free'
+        ? {
+            bookingId: '',
+            reservationRef: '',
+            vehicleBrand: '',
+            vehicleModel: '',
+            vehicleYear: '',
+            vehiclePlate: '',
+            vehicleType: '',
+            pickupDate: '',
+            returnDate: '',
+            pickupLocation: '',
+            returnLocation: '',
+          }
+        : {}),
+    }))
+  }
+
   return (
     <div className={`invw-shell ${entered ? 'is-open' : ''}`} role="presentation">
       <button type="button" className="invw-shell-backdrop" aria-label={t('admin.ui.close')} onClick={requestClose} />
@@ -97,11 +120,24 @@ const InvoiceWorkspace = ({
       >
         <header className="invw-shell-header">
           <div className="invw-shell-heading">
-            <p className="invw-shell-eyebrow">{t('admin.invoices.title')}</p>
+            <button type="button" className="invw-shell-back" onClick={requestClose}>
+              ← {t('admin.invoices.title')}
+            </button>
             <h2 id={titleId}>{title}</h2>
             {description ? <p className="invw-shell-desc">{description}</p> : null}
           </div>
           <div className="invw-shell-header-actions">
+            <label className="invw-kind-select">
+              <span className="sr-only">{t('admin.invoices.sectionMode')}</span>
+              <select
+                value={invoiceKind}
+                onChange={(e) => setKind(e.target.value)}
+                aria-label={t('admin.invoices.sectionMode')}
+              >
+                <option value="free">{t('admin.invoices.modeFree')}</option>
+                <option value="reservation">{t('admin.invoices.modeReservation')}</option>
+              </select>
+            </label>
             <div className="invw-mobile-tabs" role="tablist" aria-label={t('admin.invoices.workspaceTabs')}>
               <button
                 type="button"
@@ -140,6 +176,7 @@ const InvoiceWorkspace = ({
             variant="workspace"
             mobilePane={mobilePane}
             onRequestPreviewPane={() => setMobilePane('preview')}
+            hideModeToggle
           />
         </div>
 

@@ -143,6 +143,10 @@ const RAW_HTML_VARIABLE_KEYS = new Set([
   'invoice_items_html',
   'invoice_tax_row_html',
   'invoice_discount_row_html',
+  'invoice_amount_in_words_html',
+  'invoice_rental_section_html',
+  'invoice_reservation_meta_html',
+  'agency_brand_name_html',
   'customer_signature_html',
   'second_driver_signature_html',
   'second_driver_signature_section',
@@ -155,6 +159,15 @@ const RAW_HTML_VARIABLE_KEYS = new Set([
   'secondDriverSection',
   'signaturesRowHtml',
 ]);
+
+/** Trusted structural HTML fragments — never guest-authored free text. */
+const isRawHtmlVariableKey = (key) => {
+  const k = String(key || '').trim();
+  if (!k) return false;
+  if (RAW_HTML_VARIABLE_KEYS.has(k) || RAW_HTML_VARIABLE_KEYS.has(k.toLowerCase())) return true;
+  const lower = k.toLowerCase();
+  return lower.endsWith('_html') || lower.endsWith('_section') || lower.endsWith('html') || lower.endsWith('section');
+};
 
 const firstNonEmpty = (source, keys) => {
   for (const key of keys) {
@@ -467,7 +480,7 @@ export const renderTemplate = (html, variables) => {
     const value = matchedKey !== undefined ? variables[matchedKey] : undefined;
     if (value === undefined || value === null) return '—';
     const asString = String(value);
-    const allowRaw = candidates.some((candidate) => RAW_HTML_VARIABLE_KEYS.has(candidate));
+    const allowRaw = candidates.some((candidate) => isRawHtmlVariableKey(candidate));
     return allowRaw ? asString : escapeHtml(asString);
   });
 };
