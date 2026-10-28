@@ -8,9 +8,9 @@ import { useI18n } from '../../i18n/I18nContext'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
-import { AdminDrawer } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
 import InvoiceComposer from '../../components/owner/invoice/InvoiceComposer'
+import InvoiceWorkspace from '../../components/owner/invoice/InvoiceWorkspace'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -685,37 +685,21 @@ const Invoices = () => {
         </div>
       )}
 
-      <AdminDrawer
+      <InvoiceWorkspace
         open={showCreateModal}
-        onClose={() => !creating && setShowCreateModal(false)}
+        onClose={() => {
+          if (creating) return
+          setShowCreateModal(false)
+          setForm(createEmptyForm())
+        }}
         title={t('admin.invoices.createManual')}
         description={t('admin.invoices.createManualHint')}
-        size="full"
+        form={form}
+        setForm={setForm}
+        onSubmit={handleCreateInvoice}
+        submitting={creating}
         dirty={showCreateModal && !creating}
-        unsavedTitle={t('admin.ui.unsavedTitle')}
-        unsavedMessage={t('admin.ui.unsavedMessage')}
-        discardLabel={t('admin.ui.discard')}
-        keepEditingLabel={t('admin.ui.keepEditing')}
-        closeLabel={t('admin.ui.close')}
-        footer={
-          <>
-            <button type="button" onClick={() => setShowCreateModal(false)} className="admin-btn admin-btn-secondary">{t('admin.common.cancel')}</button>
-            <button type="submit" form="invoice-create-form" disabled={creating} className="admin-btn admin-btn-primary">
-              {creating ? t('admin.invoices.saving') : t('admin.invoices.create')}
-            </button>
-          </>
-        }
-      >
-        <InvoiceComposer
-          form={form}
-          setForm={setForm}
-          onSubmit={handleCreateInvoice}
-          submitting={creating}
-          mode="create"
-          hideSubmit
-          formId="invoice-create-form"
-        />
-      </AdminDrawer>
+      />
 
       <DocumentEditPanel
         open={editOpen}

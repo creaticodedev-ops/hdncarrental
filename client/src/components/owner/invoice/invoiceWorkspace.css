@@ -1,4 +1,14 @@
-/* Invoice composer — premium financial workspace inside the admin shell */
+/* Invoice workspace — full-viewport editor + A4 preview.
+   Split uses container queries on .invw so it never activates inside a narrow host. */
+
+/* Containment must wrap the layout — a container cannot query its own size. */
+.invw-frame {
+  container-type: inline-size;
+  container-name: invw;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
 
 .invw {
   --invw-ink: var(--admin-ink, #161210);
@@ -7,30 +17,284 @@
   --invw-primary: var(--admin-primary, #8f1f1f);
   --invw-surface: #fff;
   --invw-soft: #f7f3f0;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
 }
+
+/* ─── Full-screen shell ─── */
+
+.invw-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.invw-shell-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  cursor: default;
+  background: color-mix(in srgb, var(--admin-ink, #161210) 48%, transparent);
+  backdrop-filter: blur(5px);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.invw-shell.is-open .invw-shell-backdrop {
+  opacity: 1;
+}
+
+.invw-shell-backdrop.is-solid {
+  background: color-mix(in srgb, var(--admin-ink, #161210) 55%, transparent);
+  opacity: 1;
+}
+
+.invw-shell-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-height: 100svh;
+  background: var(--admin-surface, #fff);
+  color: var(--invw-ink);
+  box-shadow: none;
+  transform: translateY(10px);
+  opacity: 0;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+}
+
+.invw-shell-panel.is-open {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.invw-shell-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem clamp(1rem, 2vw, 1.75rem);
+  border-bottom: 1px solid var(--invw-line);
+  background: linear-gradient(180deg, #fff 0%, var(--invw-soft) 180%);
+  flex-shrink: 0;
+}
+
+.invw-shell-eyebrow {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--invw-primary);
+}
+
+.invw-shell-heading h2 {
+  margin: 0.2rem 0 0;
+  font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.invw-shell-desc {
+  margin: 0.35rem 0 0;
+  max-width: 46rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--invw-muted);
+}
+
+.invw-shell-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.invw-mobile-tabs {
+  display: inline-flex;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: var(--invw-soft);
+  border: 1px solid var(--invw-line);
+}
+
+.invw-mobile-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--invw-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.invw-mobile-tabs button.is-active {
+  background: #fff;
+  color: var(--invw-ink);
+  box-shadow: 0 1px 3px rgba(22, 18, 16, 0.08);
+}
+
+.invw-shell-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: invw;
+}
+
+.invw-shell-body .invw,
+.invw-shell-body .invw-frame {
+  height: 100%;
+}
+
+.invw-shell-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.85rem clamp(1rem, 2vw, 1.75rem);
+  border-top: 1px solid var(--invw-line);
+  background: var(--admin-surface, #fff);
+  flex-shrink: 0;
+}
+
+.invw-shell-leave {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.invw-shell-leave-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 26rem);
+  padding: 1.25rem;
+  border-radius: 1.1rem;
+  background: #fff;
+  border: 1px solid var(--invw-line);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.invw-shell-leave-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.invw-shell-leave-card p {
+  margin: 0.55rem 0 0;
+  color: var(--invw-muted);
+  font-size: 0.9rem;
+}
+
+.invw-shell-leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+}
+
+/* ─── Composer layout ─── */
 
 .invw-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
 }
 
-@media (min-width: 1180px) {
-  .invw-layout {
-    grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
-    align-items: start;
+.invw-form,
+.invw-preview-pane {
+  min-width: 0;
+}
+
+.invw-form {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.15rem clamp(1rem, 2vw, 1.75rem) 1.75rem;
+}
+
+.invw-preview-pane {
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ebe4de;
+}
+
+/* Narrow / tablet: tab panes */
+.invw-shell-body.is-preview .invw-form {
+  display: none;
+}
+
+.invw-shell-body.is-preview .invw-preview-pane {
+  display: flex;
+}
+
+.invw-shell-body.is-edit .invw-preview-pane {
+  display: none;
+}
+
+.invw-shell-body.is-edit .invw-form {
+  display: block;
+}
+
+/* Desktop workspace: genuine two-column, preview never steals form readability */
+@container invw (min-width: 1200px) {
+  .invw-layout.is-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(28rem, 38vw);
   }
 
-  .invw-preview-pane {
+  .invw-shell-body.is-edit .invw-layout.is-workspace .invw-form,
+  .invw-shell-body.is-preview .invw-layout.is-workspace .invw-form {
+    display: block !important;
+  }
+
+  .invw-shell-body.is-edit .invw-layout.is-workspace .invw-preview-pane,
+  .invw-shell-body.is-preview .invw-layout.is-workspace .invw-preview-pane {
+    display: flex !important;
+    border-left: 1px solid var(--invw-line);
+  }
+}
+
+@container invw (min-width: 1180px) {
+  .invw-layout.is-embedded {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 34%);
+    gap: 1rem;
+    height: auto;
+  }
+
+  .invw-layout.is-embedded .invw-preview-pane {
+    display: flex;
+    border: 1px solid var(--invw-line);
+    border-radius: 1.25rem;
     position: sticky;
-    top: 5.5rem;
+    top: 1rem;
+    max-height: min(78vh, 920px);
+  }
+
+  .invw-layout.is-embedded .invw-form {
+    padding: 0;
+    overflow: visible;
   }
 }
 
 .invw-section {
   border-top: 1px solid var(--invw-line);
-  padding-top: 1.15rem;
-  margin-top: 1.15rem;
+  padding-top: 1.25rem;
+  margin-top: 1.25rem;
 }
 
 .invw-section:first-child {
@@ -40,10 +304,10 @@
 }
 
 .invw-section-title {
-  margin: 0 0 0.85rem;
-  font-size: 0.68rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--invw-primary);
 }
@@ -51,40 +315,62 @@
 .invw-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.85rem 0.95rem;
 }
 
 .invw-field.is-wide {
   grid-column: 1 / -1;
 }
 
-@media (min-width: 720px) {
+@container invw (min-width: 760px) {
   .invw-grid.is-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
+@container invw (max-width: 559px) {
+  .invw-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.invw-field {
+  min-width: 0;
+}
+
 .invw-field label {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.4rem;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--invw-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invw-field input,
+.invw-field select,
+.invw-field textarea,
+.invw-field .hdn-cal-trigger {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .invw-field input,
 .invw-field select,
 .invw-field textarea {
-  width: 100%;
-  min-height: 2.75rem;
+  min-height: 2.85rem;
   border: 1px solid var(--invw-line);
-  border-radius: 0.9rem;
+  border-radius: 0.85rem;
   background: var(--invw-surface);
-  padding: 0.65rem 0.85rem;
+  padding: 0.7rem 0.9rem;
   color: var(--invw-ink);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -103,22 +389,26 @@
 
 .invw-items {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.7rem;
 }
 
+/* Line items: description on its own row, metrics below — never crush */
 .invw-item {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) 4.5rem 6.5rem 5rem auto;
-  gap: 0.45rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 0.55rem 0.65rem;
   align-items: end;
-  padding: 0.75rem;
+  padding: 0.9rem;
   border: 1px solid var(--invw-line);
   border-radius: 1rem;
   background: var(--invw-soft);
 }
 
-@media (max-width: 719px) {
-  .invw-grid,
+.invw-item .invw-field:first-child {
+  grid-column: 1 / -1;
+}
+
+@container invw (max-width: 559px) {
   .invw-item {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -126,9 +416,9 @@
 
 .invw-totals {
   display: grid;
-  gap: 0.4rem;
-  margin-top: 0.85rem;
-  padding: 0.9rem 1rem;
+  gap: 0.45rem;
+  margin-top: 0.95rem;
+  padding: 1rem 1.05rem;
   border-radius: 1rem;
   background: linear-gradient(180deg, #fff 0%, var(--invw-soft) 100%);
   border: 1px solid var(--invw-line);
@@ -138,32 +428,27 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
 }
 
 .invw-totals .is-total {
-  margin-top: 0.25rem;
-  padding-top: 0.55rem;
+  margin-top: 0.3rem;
+  padding-top: 0.6rem;
   border-top: 1px solid var(--invw-line);
   font-family: var(--font-display, Georgia, serif);
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 600;
 }
 
 .invw-actions {
+  display: none;
+}
+
+.invw-layout.is-embedded .invw-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.invw-preview-pane {
-  border: 1px solid var(--invw-line);
-  border-radius: 1.25rem;
-  background: #ebe4de;
-  overflow: hidden;
-  min-height: 28rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  margin-top: 1.15rem;
 }
 
 .invw-preview-bar {
@@ -171,10 +456,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.72);
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.78);
   border-bottom: 1px solid var(--invw-line);
   backdrop-filter: blur(8px);
+  flex-shrink: 0;
 }
 
 .invw-preview-bar p {
@@ -187,18 +473,69 @@
 }
 
 .invw-preview-frame {
+  flex: 1;
   width: 100%;
-  height: min(72vh, 920px);
+  min-height: 0;
+  height: 100%;
   border: 0;
   background: #ebe4de;
 }
 
-.invw-preview-empty {
+.invw-layout.is-embedded .invw-preview-frame {
+  height: min(70vh, 880px);
+}
+
+.invw-preview-empty,
+.invw-preview-error {
   display: grid;
   place-items: center;
-  min-height: 22rem;
+  flex: 1;
+  min-height: 18rem;
   padding: 2rem;
   text-align: center;
   color: var(--invw-muted);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.invw-preview-error {
+  color: #8f1f1f;
+  align-content: center;
+  gap: 0.5rem;
+}
+
+.invw-preview-error strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.invw-preview-error code {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--invw-muted);
+  word-break: break-word;
+}
+
+/* Viewport fallback for the full-screen create shell (header tabs + dual pane).
+   Container queries remain the source of truth for embedded hosts. */
+@media (min-width: 1200px) {
+  .invw-mobile-tabs {
+    display: none;
+  }
+
+  .invw-shell-body .invw-layout.is-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(28rem, 38vw);
+  }
+
+  .invw-shell-body.is-edit .invw-layout.is-workspace .invw-form,
+  .invw-shell-body.is-preview .invw-layout.is-workspace .invw-form {
+    display: block !important;
+  }
+
+  .invw-shell-body.is-edit .invw-layout.is-workspace .invw-preview-pane,
+  .invw-shell-body.is-preview .invw-layout.is-workspace .invw-preview-pane {
+    display: flex !important;
+    border-left: 1px solid var(--invw-line);
+  }
 }

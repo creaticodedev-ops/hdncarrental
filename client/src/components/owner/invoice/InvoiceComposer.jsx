@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import DateField from '../../calendar/DateField'
 import { useAppContext } from '../../../context/AppContext'
 import { useI18n } from '../../../i18n/I18nContext'
+import { getErrorMessage } from '../../../utils/apiError'
 import './invoiceWorkspace.css'
 
 const money = (value, currency = 'MAD') => {
@@ -11,13 +12,15 @@ const money = (value, currency = 'MAD') => {
 
 const Field = ({ label, children, className = '', wide = false }) => (
   <div className={`invw-field ${wide ? 'is-wide' : ''} ${className}`.trim()}>
-    {label ? <label>{label}</label> : null}
+    {label ? <label title={label}>{label}</label> : null}
     {children}
   </div>
 )
 
 /**
- * Premium invoice creation / edit workspace with live server-rendered preview.
+ * Premium invoice creation / edit composer with live server-rendered preview.
+ * Split layout is driven by container queries — never by viewport alone —
+ * so it cannot crush itself inside a narrow host.
  */
 const InvoiceComposer = ({
   form,
@@ -28,12 +31,16 @@ const InvoiceComposer = ({
   actions = null,
   hideSubmit = false,
   formId = 'invoice-composer-form',
+  variant = 'embedded',
+  mobilePane = 'edit',
+  onRequestPreviewPane,
 }) => {
   const { axios, currency: appCurrency } = useAppContext()
   const { t } = useI18n()
   const currency = form.currency || String(appCurrency || 'MAD').trim() || 'MAD'
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewStatus, setPreviewStatus] = useState('idle')
+  const [previewError, setPreviewError] = useState('')
   const timerRef = useRef(null)
   const requestRef = useRef(0)
   const previewPaneRef = useRef(null)
@@ -69,6 +76,7 @@ const InvoiceComposer = ({
     timerRef.current = setTimeout(async () => {
       const reqId = ++requestRef.current
       setPreviewStatus('loading')
+      setPreviewError('')
       try {
         const { data } = await axios.post('/api/invoices/preview-html', {
           ...form,
@@ -80,18 +88,21 @@ const InvoiceComposer = ({
         if (data.success && data.html) {
           setPreviewHtml(data.html)
           setPreviewStatus('ready')
+          setPreviewError('')
         } else {
           setPreviewStatus('error')
+          setPreviewError(data.message || t('admin.invoices.previewError'))
         }
-      } catch {
+      } catch (error) {
         if (reqId !== requestRef.current) return
         setPreviewStatus('error')
+        setPreviewError(getErrorMessage(error) || t('admin.invoices.previewError'))
       }
     }, 450)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [axios, form])
+  }, [axios, form, t])
 
   const openPreviewWindow = () => {
     if (!previewHtml) return
@@ -109,7 +120,8 @@ const InvoiceComposer = ({
     win.print()
   }
 
-  const scrollToPreview = () => {
+  const focusPreview = () => {
+    if (onRequestPreviewPane) onRequestPreviewPane()
     previewPaneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
@@ -128,13 +140,14 @@ const InvoiceComposer = ({
         return
       }
     } catch {
-      /* user cancelled or share failed — fall through */
+      /* cancelled */
     }
     openPreviewWindow()
   }
 
   return (
-    <div className="invw invw-layout">
+    <div className="invw-frame">
+    <div className={`invw invw-layout is-${variant}`} data-mobile-pane={mobilePane}>
       <form id={formId} className="invw-form" onSubmit={onSubmit}>
         <section className="invw-section">
           <h3 className="invw-section-title">{t('admin.invoices.sectionIdentity')}</h3>
@@ -325,7 +338,7 @@ const InvoiceComposer = ({
                   : t('admin.invoices.create')}
             </button>
           ) : null}
-          <button type="button" className="admin-btn admin-btn-secondary" onClick={scrollToPreview} disabled={!previewHtml}>
+          <button type="button" className="admin-btn admin-btn-secondary" onClick={focusPreview} disabled={!previewHtml && previewStatus !== 'ready'}>
             {t('admin.invoices.preview')}
           </button>
           <button type="button" className="admin-btn admin-btn-secondary" onClick={openPreviewWindow} disabled={!previewHtml}>
@@ -349,15 +362,23 @@ const InvoiceComposer = ({
               ? t('admin.invoices.previewUpdating')
               : previewStatus === 'error'
                 ? t('admin.invoices.previewError')
-                : t('admin.invoices.previewReady')}
+                : previewStatus === 'ready'
+                  ? t('admin.invoices.previewReady')
+                  : t('admin.invoices.previewEmpty')}
           </span>
         </div>
         {previewHtml ? (
           <iframe title={t('admin.invoices.livePreview')} className="invw-preview-frame" srcDoc={previewHtml} />
+        ) : previewStatus === 'error' ? (
+          <div className="invw-preview-error">
+            <strong>{t('admin.invoices.previewError')}</strong>
+            {previewError ? <code>{previewError}</code> : null}
+          </div>
         ) : (
           <div className="invw-preview-empty">{t('admin.invoices.previewEmpty')}</div>
         )}
       </aside>
+    </div>
     </div>
   )
 }

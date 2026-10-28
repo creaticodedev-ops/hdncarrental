@@ -453,12 +453,16 @@
 .admin-drawer[data-size='xl'] {
   width: min(48rem, 100vw);
 }
+.admin-drawer[data-size='full'] {
+  width: min(96rem, 100vw);
+}
 @media (max-width: 639px) {
   .admin-drawer,
   .admin-drawer[data-size='sm'],
   .admin-drawer[data-size='md'],
   .admin-drawer[data-size='lg'],
-  .admin-drawer[data-size='xl'] {
+  .admin-drawer[data-size='xl'],
+  .admin-drawer[data-size='full'] {
     width: 100vw;
   }
 }

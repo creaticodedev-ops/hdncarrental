@@ -2010,6 +2010,10 @@ export const adminEn = {
     openPreview: 'Open preview',
     print: 'Print',
     share: 'Share',
+    generate: 'Generate invoice',
+    tabEdit: 'Edit',
+    tabPreview: 'Preview',
+    workspaceTabs: 'Invoice workspace views',
     saving: 'Saving...',
   },
   documents: {
@@ -4075,6 +4079,10 @@ export const adminFr = {
     openPreview: 'Ouvrir l’aperçu',
     print: 'Imprimer',
     share: 'Partager',
+    generate: 'Générer la facture',
+    tabEdit: 'Édition',
+    tabPreview: 'Aperçu',
+    workspaceTabs: 'Vues de l’espace facture',
     saving: 'Enregistrement...',
   },
   documents: {
@@ -6140,6 +6148,10 @@ export const adminEs = {
     openPreview: 'Abrir vista previa',
     print: 'Imprimir',
     share: 'Compartir',
+    generate: 'Generar factura',
+    tabEdit: 'Edición',
+    tabPreview: 'Vista previa',
+    workspaceTabs: 'Vistas del espacio de factura',
     saving: 'Guardando...',
   },
   documents: {
