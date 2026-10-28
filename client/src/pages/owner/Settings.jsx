@@ -8,6 +8,7 @@ import BookingSettingsPanel from './settings/BookingSettingsPanel'
 import PromotionsPanel from './settings/PromotionsPanel'
 import WhatsAppSettingsPanel from './settings/WhatsAppSettingsPanel'
 import GeneralSettingsPanel from './settings/GeneralSettingsPanel'
+import CompanyBrandingPanel from './settings/CompanyBrandingPanel'
 import ComingSoonPanel from './settings/ComingSoonPanel'
 import { LoadingBlock, settingsUi } from './settings/settingsUi'
 
@@ -23,6 +24,7 @@ const Settings = () => {
   const [form, setForm] = useState(emptyWhatsApp)
   const [effective, setEffective] = useState({ reservationDial: '', confirmationDial: '' })
   const [bookingSettings, setBookingSettings] = useState(null)
+  const [companyProfile, setCompanyProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -30,6 +32,7 @@ const Settings = () => {
     { id: 'booking', label: t('admin.settings.tabBooking'), blurb: t('admin.settings.navBookingBlurb') },
     { id: 'promotions', label: t('admin.settings.tabPromotions'), blurb: t('admin.settings.navPromotionsBlurb') },
     { id: 'whatsapp', label: t('admin.settings.tabWhatsApp'), blurb: t('admin.settings.navWhatsAppBlurb') },
+    { id: 'branding', label: t('admin.settings.tabBranding'), blurb: t('admin.settings.navBrandingBlurb') },
     { id: 'general', label: t('admin.settings.tabGeneral'), blurb: t('admin.settings.navGeneralBlurb') },
     { id: 'future', label: t('admin.settings.tabFuture'), blurb: t('admin.settings.navFutureBlurb') },
   ]), [t])
@@ -55,6 +58,7 @@ const Settings = () => {
         confirmationDial: s.effective?.confirmationDial || '',
       })
       setBookingSettings(s.bookingSettings || null)
+      setCompanyProfile(s.companyProfile || null)
     } catch (err) {
       const msg = getErrorMessage(err)
       setError(msg)
@@ -157,6 +161,14 @@ const Settings = () => {
                   effective={effective}
                   onReload={load}
                   t={t}
+                />
+              )}
+              {tab === 'branding' && (
+                <CompanyBrandingPanel
+                  axios={axios}
+                  initial={companyProfile}
+                  t={t}
+                  onSaved={(saved) => setCompanyProfile(saved)}
                 />
               )}
               {tab === 'general' && (

@@ -3,7 +3,6 @@ import Invoice from '../models/Invoice.js';
 import Booking from '../models/Booking.js';
 import ExportTemplate from '../models/ExportTemplate.js';
 import { publicUploadUrl } from '../services/pdfDocuments.js';
-import { generateDocumentFromTemplate } from '../services/templatePdfExport.js';
 import { ensureDefaultTemplates } from './exportTemplateController.js';
 import { getDefaultInvoiceTemplate } from '../utils/resolveExportTemplate.js';
 import { logAudit } from '../utils/adminOps.js';
@@ -27,6 +26,7 @@ import {
   renderInstance,
   versionedAssetUrl,
 } from '../services/documentInstanceService.js';
+import { resolveCompanyBranding } from '../services/agencySettingsService.js';
 
 const buildInvoiceNumber = (booking, provided = '') => {
   const trimmed = String(provided || '').trim();
@@ -60,31 +60,40 @@ const computeInvoiceTotals = ({ items, discountAmount = 0, taxAmount: suppliedTa
   return { normalizedItems, subtotal, taxAmount: computedTaxAmount, discountAmount: discount, totalAmount };
 };
 
-const invoiceFieldsFromDoc = (invoice) => ({
-  invoiceNumber: invoice.invoiceNumber,
-  invoiceDate: invoice.invoiceDate,
-  dueDate: invoice.dueDate,
-  currency: invoice.currency,
-  customerName: invoice.customerName,
-  customerEmail: invoice.customerEmail,
-  customerPhone: invoice.customerPhone,
-  customerAddress: invoice.customerAddress,
-  customerTaxId: invoice.customerTaxId,
-  vehicleBrand: invoice.vehicleBrand,
-  vehicleModel: invoice.vehicleModel,
-  vehicleYear: invoice.vehicleYear,
-  vehiclePlate: invoice.vehiclePlate,
-  vehicleType: invoice.vehicleType,
-  items: invoice.items || [],
-  subtotal: invoice.subtotal,
-  discountAmount: invoice.discountAmount,
-  taxAmount: invoice.taxAmount,
-  totalAmount: invoice.totalAmount,
-  paymentStatus: invoice.paymentStatus,
-  paymentMethod: invoice.paymentMethod,
-  paymentReference: invoice.paymentReference,
-  notes: invoice.notes,
-});
+const invoiceFieldsFromDoc = (invoice) => {
+  const inv = invoice?.sourceData?.invoice || {};
+  return {
+    invoiceNumber: invoice.invoiceNumber,
+    invoiceDate: invoice.invoiceDate,
+    dueDate: invoice.dueDate,
+    currency: invoice.currency,
+    customerName: invoice.customerName,
+    customerEmail: invoice.customerEmail,
+    customerPhone: invoice.customerPhone,
+    customerAddress: invoice.customerAddress,
+    customerTaxId: invoice.customerTaxId,
+    vehicleBrand: invoice.vehicleBrand,
+    vehicleModel: invoice.vehicleModel,
+    vehicleYear: invoice.vehicleYear,
+    vehiclePlate: invoice.vehiclePlate,
+    vehicleType: invoice.vehicleType,
+    reservationRef: inv.reservationRef || '',
+    pickupDate: inv.pickupDate || '',
+    returnDate: inv.returnDate || '',
+    pickupLocation: inv.pickupLocation || '',
+    returnLocation: inv.returnLocation || '',
+    items: invoice.items || [],
+    subtotal: invoice.subtotal,
+    discountAmount: invoice.discountAmount,
+    taxAmount: invoice.taxAmount,
+    totalAmount: invoice.totalAmount,
+    amountPaid: inv.amountPaid,
+    paymentStatus: invoice.paymentStatus,
+    paymentMethod: invoice.paymentMethod,
+    paymentReference: invoice.paymentReference,
+    notes: invoice.notes,
+  };
+};
 
 export const hydrateInvoiceIfNeeded = async (invoice, user, { persist = true } = {}) => {
   if (!invoice) return invoice;
@@ -106,14 +115,16 @@ export const hydrateInvoiceIfNeeded = async (invoice, user, { persist = true } =
     booking = await Booking.findById(invoice.booking._id || invoice.booking).populate('car').lean();
   }
 
-  const sections = needsSections ? cloneSectionsFromTemplate(template || {}) : invoice.sections;
+  const branding = await resolveCompanyBranding(invoice.owner);
+  const sections = needsSections ? cloneSectionsFromTemplate(template || {}, branding) : invoice.sections;
   const sourceData = needsSource
-    ? buildInvoiceSourceData({
+    ? await buildInvoiceSourceData({
         invoiceFields: invoiceFieldsFromDoc(invoice),
         booking,
         owner: user,
         template: template || {},
         includeCompanyStamp: invoice.includeCompanyStamp !== false,
+        agency: branding,
       })
     : invoice.sourceData;
 
@@ -162,59 +173,68 @@ const generateInvoiceDocument = async ({ owner, invoiceNumber, invoiceData, incl
   const bookingLike = {
     ...(booking || {}),
     _id: booking?._id || null,
-    reservationId: invoiceNumber,
-    customerName: invoiceData.customerName || '—',
-    customerEmail: invoiceData.customerEmail || '',
-    customerPhone: invoiceData.customerPhone || '',
-    nationality: invoiceData.customerNationality || '',
-    dateOfBirth: invoiceData.customerDob || '',
-    pickupDate: invoiceData.invoiceDate || new Date(),
-    returnDate: invoiceData.dueDate || invoiceData.invoiceDate || new Date(),
-    price: invoiceData.totalAmount || 0,
-    paymentStatus: invoiceData.paymentStatus || 'pending',
-    notes: invoiceData.notes || '',
-    channel: 'manual',
-    car: invoiceData.vehicleBrand || invoiceData.vehicleModel || invoiceData.vehiclePlate
+    reservationId: booking?.reservationId || invoiceData.reservationRef || invoiceNumber,
+    customerName: invoiceData.customerName || booking?.customerName || '—',
+    customerEmail: invoiceData.customerEmail || booking?.customerEmail || '',
+    customerPhone: invoiceData.customerPhone || booking?.customerPhone || '',
+    nationality: invoiceData.customerNationality || booking?.nationality || '',
+    dateOfBirth: invoiceData.customerDob || booking?.dateOfBirth || '',
+    pickupDate: invoiceData.pickupDate || booking?.pickupDate || invoiceData.invoiceDate || new Date(),
+    returnDate: invoiceData.returnDate || booking?.returnDate || invoiceData.dueDate || invoiceData.invoiceDate || new Date(),
+    pickupLocation: invoiceData.pickupLocation || booking?.pickupLocation || '',
+    returnLocation: invoiceData.returnLocation || booking?.returnLocation || '',
+    price: invoiceData.totalAmount || booking?.price || 0,
+    paymentStatus: invoiceData.paymentStatus || booking?.paymentStatus || 'pending',
+    notes: invoiceData.notes || booking?.notes || '',
+    channel: booking?.channel || 'manual',
+    car: invoiceData.vehicleBrand || invoiceData.vehicleModel || invoiceData.vehiclePlate || booking?.car
       ? {
-          brand: invoiceData.vehicleBrand || '',
-          model: invoiceData.vehicleModel || '',
-          year: invoiceData.vehicleYear || '',
-          licensePlate: invoiceData.vehiclePlate || '',
-          category: invoiceData.vehicleType || '',
+          ...(booking?.car || {}),
+          brand: invoiceData.vehicleBrand || booking?.car?.brand || '',
+          model: invoiceData.vehicleModel || booking?.car?.model || '',
+          year: invoiceData.vehicleYear || booking?.car?.year || '',
+          licensePlate: invoiceData.vehiclePlate || booking?.car?.licensePlate || '',
+          category: invoiceData.vehicleType || booking?.car?.category || '',
         }
       : undefined,
     priceBreakdown: {
-      rentalPrice: invoiceData.subtotal || 0,
-      pickupDeliveryFee: 0,
-      dropoffDeliveryFee: 0,
-      discountTotal: invoiceData.discountAmount || 0,
+      rentalPrice: invoiceData.subtotal || booking?.priceBreakdown?.rentalPrice || 0,
+      pickupDeliveryFee: booking?.priceBreakdown?.pickupDeliveryFee || 0,
+      dropoffDeliveryFee: booking?.priceBreakdown?.dropoffDeliveryFee || 0,
+      discountTotal: invoiceData.discountAmount || booking?.priceBreakdown?.discountTotal || 0,
     },
-    customerAddress: invoiceData.customerAddress || '',
+    customerAddress: invoiceData.customerAddress || booking?.customerAddress || '',
+    amountPaid: invoiceData.amountPaid,
   };
 
-  const invoiceResult = await generateDocumentFromTemplate({
-    template: invoiceTemplate,
-    booking: bookingLike,
-    owner: owner._id || owner,
-    documentTitle: `Invoice ${invoiceNumber}`,
+  const branding = await resolveCompanyBranding(owner._id || owner);
+  const sections = cloneSectionsFromTemplate(invoiceTemplate, branding);
+
+  const sourceData = await buildInvoiceSourceData({
+    invoiceFields: { ...invoiceData, invoiceNumber },
+    booking: booking || bookingLike,
+    owner,
+    template: { ...invoiceTemplate, ...sections },
     includeCompanyStamp,
+    agency: branding,
   });
 
-  const sourceData = buildInvoiceSourceData({
-    invoiceFields: { ...invoiceData, invoiceNumber },
-    booking: bookingLike,
-    owner,
-    template: invoiceTemplate,
+  const persisted = await persistPdfFromInstance({
+    sections,
+    sourceData,
+    owner: owner._id || owner,
+    documentTitle: `Invoice ${invoiceNumber}`,
+    filePrefix: `invoice-${invoiceNumber}`,
     includeCompanyStamp,
   });
 
   return {
-    filePath: invoiceResult.filePath,
-    pdfUrl: invoiceResult.pdfUrl,
-    renderedHtml: invoiceResult.renderedHtml || '',
-    variables: invoiceResult.variables || {},
+    filePath: persisted.filePath || '',
+    pdfUrl: persisted.pdfUrl || '',
+    renderedHtml: persisted.renderedHtml || '',
+    variables: sourceData,
     template: invoiceTemplate,
-    sections: cloneSectionsFromTemplate(invoiceTemplate),
+    sections,
     sourceData,
   };
 };
@@ -329,8 +349,8 @@ export const generateInvoice = async (req, res) => {
       customerDob: booking.dateOfBirth || '',
       invoiceDate: booking.pickupDate || new Date(),
       dueDate: booking.returnDate || booking.pickupDate || new Date(),
-      subtotal: booking.price || 0,
-      discountAmount: 0,
+      subtotal: Number(booking.priceBreakdown?.rentalPrice ?? booking.price ?? 0) || 0,
+      discountAmount: Number(booking.priceBreakdown?.discountTotal || 0) || 0,
       taxAmount: 0,
       totalAmount: booking.price || 0,
       paymentStatus: booking.paymentStatus || 'pending',
@@ -340,12 +360,37 @@ export const generateInvoice = async (req, res) => {
       vehicleYear: booking.car?.year || '',
       vehiclePlate: booking.car?.licensePlate || '',
       currency: req.body.currency || 'MAD',
-      items: [{
-        description: `Rental — ${booking.car?.brand || ''} ${booking.car?.model || ''}`.trim(),
-        quantity: 1,
-        unitPrice: booking.price || 0,
-        taxRate: 0,
-      }],
+      items: (() => {
+        const b = booking.priceBreakdown || {};
+        const rows = [];
+        const rental = Number(b.rentalPrice ?? booking.price ?? 0) || 0;
+        if (rental > 0) {
+          rows.push({
+            description: `Location — ${booking.car?.brand || ''} ${booking.car?.model || ''}`.trim(),
+            quantity: 1,
+            unitPrice: rental,
+            taxRate: 0,
+          });
+        }
+        if (Number(b.pickupDeliveryFee) > 0) {
+          rows.push({ description: 'Frais de livraison (départ)', quantity: 1, unitPrice: Number(b.pickupDeliveryFee), taxRate: 0 });
+        }
+        if (Number(b.dropoffDeliveryFee) > 0) {
+          rows.push({ description: 'Frais de livraison (retour)', quantity: 1, unitPrice: Number(b.dropoffDeliveryFee), taxRate: 0 });
+        }
+        if (Number(b.extraDriverFee) > 0) {
+          rows.push({ description: 'Conducteur supplémentaire', quantity: 1, unitPrice: Number(b.extraDriverFee), taxRate: 0 });
+        }
+        if (!rows.length) {
+          rows.push({
+            description: `Location — ${booking.car?.brand || ''} ${booking.car?.model || ''}`.trim(),
+            quantity: 1,
+            unitPrice: booking.price || 0,
+            taxRate: 0,
+          });
+        }
+        return rows;
+      })(),
     };
 
     const generated = await generateInvoiceDocument({
@@ -450,9 +495,15 @@ export const createManualInvoice = async (req, res) => {
       vehicleYear,
       vehiclePlate,
       vehicleType,
+      pickupDate,
+      returnDate,
+      pickupLocation,
+      returnLocation,
+      reservationRef,
       items = [],
       discountAmount = 0,
       taxAmount: suppliedTaxAmount,
+      amountPaid,
       paymentStatus = 'pending',
       paymentMethod = 'cash',
       paymentReference = '',
@@ -491,10 +542,16 @@ export const createManualInvoice = async (req, res) => {
       customerDob: '',
       invoiceDate: invoiceDateValue,
       dueDate: dueDateValue,
+      pickupDate: pickupDate || invoiceDateValue,
+      returnDate: returnDate || dueDateValue || invoiceDateValue,
+      pickupLocation: pickupLocation || '',
+      returnLocation: returnLocation || '',
+      reservationRef: reservationRef || '',
       subtotal,
       discountAmount: discount,
       taxAmount,
       totalAmount,
+      amountPaid,
       paymentStatus,
       paymentMethod,
       paymentReference,
@@ -655,8 +712,17 @@ export const updateInvoice = async (req, res) => {
       doc.sections = mergeSections(doc.sections, sections);
     }
 
-    const rebuiltSource = buildInvoiceSourceData({
-      invoiceFields: invoiceFieldsFromDoc(doc),
+    const baseFields = invoiceFieldsFromDoc(doc);
+    const rebuiltSource = await buildInvoiceSourceData({
+      invoiceFields: {
+        ...baseFields,
+        reservationRef: fields.reservationRef !== undefined ? fields.reservationRef : baseFields.reservationRef,
+        pickupDate: fields.pickupDate !== undefined ? fields.pickupDate : baseFields.pickupDate,
+        returnDate: fields.returnDate !== undefined ? fields.returnDate : baseFields.returnDate,
+        pickupLocation: fields.pickupLocation !== undefined ? fields.pickupLocation : baseFields.pickupLocation,
+        returnLocation: fields.returnLocation !== undefined ? fields.returnLocation : baseFields.returnLocation,
+        amountPaid: fields.amountPaid !== undefined ? fields.amountPaid : baseFields.amountPaid,
+      },
       booking: doc.booking ? await Booking.findById(doc.booking).populate('car').lean() : null,
       owner: req.user,
       template: doc.sections,
@@ -755,13 +821,15 @@ export const regenerateInvoice = async (req, res) => {
       if (!template) {
         template = await getDefaultInvoiceTemplate(req.user._id);
       }
-      doc.sections = cloneSectionsFromTemplate(template || {});
-      doc.sourceData = buildInvoiceSourceData({
+      const branding = await resolveCompanyBranding(req.user._id);
+      doc.sections = cloneSectionsFromTemplate(template || {}, branding);
+      doc.sourceData = await buildInvoiceSourceData({
         invoiceFields: invoiceFieldsFromDoc(doc),
         booking,
         owner: req.user,
         template: template || {},
         includeCompanyStamp: doc.includeCompanyStamp !== false,
+        agency: branding,
       });
       // When refreshing from booking, also sync structured fields from booking if present
       if (booking) {
@@ -972,6 +1040,79 @@ export const downloadInvoicePdf = async (req, res) => {
   }
 };
 
+/** Live HTML preview for the invoice composer — does not persist. */
+export const previewInvoiceHtml = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const items = normalizeInvoiceItems(body.items || []);
+    const { normalizedItems, subtotal, taxAmount, discountAmount, totalAmount } = computeInvoiceTotals({
+      items,
+      discountAmount: body.discountAmount,
+      taxAmount: body.taxAmount,
+    });
+
+    await ensureDefaultTemplates(req.user._id);
+    const template = await getDefaultInvoiceTemplate(req.user._id);
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'No invoice template found' });
+    }
+
+    const branding = await resolveCompanyBranding(req.user._id);
+    const sections = cloneSectionsFromTemplate(template, branding);
+    const invoiceNumber = buildInvoiceNumber(null, body.invoiceNumber || 'PREVIEW');
+
+    const sourceData = await buildInvoiceSourceData({
+      invoiceFields: {
+        invoiceNumber,
+        invoiceDate: body.invoiceDate || new Date().toISOString().slice(0, 10),
+        dueDate: body.dueDate || '',
+        customerName: body.customerName || '—',
+        customerEmail: body.customerEmail || '',
+        customerPhone: body.customerPhone || '',
+        customerAddress: body.customerAddress || '',
+        customerTaxId: body.customerTaxId || '',
+        vehicleBrand: body.vehicleBrand || '',
+        vehicleModel: body.vehicleModel || '',
+        vehicleYear: body.vehicleYear || '',
+        vehiclePlate: body.vehiclePlate || '',
+        vehicleType: body.vehicleType || '',
+        pickupDate: body.pickupDate || body.invoiceDate,
+        returnDate: body.returnDate || body.dueDate,
+        pickupLocation: body.pickupLocation || '',
+        returnLocation: body.returnLocation || '',
+        reservationRef: body.reservationRef || '',
+        items: normalizedItems,
+        subtotal,
+        discountAmount,
+        taxAmount,
+        totalAmount,
+        amountPaid: body.amountPaid,
+        paymentStatus: body.paymentStatus || 'pending',
+        paymentMethod: body.paymentMethod || 'cash',
+        paymentReference: body.paymentReference || '',
+        notes: body.notes || '',
+        currency: body.currency || 'MAD',
+      },
+      owner: req.user,
+      template: { ...template, ...sections },
+      includeCompanyStamp: body.includeCompanyStamp !== false,
+      agency: branding,
+    });
+
+    const html = renderInstance({
+      sections,
+      sourceData,
+      documentTitle: `Invoice ${invoiceNumber}`,
+      includeCompanyStamp: body.includeCompanyStamp !== false,
+    });
+
+    res.json({ success: true, html, totals: { subtotal, taxAmount, discountAmount, totalAmount } });
+  } catch (error) {
+    console.error('[previewInvoiceHtml]', error.message);
+    res.status(500).json({ success: false, message: error.message || 'Failed to preview invoice' });
+  }
+};
+
 export default {
   listInvoices,
   getInvoice,
@@ -982,4 +1123,5 @@ export default {
   listInvoiceVersions,
   restoreInvoiceVersion,
   downloadInvoicePdf,
+  previewInvoiceHtml,
 };

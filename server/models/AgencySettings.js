@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { OFFICIAL_COMPANY_PROFILE } from '../services/companyBrandingService.js';
 
 const { ObjectId } = mongoose.Schema.Types;
 
@@ -35,6 +36,29 @@ const bookingSettingsSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/** Official company identity used on invoices and legal documents. */
+const companyProfileSchema = new mongoose.Schema(
+  {
+    name: { type: String, default: OFFICIAL_COMPANY_PROFILE.name, maxlength: 120 },
+    addressLine1: { type: String, default: OFFICIAL_COMPANY_PROFILE.addressLine1, maxlength: 200 },
+    addressLine2: { type: String, default: OFFICIAL_COMPANY_PROFILE.addressLine2, maxlength: 200 },
+    address: { type: String, default: OFFICIAL_COMPANY_PROFILE.address, maxlength: 400 },
+    phone: { type: String, default: OFFICIAL_COMPANY_PROFILE.phone, maxlength: 40 },
+    email: { type: String, default: OFFICIAL_COMPANY_PROFILE.email, maxlength: 120 },
+    ice: { type: String, default: OFFICIAL_COMPANY_PROFILE.ice, maxlength: 40 },
+    if: { type: String, default: OFFICIAL_COMPANY_PROFILE.if, maxlength: 40 },
+    rc: { type: String, default: OFFICIAL_COMPANY_PROFILE.rc, maxlength: 40 },
+    accentColor: { type: String, default: OFFICIAL_COMPANY_PROFILE.accentColor, maxlength: 20 },
+    paymentInstructions: { type: String, default: '', maxlength: 2000 },
+    invoiceFooter: { type: String, default: '', maxlength: 1000 },
+    logoUrl: { type: String, default: '' },
+    stampUrl: { type: String, default: '' },
+    signatureUrl: { type: String, default: '' },
+    combinedStampSignatureUrl: { type: String, default: '' },
+  },
+  { _id: false },
+);
+
 /**
  * Per-agency runtime settings (owner-scoped).
  */
@@ -50,6 +74,7 @@ const agencySettingsSchema = new mongoose.Schema(
     whatsappReservationNumber: { type: String, default: '' },
     whatsappConfirmationNumber: { type: String, default: '' },
     bookingSettings: { type: bookingSettingsSchema, default: () => ({}) },
+    companyProfile: { type: companyProfileSchema, default: () => ({ ...OFFICIAL_COMPANY_PROFILE }) },
   },
   { timestamps: true },
 );

@@ -62,8 +62,39 @@ export const TEMPLATE_VARIABLES = [
   { key: 'agency_phone', label: 'Agency Phone', group: 'agency' },
   { key: 'agency_email', label: 'Agency Email', group: 'agency' },
   { key: 'agency_address', label: 'Agency Address', group: 'agency' },
+  { key: 'agency_address_line1', label: 'Agency Address Line 1', group: 'agency' },
+  { key: 'agency_address_line2', label: 'Agency Address Line 2', group: 'agency' },
   { key: 'agency_tax_id', label: 'Agency Tax ID', group: 'agency' },
+  { key: 'agency_ice', label: 'Agency ICE', group: 'agency' },
+  { key: 'agency_if', label: 'Agency IF', group: 'agency' },
+  { key: 'agency_rc', label: 'Agency RC', group: 'agency' },
+  { key: 'agency_accent_color', label: 'Invoice Accent Color', group: 'agency' },
+  { key: 'payment_instructions', label: 'Payment Instructions', group: 'agency' },
+  { key: 'invoice_footer_note', label: 'Custom Invoice Footer Note', group: 'agency' },
+  { key: 'invoice_number', label: 'Invoice Number', group: 'invoice' },
+  { key: 'invoice_date', label: 'Invoice Issue Date', group: 'invoice' },
+  { key: 'invoice_due_date', label: 'Invoice Due Date', group: 'invoice' },
+  { key: 'invoice_payment_status', label: 'Invoice Payment Status Label', group: 'invoice' },
+  { key: 'invoice_payment_method', label: 'Invoice Payment Method', group: 'invoice' },
+  { key: 'invoice_payment_reference', label: 'Invoice Payment Reference', group: 'invoice' },
+  { key: 'customer_tax_id', label: 'Customer Tax / CIN', group: 'customer' },
+  { key: 'invoice_items_html', label: 'Invoice Line Items Rows', group: 'invoice' },
+  { key: 'invoice_subtotal', label: 'Invoice Subtotal', group: 'invoice' },
+  { key: 'invoice_discount', label: 'Invoice Discount', group: 'invoice' },
+  { key: 'invoice_total_ht', label: 'Invoice Total HT', group: 'invoice' },
+  { key: 'invoice_tax', label: 'Invoice TVA', group: 'invoice' },
+  { key: 'invoice_total_ttc', label: 'Invoice Total TTC', group: 'invoice' },
+  { key: 'invoice_amount_paid', label: 'Invoice Amount Paid', group: 'invoice' },
+  { key: 'invoice_balance_due', label: 'Invoice Balance Due', group: 'invoice' },
+  { key: 'invoice_tax_row_html', label: 'Invoice TVA Row (empty if none)', group: 'invoice' },
+  { key: 'invoice_discount_row_html', label: 'Invoice Discount Row (empty if none)', group: 'invoice' },
+  { key: 'company_logo_html', label: 'Company Logo Image', group: 'agency' },
+  { key: 'company_stamp_html', label: 'Company Stamp Image', group: 'agency' },
+  { key: 'company_signature_only_html', label: 'Company Signature Image', group: 'agency' },
+  { key: 'company_cachet_signature_html', label: 'Cachet et Signature Block', group: 'agency' },
   { key: 'company_signature_html', label: 'Company Signature / Stamp', group: 'agency' },
+  { key: 'customer_tax_id_line', label: 'Customer Tax Line', group: 'customer' },
+  { key: 'payment_reference_line', label: 'Payment Reference Line', group: 'invoice' },
   { key: 'customer_signature_html', label: 'Customer Signature', group: 'customer' },
   { key: 'second_driver_signature_html', label: 'Second Driver Signature Image', group: 'customer' },
   { key: 'second_driver_signature_section', label: 'Second Driver Signature Box (empty if none)', group: 'customer' },
@@ -105,6 +136,13 @@ const val = (v) => {
 /** Template keys that intentionally contain trusted server-built HTML. */
 const RAW_HTML_VARIABLE_KEYS = new Set([
   'company_signature_html',
+  'company_logo_html',
+  'company_stamp_html',
+  'company_signature_only_html',
+  'company_cachet_signature_html',
+  'invoice_items_html',
+  'invoice_tax_row_html',
+  'invoice_discount_row_html',
   'customer_signature_html',
   'second_driver_signature_html',
   'second_driver_signature_section',
@@ -321,8 +359,30 @@ export const buildTemplateVariables = (booking, { contractNumber, owner, agency 
     agency_phone: agency.phone || process.env.AGENCY_PHONE || process.env.WHATSAPP_BUSINESS_NUMBER || '—',
     agency_email: agency.email || owner?.email || process.env.AGENCY_EMAIL || '—',
     agency_address: agency.address || process.env.AGENCY_ADDRESS || '—',
+    agency_address_line1: agency.addressLine1 || agency.address || process.env.AGENCY_ADDRESS || '—',
+    agency_address_line2: agency.addressLine2 || '',
     agency_tax_id: agency.taxId || process.env.AGENCY_TAX_ID || '—',
-    company_signature_html: includeCompanyStamp ? buildImageHtml(template?.companySignatureUrl || template?.signatureUrl || '', 'Company signature') : '',
+    agency_ice: agency.ice || '',
+    agency_if: agency.if || '',
+    agency_rc: agency.rc || '',
+    agency_accent_color: agency.accentColor || '#8F1F1F',
+    payment_instructions: agency.paymentInstructions || '',
+    invoice_footer_note: agency.invoiceFooter || '',
+    company_stamp_html: includeCompanyStamp ? buildImageHtml(agency.stampUrl || '', 'Cachet') : '',
+    company_signature_only_html: includeCompanyStamp
+      ? buildImageHtml(agency.signatureUrl || template?.companySignatureUrl || template?.signatureUrl || '', 'Signature')
+      : '',
+    company_signature_html: includeCompanyStamp
+      ? buildImageHtml(
+        agency.combinedStampSignatureUrl
+          || agency.stampUrl
+          || agency.signatureUrl
+          || template?.companySignatureUrl
+          || template?.signatureUrl
+          || '',
+        'Company signature',
+      )
+      : '',
     customer_signature_html: buildImageHtml(booking?.completion?.signatureUrl || '', 'Customer signature', 'max-height:80px;max-width:220px;margin-top:6px;'),
     second_driver_signature_html: sd.enabled
       ? buildImageHtml(booking?.completion?.secondDriverSignatureUrl || '', 'Second driver signature', 'max-height:80px;max-width:220px;margin-top:6px;')

@@ -63,6 +63,8 @@ import {
 import {
   getAgencySettings,
   updateAgencySettings,
+  uploadCompanyAsset,
+  clearCompanyAsset,
 } from "../controllers/agencySettingsController.js";
 import {
   changeAccountPassword,
@@ -162,6 +164,15 @@ ownerRouter.get('/settings', protect, requireOwner, getAgencySettings);
 ownerRouter.put('/settings', protect, requireOwner, updateAgencySettings);
 ownerRouter.get('/settings/whatsapp', protect, requireOwner, getAgencySettings);
 ownerRouter.put('/settings/whatsapp', protect, requireOwner, updateAgencySettings);
+ownerRouter.post(
+  '/settings/company-assets/:kind',
+  protect,
+  requireOwner,
+  upload.single('file'),
+  handleMulterError,
+  uploadCompanyAsset,
+);
+ownerRouter.delete('/settings/company-assets/:kind', protect, requireOwner, clearCompanyAsset);
 
 ownerRouter.get('/promotions', protect, requireOwner, listPromotions);
 ownerRouter.post('/promotions/preview', protect, requireOwner, previewPromotion);

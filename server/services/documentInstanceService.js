@@ -11,6 +11,19 @@ import {
 } from './templateEngine.js';
 import { generatePdfFromTemplate, generatePdfFromHtml } from './templatePdfExport.js';
 import { publicUploadUrl } from './pdfDocuments.js';
+import { resolveCompanyBranding } from './agencySettingsService.js';
+import {
+  buildCompanyCachetSignatureHtml,
+  buildInvoiceDiscountRowHtml,
+  buildInvoiceItemsHtml,
+  buildInvoiceTaxRowHtml,
+  formatInvoiceDate,
+  formatInvoiceMoney,
+  invoicePaymentMethodLabel,
+  invoicePaymentStatusLabel,
+  resolveAmountPaid,
+} from './invoiceTemplateHelpers.js';
+import { resolveCompanyStampAssetUrl } from './companyBrandingService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTRACTS_ROOT = path.join(__dirname, '..', 'uploads', 'contracts');
@@ -24,17 +37,26 @@ export class OptimisticLockError extends Error {
   }
 }
 
-export const cloneSectionsFromTemplate = (template = {}) => ({
-  headerHtml: template.headerHtml || '',
-  bodyHtml: template.bodyHtml || '',
-  termsHtml: template.termsHtml || '',
-  footerHtml: template.footerHtml || '',
-  customCss: template.customCss || '',
-  pageSize: template.pageSize === 'Letter' ? 'Letter' : 'A4',
-  logoUrl: template.logoUrl || '',
-  companySignatureUrl: template.companySignatureUrl || template.signatureUrl || '',
-  name: template.name || '',
-});
+export const cloneSectionsFromTemplate = (template = {}, branding = null) => {
+  const stampUrl = branding
+    ? (resolveCompanyStampAssetUrl(branding) || branding.signatureUrl || '')
+    : '';
+  return {
+    headerHtml: template.headerHtml || '',
+    bodyHtml: template.bodyHtml || '',
+    termsHtml: template.termsHtml || '',
+    footerHtml: template.footerHtml || '',
+    customCss: template.customCss || '',
+    pageSize: template.pageSize === 'Letter' ? 'Letter' : 'A4',
+    logoUrl: branding?.logoUrl || template.logoUrl || '',
+    companySignatureUrl:
+      stampUrl
+      || template.companySignatureUrl
+      || template.signatureUrl
+      || '',
+    name: template.name || '',
+  };
+};
 
 /**
  * Keep logo/signature HTML in sync with durable section asset URLs on every render.
@@ -110,28 +132,50 @@ export const buildContractSourceData = ({
   };
 };
 
-export const buildInvoiceSourceData = ({
+export const buildInvoiceSourceData = async ({
   invoiceFields = {},
   booking = null,
   owner,
   template,
   includeCompanyStamp = true,
+  agency = null,
 }) => {
   const invoiceNumber = invoiceFields.invoiceNumber || booking?.reservationId || 'INV';
+  const currency = invoiceFields.currency || 'MAD';
+  const subtotal = Number(invoiceFields.subtotal ?? booking?.price ?? 0) || 0;
+  const discountAmount = Number(invoiceFields.discountAmount || 0) || 0;
+  const taxAmount = Number(invoiceFields.taxAmount || 0) || 0;
+  const totalAmount = Number(invoiceFields.totalAmount ?? booking?.price ?? 0) || 0;
+  const paymentStatus = invoiceFields.paymentStatus || booking?.paymentStatus || 'pending';
+  const amountPaid = resolveAmountPaid({
+    paymentStatus,
+    totalAmount,
+    amountPaid: invoiceFields.amountPaid,
+    booking,
+  });
+  const balanceDue = Math.max(0, totalAmount - amountPaid);
+  const totalHt = Math.max(0, subtotal - discountAmount);
+
+  const branding = agency || await resolveCompanyBranding(owner?._id || owner);
+  const pickupDate = booking?.pickupDate || invoiceFields.pickupDate || invoiceFields.invoiceDate || new Date();
+  const returnDate = booking?.returnDate || invoiceFields.returnDate || invoiceFields.dueDate || pickupDate;
+
   const bookingLike = {
     ...(booking || {}),
     _id: booking?._id || null,
-    reservationId: invoiceNumber,
+    reservationId: booking?.reservationId || invoiceNumber,
     customerName: invoiceFields.customerName || booking?.customerName || '—',
     customerEmail: invoiceFields.customerEmail || booking?.customerEmail || '',
     customerPhone: invoiceFields.customerPhone || booking?.customerPhone || '',
     nationality: invoiceFields.customerNationality || booking?.nationality || '',
     dateOfBirth: invoiceFields.customerDob || booking?.dateOfBirth || '',
     customerAddress: invoiceFields.customerAddress || booking?.customerAddress || '',
-    pickupDate: invoiceFields.invoiceDate || booking?.pickupDate || new Date(),
-    returnDate: invoiceFields.dueDate || invoiceFields.invoiceDate || booking?.returnDate || new Date(),
-    price: invoiceFields.totalAmount ?? booking?.price ?? 0,
-    paymentStatus: invoiceFields.paymentStatus || booking?.paymentStatus || 'pending',
+    pickupDate,
+    returnDate,
+    pickupLocation: booking?.pickupLocation || invoiceFields.pickupLocation || '',
+    returnLocation: booking?.returnLocation || invoiceFields.returnLocation || '',
+    price: totalAmount,
+    paymentStatus,
     notes: invoiceFields.notes || booking?.notes || '',
     channel: booking?.channel || 'manual',
     car: invoiceFields.vehicleBrand || invoiceFields.vehicleModel || invoiceFields.vehiclePlate || booking?.car
@@ -145,29 +189,91 @@ export const buildInvoiceSourceData = ({
         }
       : undefined,
     priceBreakdown: {
-      rentalPrice: invoiceFields.subtotal ?? booking?.price ?? 0,
-      pickupDeliveryFee: 0,
-      dropoffDeliveryFee: 0,
-      discountTotal: invoiceFields.discountAmount || 0,
-      taxAmount: invoiceFields.taxAmount || 0,
-      total: invoiceFields.totalAmount ?? booking?.price ?? 0,
+      ...(booking?.priceBreakdown || {}),
+      rentalPrice: subtotal || booking?.priceBreakdown?.rentalPrice || booking?.price || 0,
+      pickupDeliveryFee: booking?.priceBreakdown?.pickupDeliveryFee || 0,
+      dropoffDeliveryFee: booking?.priceBreakdown?.dropoffDeliveryFee || 0,
+      discountTotal: discountAmount || booking?.priceBreakdown?.discountTotal || 0,
+      taxAmount,
+      total: totalAmount,
     },
+  };
+
+  const templateWithBrand = {
+    ...(template || {}),
+    logoUrl: branding.logoUrl || template?.logoUrl || '',
+    companySignatureUrl:
+      resolveCompanyStampAssetUrl(branding)
+      || branding.signatureUrl
+      || template?.companySignatureUrl
+      || template?.signatureUrl
+      || '',
   };
 
   const variables = buildTemplateVariables(bookingLike, {
     contractNumber: invoiceNumber,
     owner,
-    template,
+    agency: branding,
+    template: templateWithBrand,
     includeCompanyStamp,
   });
 
+  const vehicleLabel = `${invoiceFields.vehicleBrand || booking?.car?.brand || ''} ${invoiceFields.vehicleModel || booking?.car?.model || ''}`.trim()
+    || variables.car_make
+    || 'Location de véhicule';
+
+  const taxId = String(invoiceFields.customerTaxId || '').trim();
+  const paymentRef = String(invoiceFields.paymentReference || '').trim();
+  const notesText = String(invoiceFields.notes || booking?.notes || '').trim();
+  const paymentInstructions = String(branding.paymentInstructions || '').trim();
+  const footerNote = String(branding.invoiceFooter || '').trim();
+
   return {
     ...variables,
+    notes: notesText || '',
+    payment_instructions: paymentInstructions,
+    invoice_footer_note: footerNote,
+    agency_address_line2: branding.addressLine2 || '',
+    company_logo_html: branding.logoUrl
+      ? buildImageHtml(branding.logoUrl, branding.name || 'HDN CAR', 'max-height:52px;max-width:140px;')
+        .replace('<img ', '<img class="inv-logo" ')
+      : '',
+    customer_tax_id: taxId,
+    customer_tax_id_line: taxId ? `Réf. / IF client : ${taxId}` : '',
+    payment_reference_line: paymentRef ? ` · Réf. : ${paymentRef}` : '',
+    invoice_number: invoiceNumber,
+    invoice_date: formatInvoiceDate(invoiceFields.invoiceDate || new Date()),
+    invoice_due_date: invoiceFields.dueDate ? formatInvoiceDate(invoiceFields.dueDate) : '—',
+    invoice_payment_status: invoicePaymentStatusLabel(paymentStatus),
+    invoice_payment_method: invoicePaymentMethodLabel(invoiceFields.paymentMethod || booking?.paymentMethod || 'cash'),
+    invoice_payment_reference: paymentRef,
+    invoice_items_html: buildInvoiceItemsHtml(invoiceFields.items || [], {
+      currency,
+      fallbackDescription: `Location de véhicule — ${vehicleLabel}`,
+      fallbackAmount: totalAmount,
+    }),
+    invoice_subtotal: formatInvoiceMoney(subtotal, currency),
+    invoice_discount: formatInvoiceMoney(discountAmount, currency),
+    invoice_total_ht: formatInvoiceMoney(totalHt, currency),
+    invoice_tax: formatInvoiceMoney(taxAmount, currency),
+    invoice_total_ttc: formatInvoiceMoney(totalAmount, currency),
+    invoice_amount_paid: formatInvoiceMoney(amountPaid, currency),
+    invoice_balance_due: formatInvoiceMoney(balanceDue, currency),
+    invoice_discount_row_html: buildInvoiceDiscountRowHtml(discountAmount, currency),
+    invoice_tax_row_html: buildInvoiceTaxRowHtml(taxAmount, currency),
+    company_cachet_signature_html: buildCompanyCachetSignatureHtml(
+      { ...branding, companySignatureUrl: templateWithBrand.companySignatureUrl },
+      { includeCompanyStamp },
+    ),
+    company_signature_html: includeCompanyStamp
+      ? buildImageHtml(templateWithBrand.companySignatureUrl, 'Cachet et signature', 'max-height:110px;max-width:240px;')
+      : '',
+    payment_status: invoicePaymentStatusLabel(paymentStatus),
     invoice: {
       invoiceNumber,
       invoiceDate: invoiceFields.invoiceDate || null,
       dueDate: invoiceFields.dueDate || null,
-      currency: invoiceFields.currency || 'MAD',
+      currency,
       customerName: invoiceFields.customerName || '',
       customerEmail: invoiceFields.customerEmail || '',
       customerPhone: invoiceFields.customerPhone || '',
@@ -178,12 +284,19 @@ export const buildInvoiceSourceData = ({
       vehicleYear: invoiceFields.vehicleYear || '',
       vehiclePlate: invoiceFields.vehiclePlate || '',
       vehicleType: invoiceFields.vehicleType || '',
+      reservationRef: invoiceFields.reservationRef || booking?.reservationId || '',
+      pickupDate: pickupDate || null,
+      returnDate: returnDate || null,
+      pickupLocation: bookingLike.pickupLocation || '',
+      returnLocation: bookingLike.returnLocation || '',
       items: invoiceFields.items || [],
-      subtotal: invoiceFields.subtotal || 0,
-      discountAmount: invoiceFields.discountAmount || 0,
-      taxAmount: invoiceFields.taxAmount || 0,
-      totalAmount: invoiceFields.totalAmount || 0,
-      paymentStatus: invoiceFields.paymentStatus || 'pending',
+      subtotal,
+      discountAmount,
+      taxAmount,
+      totalAmount,
+      amountPaid,
+      balanceDue,
+      paymentStatus,
       paymentMethod: invoiceFields.paymentMethod || 'cash',
       paymentReference: invoiceFields.paymentReference || '',
       notes: invoiceFields.notes || '',
@@ -191,6 +304,7 @@ export const buildInvoiceSourceData = ({
     _meta: {
       includeCompanyStamp: Boolean(includeCompanyStamp),
       bookingId: booking?._id ? String(booking._id) : null,
+      brandingName: branding.name,
     },
   };
 };

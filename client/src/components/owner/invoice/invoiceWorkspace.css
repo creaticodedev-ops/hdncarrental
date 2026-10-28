@@ -1,0 +1,204 @@
+/* Invoice composer — premium financial workspace inside the admin shell */
+
+.invw {
+  --invw-ink: var(--admin-ink, #161210);
+  --invw-muted: var(--admin-muted, #6b6560);
+  --invw-line: var(--admin-border, rgba(22, 18, 16, 0.1));
+  --invw-primary: var(--admin-primary, #8f1f1f);
+  --invw-surface: #fff;
+  --invw-soft: #f7f3f0;
+}
+
+.invw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 1180px) {
+  .invw-layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
+    align-items: start;
+  }
+
+  .invw-preview-pane {
+    position: sticky;
+    top: 5.5rem;
+  }
+}
+
+.invw-section {
+  border-top: 1px solid var(--invw-line);
+  padding-top: 1.15rem;
+  margin-top: 1.15rem;
+}
+
+.invw-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.invw-section-title {
+  margin: 0 0 0.85rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--invw-primary);
+}
+
+.invw-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.invw-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .invw-grid.is-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.invw-field label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--invw-muted);
+}
+
+.invw-field input,
+.invw-field select,
+.invw-field textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--invw-line);
+  border-radius: 0.9rem;
+  background: var(--invw-surface);
+  padding: 0.65rem 0.85rem;
+  color: var(--invw-ink);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.invw-field textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.invw-field input:focus,
+.invw-field select:focus,
+.invw-field textarea:focus {
+  border-color: color-mix(in srgb, var(--invw-primary) 55%, #fff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--invw-primary) 12%, transparent);
+}
+
+.invw-items {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.invw-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 4.5rem 6.5rem 5rem auto;
+  gap: 0.45rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid var(--invw-line);
+  border-radius: 1rem;
+  background: var(--invw-soft);
+}
+
+@media (max-width: 719px) {
+  .invw-grid,
+  .invw-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.invw-totals {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #fff 0%, var(--invw-soft) 100%);
+  border: 1px solid var(--invw-line);
+}
+
+.invw-totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.88rem;
+}
+
+.invw-totals .is-total {
+  margin-top: 0.25rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--invw-line);
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.invw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.invw-preview-pane {
+  border: 1px solid var(--invw-line);
+  border-radius: 1.25rem;
+  background: #ebe4de;
+  overflow: hidden;
+  min-height: 28rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.invw-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid var(--invw-line);
+  backdrop-filter: blur(8px);
+}
+
+.invw-preview-bar p {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--invw-muted);
+}
+
+.invw-preview-frame {
+  width: 100%;
+  height: min(72vh, 920px);
+  border: 0;
+  background: #ebe4de;
+}
+
+.invw-preview-empty {
+  display: grid;
+  place-items: center;
+  min-height: 22rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--invw-muted);
+  font-size: 0.9rem;
+}

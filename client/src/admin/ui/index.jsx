@@ -1145,7 +1145,7 @@ export const AdminDrawer = ({
 
 export const AdminModal = ({ open, onClose, title, children, footer, size = 'md' }) => {
   const titleId = useId()
-  const widths = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-3xl' }
+  const widths = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-3xl', full: 'max-w-[96rem]' }
 
   useEffect(() => {
     if (!open) return undefined

@@ -484,7 +484,7 @@ const regenerateUnlockedInvoice = async (booking, actor) => {
   doc.paymentStatus = booking.paymentStatus || 'pending';
   doc.items = invoiceFields.items;
   doc.sections = cloneSectionsFromTemplate(template || doc.sections || {});
-  doc.sourceData = buildInvoiceSourceData({
+  doc.sourceData = await buildInvoiceSourceData({
     invoiceFields,
     booking: bookingLean,
     owner: actor,

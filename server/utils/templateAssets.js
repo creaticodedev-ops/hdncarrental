@@ -73,6 +73,13 @@ export const persistDurableTemplateAsset = async (templateId, uploadedFile, kind
   };
 };
 
+/** Persist agency-level branding assets (logo / stamp / signature). */
+export const persistDurableCompanyAsset = async (ownerId, uploadedFile, kind) =>
+  persistDurableTemplateAsset(`agency-${ownerId}`, uploadedFile, kind);
+
+export const clearLocalCompanyAsset = (ownerId, kind) =>
+  clearLocalTemplateAsset(`agency-${ownerId}`, kind);
+
 export const clearLocalTemplateAsset = (templateId, kind) => {
   try {
     ensureTemplateAssetDir();
@@ -95,7 +102,9 @@ export const cleanupFailedUpload = (file) => {
 
 export default {
   persistDurableTemplateAsset,
+  persistDurableCompanyAsset,
   fileToDataUri,
   clearLocalTemplateAsset,
+  clearLocalCompanyAsset,
   cleanupFailedUpload,
 };

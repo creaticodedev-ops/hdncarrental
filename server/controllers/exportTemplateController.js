@@ -8,6 +8,9 @@ import {
   DEFAULT_CONTRACT_CUSTOM_CSS,
   DEFAULT_CONTRACT_TERMS_HTML,
   DEFAULT_INVOICE_BODY,
+  DEFAULT_INVOICE_HEADER,
+  DEFAULT_INVOICE_FOOTER,
+  DEFAULT_INVOICE_CUSTOM_CSS,
 } from '../services/defaultTemplates.js';
 import { resolveOwnerId } from '../utils/resolveExportTemplate.js';
 import { cleanupUploadedFile } from '../middleware/multer.js';
@@ -17,7 +20,8 @@ import {
 } from '../utils/templateAssets.js';
 
 const BUILTIN_CONTRACT_VERSION = 6;
-const BUILTIN_INVOICE_VERSION = 2;
+/** Bumped for premium HDN CAR corporate invoice stationery (header/body/footer/CSS). */
+const BUILTIN_INVOICE_VERSION = 4;
 
 /**
  * Ensure each owner has seed contract + invoice templates.
@@ -44,12 +48,12 @@ export const ensureDefaultTemplates = async (ownerId) => {
   };
 
   const invoiceDefaults = {
-    name: 'Facture Standard',
+    name: 'Facture HDN CAR',
     type: 'invoice',
-    headerHtml: DEFAULT_CONTRACT_HEADER,
+    headerHtml: DEFAULT_INVOICE_HEADER,
     bodyHtml: DEFAULT_INVOICE_BODY,
-    footerHtml: DEFAULT_CONTRACT_FOOTER,
-    customCss: DEFAULT_CONTRACT_CUSTOM_CSS,
+    footerHtml: DEFAULT_INVOICE_FOOTER,
+    customCss: DEFAULT_INVOICE_CUSTOM_CSS,
     pageSize: 'A4',
     isDefault: true,
     isActive: true,
@@ -79,6 +83,25 @@ export const ensureDefaultTemplates = async (ownerId) => {
       const updates = { templateVersion: BUILTIN_CONTRACT_VERSION };
       if (patched !== doc.bodyHtml) updates.bodyHtml = patched;
       await ExportTemplate.updateOne({ _id: doc._id }, { $set: updates });
+    }
+    // Force-upgrade the system invoice stationery to the premium HDN CAR layout.
+    // Admin-created custom invoice templates (no systemKey) are left untouched.
+    if (systemKey === 'builtin_invoice' && Number(doc.templateVersion || 0) < BUILTIN_INVOICE_VERSION) {
+      await ExportTemplate.updateOne(
+        { _id: doc._id },
+        {
+          $set: {
+            name: defaults.name,
+            headerHtml: defaults.headerHtml,
+            bodyHtml: defaults.bodyHtml,
+            footerHtml: defaults.footerHtml,
+            customCss: defaults.customCss,
+            pageSize: defaults.pageSize,
+            templateVersion: BUILTIN_INVOICE_VERSION,
+            isActive: true,
+          },
+        },
+      );
     }
   };
 

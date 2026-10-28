@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Title from '../../components/owner/Title'
-import DocumentEditPanel, { inputClass, labelClass } from '../../components/owner/DocumentEditPanel'
+import DocumentEditPanel from '../../components/owner/DocumentEditPanel'
 import DocumentSourceFields, { normalizeSourceDataForEdit } from '../../components/owner/DocumentSourceFields'
 import { useDocumentGeneration } from '../../hooks/useDocumentGeneration'
 import { useAppContext } from '../../context/AppContext'
@@ -10,7 +10,7 @@ import { getErrorMessage } from '../../utils/apiError'
 import { openDocumentPdf } from '../../utils/openDocumentPdf'
 import { AdminDrawer } from '../../admin/ui'
 import { downloadXlsx } from '../../utils/downloadXlsx'
-import DateField from '../../components/calendar/DateField'
+import InvoiceComposer from '../../components/owner/invoice/InvoiceComposer'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -23,6 +23,7 @@ const createEmptyForm = () => ({
   invoiceNumber: '',
   invoiceDate: new Date().toISOString().slice(0, 10),
   dueDate: '',
+  reservationRef: '',
   customerName: '',
   customerEmail: '',
   customerPhone: '',
@@ -33,8 +34,13 @@ const createEmptyForm = () => ({
   vehicleYear: '',
   vehiclePlate: '',
   vehicleType: '',
+  pickupDate: '',
+  returnDate: '',
+  pickupLocation: '',
+  returnLocation: '',
   items: [createEmptyItem()],
   discountAmount: '0',
+  amountPaid: '',
   notes: '',
   paymentStatus: 'pending',
   paymentMethod: 'cash',
@@ -115,74 +121,35 @@ const Invoices = () => {
     fetchInvoices({ page: 1, ...next })
   }
 
-  const handleDownload = async (invoice) => {
+  const handleDownload = async (invoice, { download = false } = {}) => {
     try {
       await openDocumentPdf(axios, `/api/invoices/${invoice._id}/pdf`, {
         filename: `${invoice.invoiceNumber || 'invoice'}.pdf`,
+        download,
       })
     } catch (error) {
       toast.error(getErrorMessage(error) || 'PDF not available')
     }
   }
 
+  const handleShareInvoice = async (invoice) => {
+    const title = invoice.invoiceNumber ? `Facture ${invoice.invoiceNumber}` : 'Facture HDN CAR'
+    const url = invoice.pdfUrl || ''
+    try {
+      if (navigator.share) {
+        await navigator.share(url ? { title, url } : { title, text: title })
+        return
+      }
+    } catch {
+      /* cancelled */
+    }
+    await handleDownload(invoice)
+  }
+
   const totals = useMemo(() => ({
     count: invoices.length,
     totalAmount: invoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount ?? (invoice.booking?.price || 0)), 0),
   }), [invoices])
-
-  const computeLineTotals = (items, discountAmount) => {
-    const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0)
-    const taxAmount = items.reduce((sum, item) => sum + ((Number(item.quantity || 0) * Number(item.unitPrice || 0)) * (Number(item.taxRate || 0) / 100)), 0)
-    const discount = Number(discountAmount || 0)
-    return {
-      subtotal,
-      taxAmount,
-      totalAmount: Math.max(0, subtotal + taxAmount - discount),
-    }
-  }
-
-  const lineTotals = useMemo(
-    () => computeLineTotals(form.items, form.discountAmount),
-    [form.items, form.discountAmount],
-  )
-  const editLineTotals = useMemo(
-    () => computeLineTotals(editForm.items, editForm.discountAmount),
-    [editForm.items, editForm.discountAmount],
-  )
-
-  const updateForm = (changes) => setForm((prev) => ({ ...prev, ...changes }))
-  const updateEditForm = (changes) => setEditForm((prev) => ({ ...prev, ...changes }))
-
-  const updateItem = (index, field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
-    }))
-  }
-
-  const updateEditItem = (index, field, value) => {
-    setEditForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
-    }))
-  }
-
-  const addItem = () => setForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem()] }))
-  const addEditItem = () => setEditForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem()] }))
-
-  const removeItem = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, itemIndex) => itemIndex !== index),
-    }))
-  }
-
-  const removeEditItem = (index) => {
-    setEditForm((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, itemIndex) => itemIndex !== index),
-    }))
-  }
 
   const invoiceToForm = (invoice) => {
     const inv = invoice?.sourceData?.invoice || {}
@@ -217,6 +184,11 @@ const Invoices = () => {
       vehicleYear: pick(invoice.vehicleYear, inv.vehicleYear, sd.car_year),
       vehiclePlate: pick(invoice.vehiclePlate, inv.vehiclePlate, sd.car_registration),
       vehicleType: pick(invoice.vehicleType, inv.vehicleType, sd.car_category),
+      reservationRef: pick(inv.reservationRef, sd.reservation_id, invoice.booking?.reservationId),
+      pickupDate: toDateInput(inv.pickupDate || sd.pickup_date),
+      returnDate: toDateInput(inv.returnDate || sd.return_date),
+      pickupLocation: pick(inv.pickupLocation, sd.pickup_location),
+      returnLocation: pick(inv.returnLocation, sd.return_location),
       items: itemsSource.length
         ? itemsSource.map((item) => ({
             description: item.description || '',
@@ -226,6 +198,7 @@ const Invoices = () => {
           }))
         : [createEmptyItem()],
       discountAmount: String(invoice.discountAmount ?? inv.discountAmount ?? 0),
+      amountPaid: inv.amountPaid != null ? String(inv.amountPaid) : '',
       notes: pick(invoice.notes, inv.notes, sd.notes),
       paymentStatus: pick(invoice.paymentStatus, inv.paymentStatus, sd.payment_status) || 'pending',
       paymentMethod: pick(invoice.paymentMethod, inv.paymentMethod) || 'cash',
@@ -332,8 +305,14 @@ const Invoices = () => {
           vehicleYear: editForm.vehicleYear,
           vehiclePlate: editForm.vehiclePlate,
           vehicleType: editForm.vehicleType,
+          reservationRef: editForm.reservationRef,
+          pickupDate: editForm.pickupDate,
+          returnDate: editForm.returnDate,
+          pickupLocation: editForm.pickupLocation,
+          returnLocation: editForm.returnLocation,
           items,
           discountAmount: Number(editForm.discountAmount || 0),
+          amountPaid: editForm.amountPaid === '' || editForm.amountPaid == null ? undefined : Number(editForm.amountPaid),
           notes: editForm.notes,
           paymentStatus: editForm.paymentStatus,
           paymentMethod: editForm.paymentMethod,
@@ -360,8 +339,14 @@ const Invoices = () => {
             vehicleYear: editForm.vehicleYear,
             vehiclePlate: editForm.vehiclePlate,
             vehicleType: editForm.vehicleType,
+            reservationRef: editForm.reservationRef,
+            pickupDate: editForm.pickupDate,
+            returnDate: editForm.returnDate,
+            pickupLocation: editForm.pickupLocation,
+            returnLocation: editForm.returnLocation,
             items,
             discountAmount: Number(editForm.discountAmount || 0),
+            amountPaid: editForm.amountPaid === '' || editForm.amountPaid == null ? undefined : Number(editForm.amountPaid),
             notes: editForm.notes,
             paymentStatus: editForm.paymentStatus,
             paymentMethod: editForm.paymentMethod,
@@ -488,6 +473,7 @@ const Invoices = () => {
         invoiceNumber: form.invoiceNumber || '',
         invoiceDate: form.invoiceDate || new Date().toISOString().slice(0, 10),
         dueDate: form.dueDate || '',
+        reservationRef: form.reservationRef || '',
         customerName: form.customerName,
         customerEmail: form.customerEmail,
         customerPhone: form.customerPhone,
@@ -498,8 +484,13 @@ const Invoices = () => {
         vehicleYear: form.vehicleYear,
         vehiclePlate: form.vehiclePlate,
         vehicleType: form.vehicleType,
+        pickupDate: form.pickupDate || '',
+        returnDate: form.returnDate || '',
+        pickupLocation: form.pickupLocation || '',
+        returnLocation: form.returnLocation || '',
         items,
         discountAmount: Number(form.discountAmount || 0),
+        amountPaid: form.amountPaid === '' || form.amountPaid == null ? undefined : Number(form.amountPaid),
         notes: form.notes,
         paymentStatus: form.paymentStatus,
         paymentMethod: form.paymentMethod,
@@ -653,7 +644,13 @@ const Invoices = () => {
                             {t('admin.common.edit')}
                           </button>
                           <button type="button" onClick={() => handleDownload(invoice)} className="text-gray-700 text-xs font-medium">
+                            {t('admin.invoices.preview')}
+                          </button>
+                          <button type="button" onClick={() => handleDownload(invoice, { download: true })} className="text-gray-700 text-xs font-medium">
                             {t('admin.invoices.download')}
+                          </button>
+                          <button type="button" onClick={() => handleShareInvoice(invoice)} className="text-gray-700 text-xs font-medium">
+                            {t('admin.invoices.share')}
                           </button>
                         </div>
                       </td>
@@ -693,7 +690,7 @@ const Invoices = () => {
         onClose={() => !creating && setShowCreateModal(false)}
         title={t('admin.invoices.createManual')}
         description={t('admin.invoices.createManualHint')}
-        size="xl"
+        size="full"
         dirty={showCreateModal && !creating}
         unsavedTitle={t('admin.ui.unsavedTitle')}
         unsavedMessage={t('admin.ui.unsavedMessage')}
@@ -709,128 +706,15 @@ const Invoices = () => {
           </>
         }
       >
-            <form id="invoice-create-form" onSubmit={handleCreateInvoice} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.invoiceNumber')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.invoiceNumber} onChange={(e) => updateForm({ invoiceNumber: e.target.value })} placeholder="INV-001" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.invoiceDate')}</label>
-                  <DateField className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.invoiceDate} onChange={(invoiceDate) => updateForm({ invoiceDate })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.dueDate')}</label>
-                  <DateField className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.dueDate} onChange={(dueDate) => updateForm({ dueDate })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.customerName')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.customerName} onChange={(e) => updateForm({ customerName: e.target.value })} required />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.customerEmail')}</label>
-                  <input type="email" className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.customerEmail} onChange={(e) => updateForm({ customerEmail: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.customerPhone')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.customerPhone} onChange={(e) => updateForm({ customerPhone: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.customerAddress')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.customerAddress} onChange={(e) => updateForm({ customerAddress: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.customerTaxId')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.customerTaxId} onChange={(e) => updateForm({ customerTaxId: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.currency')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.currency} onChange={(e) => updateForm({ currency: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.vehicleBrand')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.vehicleBrand} onChange={(e) => updateForm({ vehicleBrand: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.vehicleModel')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.vehicleModel} onChange={(e) => updateForm({ vehicleModel: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.vehiclePlate')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.vehiclePlate} onChange={(e) => updateForm({ vehiclePlate: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.vehicleYear')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.vehicleYear} onChange={(e) => updateForm({ vehicleYear: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.vehicleType')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.vehicleType} onChange={(e) => updateForm({ vehicleType: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.paymentStatus')}</label>
-                  <select className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.paymentStatus} onChange={(e) => updateForm({ paymentStatus: e.target.value })}>
-                    <option value="pending">{t('admin.invoices.pending')}</option>
-                    <option value="paid">{t('admin.invoices.paid')}</option>
-                    <option value="partial">{t('admin.invoices.partial')}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.paymentMethod')}</label>
-                  <select className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.paymentMethod} onChange={(e) => updateForm({ paymentMethod: e.target.value })}>
-                    <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank transfer</option>
-                    <option value="card">Card</option>
-                    <option value="cheque">Cheque</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.paymentReference')}</label>
-                  <input className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.paymentReference} onChange={(e) => updateForm({ paymentReference: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-borderColor bg-gray-50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h4 className="text-sm font-semibold text-gray-700">{t('admin.invoices.items')}</h4>
-                  <button type="button" onClick={addItem} className="rounded-lg border border-borderColor bg-white px-3 py-1.5 text-sm">{t('admin.invoices.addItem')}</button>
-                </div>
-                <div className="mt-3 space-y-3">
-                  {form.items.map((item, index) => (
-                    <div key={`${item.description}-${index}`} className="grid gap-2 rounded-lg border border-borderColor bg-white p-3 md:grid-cols-[2fr_0.8fr_1fr_0.7fr_auto]">
-                      <input className="rounded-lg border border-borderColor px-3 py-2 text-sm" value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} placeholder={t('admin.invoices.itemDescription')} />
-                      <input type="number" min="1" className="rounded-lg border border-borderColor px-3 py-2 text-sm" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />
-                      <input type="number" min="0" step="0.01" className="rounded-lg border border-borderColor px-3 py-2 text-sm" value={item.unitPrice} onChange={(e) => updateItem(index, 'unitPrice', e.target.value)} />
-                      <input type="number" min="0" max="100" step="0.01" className="rounded-lg border border-borderColor px-3 py-2 text-sm" value={item.taxRate} onChange={(e) => updateItem(index, 'taxRate', e.target.value)} />
-                      <button type="button" onClick={() => removeItem(index)} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600">×</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 rounded-xl border border-borderColor bg-gray-50 p-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.discount')}</label>
-                  <input type="number" min="0" step="0.01" className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.discountAmount} onChange={(e) => updateForm({ discountAmount: e.target.value })} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">{t('admin.invoices.notes')}</label>
-                  <textarea rows="4" className="w-full rounded-lg border border-borderColor px-3 py-2 text-sm" value={form.notes} onChange={(e) => updateForm({ notes: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 admin-card p-4">
-                <div className="text-sm text-[var(--admin-ink-secondary)]">
-                  <div>{t('admin.invoices.subtotal')}: {currency}{Number(lineTotals.subtotal).toFixed(2)}</div>
-                  <div>{t('admin.invoices.tax')}: {currency}{Number(lineTotals.taxAmount).toFixed(2)}</div>
-                  <div className="font-semibold text-[var(--admin-ink)]">{t('admin.invoices.total')}: {currency}{Number(lineTotals.totalAmount).toFixed(2)}</div>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={form.includeCompanyStamp} onChange={(e) => updateForm({ includeCompanyStamp: e.target.checked })} />
-                  {t('admin.invoices.includeStamp')}
-                </label>
-              </div>
-            </form>
+        <InvoiceComposer
+          form={form}
+          setForm={setForm}
+          onSubmit={handleCreateInvoice}
+          submitting={creating}
+          mode="create"
+          hideSubmit
+          formId="invoice-create-form"
+        />
       </AdminDrawer>
 
       <DocumentEditPanel
@@ -865,128 +749,18 @@ const Invoices = () => {
           onDismiss: () => docGen.close(),
         }}
         fieldsContent={(
-          <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div>
-                <label className={labelClass}>{t('admin.invoices.invoiceNumber')}</label>
-                <input className={inputClass} value={editForm.invoiceNumber} onChange={(e) => updateEditForm({ invoiceNumber: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.invoiceDate')}</label>
-                <DateField className={inputClass} value={editForm.invoiceDate} onChange={(invoiceDate) => updateEditForm({ invoiceDate })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.dueDate')}</label>
-                <DateField className={inputClass} value={editForm.dueDate} onChange={(dueDate) => updateEditForm({ dueDate })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.customerName')}</label>
-                <input className={inputClass} value={editForm.customerName} onChange={(e) => updateEditForm({ customerName: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.customerEmail')}</label>
-                <input type="email" className={inputClass} value={editForm.customerEmail} onChange={(e) => updateEditForm({ customerEmail: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.customerPhone')}</label>
-                <input className={inputClass} value={editForm.customerPhone} onChange={(e) => updateEditForm({ customerPhone: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.customerAddress')}</label>
-                <input className={inputClass} value={editForm.customerAddress} onChange={(e) => updateEditForm({ customerAddress: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.customerTaxId')}</label>
-                <input className={inputClass} value={editForm.customerTaxId} onChange={(e) => updateEditForm({ customerTaxId: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.currency')}</label>
-                <input className={inputClass} value={editForm.currency} onChange={(e) => updateEditForm({ currency: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.vehicleBrand')}</label>
-                <input className={inputClass} value={editForm.vehicleBrand} onChange={(e) => updateEditForm({ vehicleBrand: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.vehicleModel')}</label>
-                <input className={inputClass} value={editForm.vehicleModel} onChange={(e) => updateEditForm({ vehicleModel: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.vehiclePlate')}</label>
-                <input className={inputClass} value={editForm.vehiclePlate} onChange={(e) => updateEditForm({ vehiclePlate: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.vehicleYear')}</label>
-                <input className={inputClass} value={editForm.vehicleYear} onChange={(e) => updateEditForm({ vehicleYear: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.vehicleType')}</label>
-                <input className={inputClass} value={editForm.vehicleType} onChange={(e) => updateEditForm({ vehicleType: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.paymentStatus')}</label>
-                <select className={inputClass} value={editForm.paymentStatus} onChange={(e) => updateEditForm({ paymentStatus: e.target.value })}>
-                  <option value="pending">{t('admin.invoices.pending')}</option>
-                  <option value="paid">{t('admin.invoices.paid')}</option>
-                  <option value="partial">{t('admin.invoices.partial')}</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.paymentMethod')}</label>
-                <select className={inputClass} value={editForm.paymentMethod} onChange={(e) => updateEditForm({ paymentMethod: e.target.value })}>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="card">Card</option>
-                  <option value="cheque">Cheque</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.paymentReference')}</label>
-                <input className={inputClass} value={editForm.paymentReference} onChange={(e) => updateEditForm({ paymentReference: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-borderColor bg-gray-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h4 className="text-sm font-semibold text-gray-700">{t('admin.invoices.items')}</h4>
-                <button type="button" onClick={addEditItem} className="rounded-lg border border-borderColor bg-white px-3 py-1.5 text-sm">{t('admin.invoices.addItem')}</button>
-              </div>
-              <div className="mt-3 space-y-3">
-                {editForm.items.map((item, index) => (
-                  <div key={`edit-item-${index}`} className="grid gap-2 rounded-lg border border-borderColor bg-white p-3 md:grid-cols-[2fr_0.8fr_1fr_0.7fr_auto]">
-                    <input className={inputClass} value={item.description} onChange={(e) => updateEditItem(index, 'description', e.target.value)} placeholder={t('admin.invoices.itemDescription')} />
-                    <input type="number" min="1" className={inputClass} value={item.quantity} onChange={(e) => updateEditItem(index, 'quantity', e.target.value)} />
-                    <input type="number" min="0" step="0.01" className={inputClass} value={item.unitPrice} onChange={(e) => updateEditItem(index, 'unitPrice', e.target.value)} />
-                    <input type="number" min="0" max="100" step="0.01" className={inputClass} value={item.taxRate} onChange={(e) => updateEditItem(index, 'taxRate', e.target.value)} />
-                    <button type="button" onClick={() => removeEditItem(index)} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600">×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>{t('admin.invoices.discount')}</label>
-                <input type="number" min="0" step="0.01" className={inputClass} value={editForm.discountAmount} onChange={(e) => updateEditForm({ discountAmount: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>{t('admin.invoices.notes')}</label>
-                <textarea rows="3" className={inputClass} value={editForm.notes} onChange={(e) => updateEditForm({ notes: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
-              <div>
-                <div>{t('admin.invoices.subtotal')}: {currency}{Number(editLineTotals.subtotal).toFixed(2)}</div>
-                <div>{t('admin.invoices.tax')}: {currency}{Number(editLineTotals.taxAmount).toFixed(2)}</div>
-                <div className="font-semibold">{t('admin.invoices.total')}: {currency}{Number(editLineTotals.totalAmount).toFixed(2)}</div>
-              </div>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={editForm.includeCompanyStamp} onChange={(e) => updateEditForm({ includeCompanyStamp: e.target.checked })} />
-                {t('admin.invoices.includeStamp')}
-              </label>
-            </div>
-
+          <div className="space-y-8">
+            <InvoiceComposer
+              form={editForm}
+              setForm={setEditForm}
+              onSubmit={(e) => {
+                e.preventDefault()
+                saveEdit({ regeneratePdf: true })
+              }}
+              submitting={editSaving || docGen.running}
+              mode="edit"
+              hideSubmit
+            />
             <div className="border-t border-borderColor pt-4">
               <DocumentSourceFields
                 sourceData={editSource}
