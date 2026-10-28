@@ -20,8 +20,8 @@ import {
 } from '../utils/templateAssets.js';
 
 const BUILTIN_CONTRACT_VERSION = 6;
-/** Bumped for premium HDN CAR corporate invoice stationery (header/body/footer/CSS). */
-const BUILTIN_INVOICE_VERSION = 6;
+/** Bumped when removing payment-status badge from invoice stationery. */
+const BUILTIN_INVOICE_VERSION = 7;
 
 /**
  * Ensure each owner has seed contract + invoice templates.

@@ -218,18 +218,6 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
     font-weight: 650;
   }
   .inv-doc-meta strong { font-weight: 650; color: #1c1917; }
-  .inv-status {
-    display: inline-block;
-    margin-top: 10px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #f8e9e9;
-    color: #8F1F1F;
-    font-size: 7.5pt;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
 
   .inv-parties {
     display: grid;
@@ -476,8 +464,7 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
     .doc-page { padding: 0 !important; max-width: 100% !important; }
     .inv-amount-words,
     .inv-table thead th,
-    .inv-rental,
-    .inv-status {
+    .inv-rental {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -509,7 +496,6 @@ export const DEFAULT_INVOICE_HEADER = `
         <div><span>Date</span><strong>{{invoice_date}}</strong></div>
         {{invoice_reservation_meta_html}}
       </div>
-      <div class="inv-status"></div>
     </div>
   </div>
 </div>
