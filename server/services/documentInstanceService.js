@@ -5,6 +5,7 @@ import DocumentRevision from '../models/DocumentRevision.js';
 import Contract from '../models/Contract.js';
 import { resolveLocalUploadPath } from '../utils/uploadPaths.js';
 import {
+  buildDocumentForPdf,
   buildDocumentHtml,
   buildImageHtml,
   buildTemplateVariables,
@@ -52,6 +53,7 @@ export const cloneSectionsFromTemplate = (template = {}, branding = null) => {
     footerHtml: template.footerHtml || '',
     customCss: template.customCss || '',
     pageSize: template.pageSize === 'Letter' ? 'Letter' : 'A4',
+    type: template.type || '',
     logoUrl: branding?.logoUrl || template.logoUrl || '',
     companySignatureUrl:
       stampUrl
@@ -360,6 +362,7 @@ export const buildInvoiceSourceData = async ({
 
 const toTemplateLike = (sections = {}, documentTitle = 'Document') => ({
   name: documentTitle || sections?.name || 'Document',
+  type: sections?.type || '',
   headerHtml: sections?.headerHtml || '',
   bodyHtml: sections?.bodyHtml || '',
   termsHtml: sections?.termsHtml || '',
@@ -443,17 +446,20 @@ export const persistPdfFromInstance = async ({
 
   const templateLike = toTemplateLike(sections, documentTitle);
   const variables = enrichSourceDataWithSectionAssets(sections, sourceData, { includeCompanyStamp });
-  const renderedHtml = buildDocumentHtml(templateLike, variables);
+  // Preview HTML keeps an in-flow footer (flex-anchored). PDF uses Chromium chrome footer.
+  const previewHtml = buildDocumentHtml(templateLike, variables);
+  const { html: pdfHtml, pdfOptions } = buildDocumentForPdf(templateLike, variables);
   await generatePdfFromTemplate({
     template: templateLike,
     variables,
     filePath,
     title: documentTitle || templateLike.name,
-    html: renderedHtml,
+    html: pdfHtml,
+    pdfOptions,
   });
 
   return {
-    renderedHtml,
+    renderedHtml: previewHtml,
     filePath,
     pdfUrl: publicUploadUrl(filePath),
   };

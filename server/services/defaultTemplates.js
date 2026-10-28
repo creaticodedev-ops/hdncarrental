@@ -128,7 +128,10 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
     background: #ffffff !important;
   }
   .doc-page {
-    padding: 14mm 15mm 12mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 273mm !important;
+    padding: 12mm 12mm 10mm !important;
     background: #ffffff !important;
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
     font-size: 9.5pt !important;
@@ -136,17 +139,23 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
     color: #1c1917 !important;
   }
   .doc-header {
+    flex: 0 0 auto;
     border-bottom: none !important;
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
     background: #ffffff !important;
   }
   .doc-header > img { display: none !important; }
+  .doc-body {
+    flex: 1 1 auto;
+    padding-bottom: 6mm;
+  }
   .doc-footer {
+    flex: 0 0 auto;
     border-top: none !important;
-    margin-top: 8mm !important;
+    margin-top: auto !important;
     padding-top: 0 !important;
-    font-size: 7.2pt !important;
+    font-size: 7pt !important;
     color: #78716c !important;
     background: #ffffff !important;
   }
@@ -405,7 +414,9 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
 
   .inv-cachet {
     margin-top: 26px;
+    margin-bottom: 10mm;
     max-width: 300px;
+    page-break-inside: avoid;
   }
   .inv-cachet-title {
     margin: 0 0 10px;
@@ -448,20 +459,63 @@ export const DEFAULT_INVOICE_CUSTOM_CSS = `
   }
 
   .inv-legal-footer {
-    margin-top: 6px;
-    padding-top: 12px;
+    margin: 0;
+    padding-top: 8px;
     border-top: 2px solid #8F1F1F;
     text-align: center;
     font-size: 7pt;
-    line-height: 1.6;
+    line-height: 1.55;
     color: #78716c;
   }
   .inv-legal-footer strong { color: #44403c; font-weight: 650; }
+  .inv-legal-footer-line { margin: 0; }
+  .inv-legal-footer-line + .inv-legal-footer-line { margin-top: 1px; }
+  .inv-legal-footer-line:empty { display: none; }
 
-  @page { size: A4; margin: 10mm; }
+  /* Live preview: pin stationery footer to the bottom of the A4 sheet. */
+  body.doc-chrome-footer .doc-page {
+    position: relative;
+  }
+  body.doc-pdf-chrome-footer .doc-footer { display: none !important; }
+
+  /*
+   * PDF chrome-footer mode: never force a full A4 min-height. That overflowed into
+   * Puppeteer's bottom margin and collided with the repeating legal footer.
+   */
+  body.doc-pdf-chrome-footer .doc-page {
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  body.doc-pdf-chrome-footer .doc-body {
+    padding-bottom: 0 !important;
+  }
+  body.doc-pdf-chrome-footer .inv-cachet {
+    margin-bottom: 4mm;
+  }
+
+  /* Margins are owned by Puppeteer chrome header/footer when generating PDFs. */
+  @page { size: A4; }
   @media print {
     html, body, .doc-page { background: #ffffff !important; }
-    .doc-page { padding: 0 !important; max-width: 100% !important; }
+    body.doc-chrome-footer:not(.doc-pdf-chrome-footer) {
+      padding-bottom: 28mm;
+    }
+    body.doc-chrome-footer:not(.doc-pdf-chrome-footer) .doc-page {
+      min-height: auto !important;
+      padding: 12mm 12mm 30mm !important;
+      max-width: 100% !important;
+    }
+    body.doc-chrome-footer:not(.doc-pdf-chrome-footer) .doc-footer {
+      position: fixed;
+      left: 12mm;
+      right: 12mm;
+      bottom: 6mm;
+      margin-top: 0 !important;
+      background: #ffffff !important;
+    }
     .inv-amount-words,
     .inv-table thead th,
     .inv-rental {
@@ -566,10 +620,10 @@ export const DEFAULT_INVOICE_BODY = `
 
 export const DEFAULT_INVOICE_FOOTER = `
 <div class="inv-legal-footer">
-  <div><strong>{{agency_name}}</strong> — {{agency_address}}</div>
-  <div>Tél. : {{agency_phone}} · Email : {{agency_email}}</div>
-  <div>ICE : {{agency_ice}} · IF : {{agency_if}} · RC : {{agency_rc}}</div>
-  <div>{{invoice_footer_note}}</div>
+  <div class="inv-legal-footer-line"><strong>{{agency_name}}</strong> — {{agency_address}}</div>
+  <div class="inv-legal-footer-line">Tél. : {{agency_phone}} · Email : {{agency_email}}</div>
+  <div class="inv-legal-footer-line">ICE : {{agency_ice}} · IF : {{agency_if}} · RC : {{agency_rc}}</div>
+  <div class="inv-legal-footer-line">{{invoice_footer_note}}</div>
 </div>
 `;
 

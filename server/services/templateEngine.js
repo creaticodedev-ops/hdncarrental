@@ -485,11 +485,56 @@ export const renderTemplate = (html, variables) => {
   });
 };
 
+/** True when stationery should use a repeating A4 page footer (invoices). */
+export const usesChromePageFooter = (template = {}) => {
+  if (String(template?.type || '').toLowerCase() === 'invoice') return true;
+  const footer = String(template?.footerHtml || '');
+  const header = String(template?.headerHtml || '');
+  return footer.includes('inv-legal-footer') || header.includes('inv-shell');
+};
+
+/**
+ * Puppeteer chrome footer HTML (inline styles only — Chromium ignores linked CSS here).
+ */
+export const buildChromePageFooterTemplate = (renderedFooterHtml = '') => {
+  const raw = String(renderedFooterHtml || '').trim();
+  if (!raw) return '<div></div>';
+
+  let inner = raw;
+  const openMatch = raw.match(/<div\s+class="inv-legal-footer"[^>]*>/i);
+  if (openMatch) {
+    const start = raw.indexOf(openMatch[0]) + openMatch[0].length;
+    const end = raw.lastIndexOf('</div>');
+    inner = end > start ? raw.slice(start, end) : raw.slice(start);
+  }
+
+  // Flatten to inline blocks so Puppeteer's chrome footer stays compact and valid.
+  const lines = [...inner.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/gi)]
+    .map((m) => String(m[1] || '').trim())
+    .filter(Boolean);
+
+  const body = lines.length
+    ? lines.join('<br/>')
+    : inner.replace(/<div>\s*<\/div>/gi, '').trim();
+
+  // Puppeteer draws this inside the bottom page margin. Keep it short and padded
+  // so it never paints upward into the content box.
+  return `<div style="width:100%;box-sizing:border-box;padding:0 12mm;margin:0;color:#78716c;font-size:6.5pt;line-height:1.25;font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;">
+  <div style="border-top:1.5px solid #8F1F1F;padding-top:3px;text-align:center;color:#78716c;">
+    ${body}
+  </div>
+</div>`;
+};
+
 /**
  * Wrap rendered sections into a full printable HTML document.
+ * @param {object} [options]
+ * @param {boolean} [options.omitFlowFooter] — omit in-document footer (PDF chrome footer mode)
  */
-export const buildDocumentHtml = (template, variables) => {
+export const buildDocumentHtml = (template, variables, options = {}) => {
   const safeTemplate = template || {};
+  const omitFlowFooter = Boolean(options.omitFlowFooter);
+  const chromeFooter = usesChromePageFooter(safeTemplate);
   const header = renderTemplate(safeTemplate.headerHtml || '', variables);
   const body = renderTemplate(safeTemplate.bodyHtml || '', variables);
   const footer = renderTemplate(safeTemplate.footerHtml || '', variables);
@@ -516,6 +561,14 @@ export const buildDocumentHtml = (template, variables) => {
   const logo = logoSrc
     ? `<img src="${logoSrc}" alt="Logo" style="max-height:48px;margin-bottom:8px;" />`
     : '';
+
+  const bodyClass = [
+    chromeFooter ? 'doc-chrome-footer' : '',
+    omitFlowFooter ? 'doc-pdf-chrome-footer' : '',
+  ].filter(Boolean).join(' ');
+
+  const flowFooter1 = omitFlowFooter ? '' : `<div class="doc-footer">${footerPage1}</div>`;
+  const flowFooter2 = omitFlowFooter ? '' : `<div class="doc-footer">${footerPage2}</div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -563,22 +616,49 @@ export const buildDocumentHtml = (template, variables) => {
     ${css}
   </style>
 </head>
-<body>
+<body class="${bodyClass}">
   <div class="doc-page doc-page-1">
     <div class="doc-header">${logo}${header}</div>
     <div class="doc-body">${body}</div>
-    <div class="doc-footer">${footerPage1}</div>
+    ${flowFooter1}
   </div>
   ${
     termsBody
       ? `<div class="doc-page doc-page-terms page-break-before">
     <div class="doc-body">${termsBody}</div>
-    <div class="doc-footer">${footerPage2}</div>
+    ${flowFooter2}
   </div>`
       : ''
   }
 </body>
 </html>`;
+};
+
+/**
+ * Build HTML + Puppeteer PDF options (chrome page footer for invoices).
+ */
+export const buildDocumentForPdf = (template, variables) => {
+  const chrome = usesChromePageFooter(template);
+  if (!chrome) {
+    return {
+      html: buildDocumentHtml(template, variables),
+      pdfOptions: {
+        margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      },
+    };
+  }
+
+  const footer = renderTemplate(template?.footerHtml || '', variables);
+  return {
+    html: buildDocumentHtml(template, variables, { omitFlowFooter: true }),
+    pdfOptions: {
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate: buildChromePageFooterTemplate(footer),
+      // Bottom margin reserved exclusively for the repeating legal chrome footer.
+      margin: { top: '12mm', right: '12mm', bottom: '22mm', left: '12mm' },
+    },
+  };
 };
 
 export default {
@@ -590,4 +670,7 @@ export default {
   buildSecondDriverSignatureSection,
   renderTemplate,
   buildDocumentHtml,
+  buildDocumentForPdf,
+  buildChromePageFooterTemplate,
+  usesChromePageFooter,
 };

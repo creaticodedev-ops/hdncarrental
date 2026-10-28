@@ -20,8 +20,8 @@ import {
 } from '../utils/templateAssets.js';
 
 const BUILTIN_CONTRACT_VERSION = 6;
-/** Bumped when removing payment-status badge from invoice stationery. */
-const BUILTIN_INVOICE_VERSION = 7;
+/** Bumped for print-safe repeating A4 chrome page footer (no content collision). */
+const BUILTIN_INVOICE_VERSION = 9;
 
 /**
  * Ensure each owner has seed contract + invoice templates.

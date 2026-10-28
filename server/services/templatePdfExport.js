@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
+  buildDocumentForPdf,
   buildDocumentHtml,
   buildTemplateVariables,
   renderTemplate,
@@ -108,8 +109,14 @@ const embedRemoteImagesAsDataUris = async (html) => {
   return next;
 };
 
-const renderHtmlToPdf = async (html, filePath, pageSize = 'A4') => {
+const renderHtmlToPdf = async (html, filePath, pageSize = 'A4', pdfOptions = {}) => {
   const preparedHtml = await embedRemoteImagesAsDataUris(html);
+  const {
+    displayHeaderFooter = false,
+    headerTemplate = '<div></div>',
+    footerTemplate = '<div></div>',
+    margin = { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+  } = pdfOptions || {};
 
   await withPdfPage(async (page) => {
     page.setDefaultNavigationTimeout(45_000);
@@ -120,16 +127,34 @@ const renderHtmlToPdf = async (html, filePath, pageSize = 'A4') => {
       path: filePath,
       format: pageSize === 'Letter' ? 'Letter' : 'A4',
       printBackground: true,
-      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      displayHeaderFooter: Boolean(displayHeaderFooter),
+      headerTemplate: displayHeaderFooter ? headerTemplate : undefined,
+      footerTemplate: displayHeaderFooter ? footerTemplate : undefined,
+      margin,
     });
   });
 };
 
-export const generatePdfFromTemplate = async ({ template, variables, filePath, title = 'Document', html } = {}) => {
+export const generatePdfFromTemplate = async ({
+  template,
+  variables,
+  filePath,
+  title = 'Document',
+  html,
+  pdfOptions,
+} = {}) => {
   ensureDir(path.dirname(filePath));
-  const fullHtml = html || buildDocumentHtml(template, variables);
+  const built = html
+    ? { html, pdfOptions: pdfOptions || {} }
+    : buildDocumentForPdf(template, variables || {});
+  const fullHtml = built.html;
   const titled = fullHtml.replace(/<title>.*?<\/title>/i, `<title>${title}</title>`);
-  await renderHtmlToPdf(titled, filePath, template?.pageSize || 'A4');
+  await renderHtmlToPdf(
+    titled,
+    filePath,
+    template?.pageSize || 'A4',
+    pdfOptions || built.pdfOptions || {},
+  );
   return filePath;
 };
 
@@ -210,7 +235,7 @@ export const generateDocumentFromTemplate = async ({ template, booking, owner, d
   };
 };
 
-export { renderTemplate, buildTemplateVariables, buildDocumentHtml };
+export { renderTemplate, buildTemplateVariables, buildDocumentHtml, buildDocumentForPdf };
 
 export default {
   generateContractPdf,
